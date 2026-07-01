@@ -1,0 +1,46 @@
+backlog_version: 1
+purpose: project-specific operators not reducible to standard math primitives
+
+operators:
+  # applicability / suppression
+  - {opcode: <APPLICABILITY>, canonical_token: <OP_CTRL_APPLICABILITY>, kind: non_math_control, domain: control, type_signature: "Input -> [0,1]", status: planned_direct, priority: S0}
+  - {opcode: <TYPE_GATE>, canonical_token: <OP_CTRL_TYPE_GATE>, kind: non_math_control, domain: control, type_signature: "TypeContext -> [0,1]", status: planned_direct, priority: S0}
+  - {opcode: <PATTERN_GATE>, canonical_token: <OP_CTRL_PATTERN_GATE>, kind: non_math_control, domain: control, type_signature: "PatternContext -> [0,1]", status: planned_direct, priority: S0}
+  - {opcode: <CONFIDENCE_GATE>, canonical_token: <OP_CTRL_CONFIDENCE_GATE>, kind: non_math_control, domain: control, type_signature: "Evidence -> [0,1]", status: planned_direct, priority: S1}
+  - {opcode: <UNCERTAINTY_GATE>, canonical_token: <OP_CTRL_UNCERTAINTY_GATE>, kind: non_math_control, domain: control, type_signature: "Uncertainty -> [0,1]", status: planned_direct, priority: S1}
+  - {opcode: <INHIBIT>, canonical_token: <OP_CTRL_INHIBIT>, kind: non_math_control, domain: control, type_signature: "Gate x Bias -> Bias", status: planned_direct, priority: S1}
+  - {opcode: <EXCITE>, canonical_token: <OP_CTRL_EXCITE>, kind: non_math_control, domain: control, type_signature: "Gate x Bias -> Bias", status: planned_direct, priority: S1}
+
+  # fusion operators
+  - {opcode: <FUSION_SUM>, canonical_token: <OP_FUSION_SUM>, kind: non_math_control, domain: fusion, type_signature: "BiasSeq -> Bias", status: planned_direct, priority: S1}
+  - {opcode: <FUSION_WEIGHTED_SUM>, canonical_token: <OP_FUSION_WEIGHTED_SUM>, kind: non_math_control, domain: fusion, type_signature: "WeightSeq x BiasSeq -> Bias", status: planned_direct, priority: S1}
+  - {opcode: <FUSION_CONSENSUS>, canonical_token: <OP_FUSION_CONSENSUS>, kind: non_math_control, domain: fusion, type_signature: "BiasSeq -> Bias", status: planned_direct, priority: S2}
+  - {opcode: <FUSION_DISAGREEMENT>, canonical_token: <OP_FUSION_DISAGREEMENT>, kind: non_math_control, domain: fusion, type_signature: "BiasSeq -> Score", status: planned_direct, priority: S2}
+  - {opcode: <FUSION_CONFLICT_DETECT>, canonical_token: <OP_FUSION_CONFLICT_DETECT>, kind: non_math_control, domain: fusion, type_signature: "BiasSeq -> BoolOrScore", status: planned_direct, priority: S2}
+  - {opcode: <FUSION_MEDIAN>, canonical_token: <OP_FUSION_MEDIAN>, kind: non_math_control, domain: fusion, type_signature: "BiasSeq -> Bias", status: planned_direct, priority: S2}
+  - {opcode: <FUSION_TRIMMED_MEAN>, canonical_token: <OP_FUSION_TRIMMED_MEAN>, kind: non_math_control, domain: fusion, type_signature: "BiasSeq -> Bias", status: planned_direct, priority: S2}
+
+  # verifier operators
+  - {opcode: <VERIFY_EXACT>, canonical_token: <OP_VERIFY_EXACT>, kind: non_math_control, domain: verifier, type_signature: "Candidate x Target -> Bool", status: planned_direct, priority: S1}
+  - {opcode: <VERIFY_NUMERIC_TOL>, canonical_token: <OP_VERIFY_NUMERIC_TOL>, kind: non_math_control, domain: verifier, type_signature: "Candidate x Target x Tolerance -> Bool", status: planned_direct, priority: S1}
+  - {opcode: <VERIFY_TYPE>, canonical_token: <OP_VERIFY_TYPE>, kind: non_math_control, domain: verifier, type_signature: "Value x Type -> Bool", status: planned_direct, priority: S1}
+  - {opcode: <VERIFY_SHAPE>, canonical_token: <OP_VERIFY_SHAPE>, kind: non_math_control, domain: verifier, type_signature: "Value x Shape -> Bool", status: planned_direct, priority: S1}
+  - {opcode: <VERIFY_DIMENSION>, canonical_token: <OP_VERIFY_DIMENSION>, kind: non_math_control, domain: verifier, type_signature: "Expression -> DimensionCheck", status: planned_direct, priority: S1}
+  - {opcode: <VERIFY_RESIDUAL>, canonical_token: <OP_VERIFY_RESIDUAL>, kind: non_math_control, domain: verifier, type_signature: "Candidate x Equation -> Residual", status: planned_direct, priority: S2}
+  - {opcode: <VERIFY_INVARIANT>, canonical_token: <OP_VERIFY_INVARIANT>, kind: non_math_control, domain: verifier, type_signature: "Candidate x Invariant -> BoolOrResidual", status: planned_direct, priority: S2}
+
+  # candidate/program manipulation
+  - {opcode: <CANDIDATE_PERTURB>, canonical_token: <OP_CANDIDATE_PERTURB>, kind: non_math_control, domain: candidate, type_signature: "Candidate -> Candidate", status: planned_direct, priority: S3}
+  - {opcode: <CANDIDATE_REWRITE>, canonical_token: <OP_CANDIDATE_REWRITE>, kind: non_math_control, domain: candidate, type_signature: "Program -> Program", status: planned_direct, priority: S3}
+  - {opcode: <CANDIDATE_SIMPLIFY_PROGRAM>, canonical_token: <OP_CANDIDATE_SIMPLIFY_PROGRAM>, kind: non_math_control, domain: candidate, type_signature: "Program -> Program", status: planned_direct, priority: S3}
+  - {opcode: <CANDIDATE_DISTILL>, canonical_token: <OP_CANDIDATE_DISTILL>, kind: non_math_control, domain: candidate, type_signature: "ProgramOrUnit -> Unit", status: planned_direct, priority: S3}
+
+  # semantic/tool-like operators are intentionally speculative
+  - {opcode: <PARSE>, canonical_token: <OP_SEM_PARSE>, kind: non_math_semantic, domain: semantic, type_signature: "Text -> Structure", status: speculative, priority: S4}
+  - {opcode: <SEMANTIC_SIM>, canonical_token: <OP_SEM_SEMANTIC_SIM>, kind: non_math_semantic, domain: semantic, type_signature: "Text x Text -> Score", status: speculative, priority: S4}
+  - {opcode: <ENTAILS>, canonical_token: <OP_SEM_ENTAILS>, kind: non_math_semantic, domain: semantic, type_signature: "Text x Text -> Bool", status: speculative, priority: S4}
+  - {opcode: <CONTRADICTS>, canonical_token: <OP_SEM_CONTRADICTS>, kind: non_math_semantic, domain: semantic, type_signature: "Text x Text -> Bool", status: speculative, priority: S4}
+  - {opcode: <RETRIEVE>, canonical_token: <OP_TOOL_RETRIEVE>, kind: non_math_tool, domain: tool, type_signature: "Query -> Documents", status: speculative, priority: S5}
+  - {opcode: <RERANK>, canonical_token: <OP_TOOL_RERANK>, kind: non_math_tool, domain: tool, type_signature: "Query x Documents -> Documents", status: speculative, priority: S5}
+  - {opcode: <FETCH>, canonical_token: <OP_TOOL_FETCH>, kind: non_math_tool, domain: tool, type_signature: "Locator -> Content", status: speculative, priority: S5}
+  - {opcode: <VERIFY_EXTERNAL>, canonical_token: <OP_TOOL_VERIFY_EXTERNAL>, kind: non_math_tool, domain: tool, type_signature: "Claim -> Verdict", status: speculative, priority: S5}
