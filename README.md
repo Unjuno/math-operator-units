@@ -1,8 +1,8 @@
 # Math Operator Units
 
-This repository studies **logit-space semantics for model control** through operator-specific model units.
+This repository studies **logit-space semantics for same-prefix parallel bias control** through operator-specific model units.
 
-The goal is not primarily to build a neural calculator, a faster router, or a replacement for symbolic computation. The goal is to define human-interpretable bias operations in logit space, learn small modules for those operations, and test whether their softmax and verifier effects survive correction and composition.
+The goal is not primarily to build a neural calculator, a faster router, keyword-based mode switching, or a replacement for symbolic computation. The goal is to run multiple model/unit outputs over the same sequence context, treat their differences as bias fields, transform those fields with human-interpretable bias operations, and test whether their softmax and verifier effects survive correction and composition.
 
 Each operator unit has two components:
 
@@ -11,15 +11,21 @@ U_k = (M_k, C_k)
 ```
 
 - `M_k`: main operator model that produces an operator-specific bias, logit contribution, or proposal.
-- `C_k`: corrector / gate that suppresses the unit when the operator is not applicable.
+- `C_k`: corrector / contribution controller that decides how much of that bias field may affect the final logits.
 
 The runtime fusion rule is:
 
 ```text
-z_final = z_0 + Σ_{k in S_runtime} g_k(x) b_k(x)
+z_final(v | x) = z_0(v | x) + Σ_{k in S_runtime} c_k(v | x) b_k(v | x)
 ```
 
-where `S_runtime` is the selected runtime fusion set for the current task or experiment. The full registry may contain many units, but only the selected runtime set is loaded for a run. Within that set, irrelevant units are suppressed by their own correctors.
+A scalar gate version is allowed as an approximation:
+
+```text
+z_final(v | x) = z_0(v | x) + Σ_{k in S_runtime} g_k(x) b_k(v | x)
+```
+
+where `S_runtime` is the selected runtime set for the current experiment. The main target is not to route to one expert, but to compose multiple corrected bias fields over the same sequence prefix.
 
 ## Project framing
 
@@ -29,11 +35,23 @@ A control direction is represented as a bias field over the vocabulary:
 B(v | x) ∈ R^{|V|}
 ```
 
+For a parallel model/unit output:
+
+```text
+B_i(v | x) = z_i(v | x) - z_0(v | x)
+```
+
+A bias operator transforms these fields:
+
+```text
+F(v | x) = O(B_1, B_2, ..., B_n)(v | x)
+```
+
 Its meaning is defined by its induced distributional and verifier effects:
 
 ```text
-Δp_B = softmax(z_0 + B) - softmax(z_0)
-ΔV(B) = E_{y ~ p_B}[V(y)] - E_{y ~ p_0}[V(y)]
+Δp_F = softmax(z_0 + F) - softmax(z_0)
+ΔV(F) = E_{y ~ p_F}[V(y)] - E_{y ~ p_0}[V(y)]
 ```
 
 The mathematical operator experiments are controlled proxies for this goal. They test whether learned bias operators such as composition, difference, projection removal, agreement, completion, and residual decomposition can be learned, corrected, and composed before moving to less transparent LLM settings.
@@ -53,10 +71,12 @@ The mathematical operator experiments are controlled proxies for this goal. They
 11. Operator units learn transformation distributions over the shared numeric/equality ABI; they must not redefine numbers or equality.
 12. Raw fusion must not assume inactive units are neutral; corrected fusion must measure and suppress inactive bias leakage.
 13. A learned bias module has semantic force only through its measured softmax/verifier effect and its applicability-corrected contribution.
+14. Runtime control should be framed as same-prefix parallel bias-field control, not keyword-based mode switching.
 
 ## Initial documents
 
 - [`docs/logit_bias_semantics.md`](docs/logit_bias_semantics.md): primary research framing for logit-space bias semantics.
+- [`docs/parallel_sequence_bias_control.md`](docs/parallel_sequence_bias_control.md): same-prefix parallel model/unit outputs and bias-field control.
 - [`docs/tokenizer_design.md`](docs/tokenizer_design.md): tokenizer and vocabulary policy.
 - [`docs/shared_numeric_equality_abi.md`](docs/shared_numeric_equality_abi.md): shared number/equality ABI policy for all units.
 - [`docs/equivalence_trace_training_plan.md`](docs/equivalence_trace_training_plan.md): equality trace data and anti-shortcut / anti-loop training policy.
@@ -86,7 +106,7 @@ The first learned units should target:
 <OP_CTRL_ABSTAIN>
 ```
 
-The first evaluation target is not broad problem solving. It is reproducible verification that runtime-selected fusion suppresses inactive units and preserves active units.
+The first evaluation target is not broad problem solving. It is reproducible verification that parallel same-prefix bias control suppresses inactive contributions and preserves useful active contributions.
 
 ## Preliminary raw fusion observation
 
@@ -95,10 +115,10 @@ Early 0.1K proxy experiments suggest that inactive operator models do not reliab
 This motivates treating a stable fusion unit as a pair:
 
 ```text
-operator unit = main model + applicability corrector
+operator unit = main model + contribution controller
 ```
 
-The main model proposes an operator-specific contribution. The corrector suppresses that contribution when the operator is inactive, unknown, or out-of-domain.
+The main model proposes an operator-specific contribution. The corrector controls how much of that contribution affects the final same-prefix next-token distribution.
 
 ## Shared numeric and equality ABI
 
@@ -157,3 +177,6 @@ Valid equivalence is not the same as useful progress. Equality traces must there
 - `softmax_effect_jsd`
 - `verifier_score_shift`
 - `residual_stability`
+- `parallel_field_agreement`
+- `parallel_field_conflict`
+- `control_success_rate`
