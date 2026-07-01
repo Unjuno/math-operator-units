@@ -2,9 +2,11 @@
 
 This document defines the long-term research target for operator-unit fusion.
 
+The project is not primarily a calculator, a router, or a replacement for symbolic computation. It is a controlled study of **logit-space semantics for model control**.
+
 ## 1. Core hypothesis
 
-A large system can be built from many operator-specific units:
+A controllable generation system can be built from typed bias operators:
 
 ```text
 U_k = (M_k, C_k)
@@ -12,24 +14,53 @@ U_k = (M_k, C_k)
 
 where:
 
-- `M_k` is an operator-specific model.
-- `C_k` is a corrector/gate that suppresses irrelevant or harmful output.
-- all units can be run in an always-on manner.
-- fusion combines only the surviving useful contributions.
+- `M_k` is an operator-specific model that emits a bias field, logit contribution, or proposal.
+- `C_k` is a corrector/gate that suppresses irrelevant, out-of-domain, or harmful output.
+- fusion uses runtime-selected sets rather than assuming the whole registry is always active.
+- corrected fusion combines only the semantically applicable contributions.
 
 The fused output is:
 
 ```text
-z_final = z_0 + Σ_k g_k(x) b_k(x)
+z_final = z_0 + Σ_{k in S_runtime} g_k(x) b_k(x)
 ```
 
-The research question is not merely whether this improves arithmetic. The central question is whether self-suppressing operator units can become a scalable substrate for compositional reasoning, mathematical search, scientific computing, and controllable generation.
+The central question is not whether this improves arithmetic. The central question is whether human-defined logit-space bias operators can be learned, corrected, and composed while preserving measurable distributional and verifier effects.
 
-## 2. Difference from existing paradigms
+## 2. Logit-space semantic target
+
+Let a base model produce:
+
+```text
+z_0(v | x)
+```
+
+A control direction is a bias field:
+
+```text
+B(v | x) ∈ R^{|V|}
+```
+
+Its meaning is defined by effects such as:
+
+```text
+Δp_B = softmax(z_0 + B) - softmax(z_0)
+ΔV(B) = E_{y ~ p_B}[V(y)] - E_{y ~ p_0}[V(y)]
+```
+
+Thus:
+
+```text
+meaning = distribution shift + verifier-score shift
+```
+
+This is the target semantics. Mathematical operator experiments are proxy domains for testing whether this semantics can be learned and composed under controlled conditions.
+
+## 3. Difference from existing paradigms
 
 This project is related to, but distinct from:
 
-- Mixture-of-Experts: experts are routed sparsely, usually by a central router.
+- Mixture-of-Experts: experts are routed sparsely, usually by a router.
 - Adapter fusion: learned task adapters are combined inside a base model.
 - Decoding-time expert methods: logits are steered by expert/anti-expert models.
 - Neural operators: large models learn function-space maps, often PDE solution operators.
@@ -39,54 +70,63 @@ This project is related to, but distinct from:
 This project instead studies:
 
 ```text
-always-on typed operator units
-+ unit-specific correctors
+logit-space bias semantics
++ typed bias operators
++ runtime-selected fusion sets
++ unit-specific applicability correctors
 + shared tokenizer/output ABI
-+ operator registry
-+ fusion/leakage metrics
-+ verifier-backed evaluation
++ inactive-leakage metrics
++ softmax/verifier effect measurement
 ```
 
-## 3. What this could enable
+Short distinction:
 
-### 3.1 A compositional mathematical operator model
+```text
+MoE routes computation.
+This project composes corrected controls.
+```
+
+## 4. What this could enable
+
+### 4.1 Bias algebra control model
 
 Goal:
 
 ```text
-Build many small operator models that compose into larger mathematical behavior.
+Represent generation controls as typed bias-field operations.
 ```
 
 Examples:
 
-- scalar arithmetic
-- vector and matrix algebra
-- aggregation/statistics
-- discrete selection
-- calculus operators
-- probability/information operators
-- bias/logit algebra
-- PDE residual operators
+- add or subtract a control direction
+- complete a missing semantic component
+- remove a projected component
+- preserve useful orthogonal component
+- compute agreement between two control fields
+- enforce entropy/KL budget
+- detect conflict between controls
+- fuse multiple validators/scorers
 
 Success criterion:
 
 ```text
-Composed operator programs solve tasks not directly trained as monolithic tasks.
+Learned operators produce softmax/verifier effects close to exact or reference bias-field operators, including on unseen compositions.
 ```
 
-### 3.2 Self-suppressing expert libraries
+### 4.2 Corrector-gated fusion model
 
 Goal:
 
 ```text
-Run many units at once without unrelated units corrupting the result.
+Compose multiple small control fields without unrelated fields corrupting the result.
 ```
 
-The corrector must solve the interference problem:
+The corrector solves the interference problem:
 
 ```text
-irrelevant unit -> suppress
 relevant unit -> preserve
+irrelevant unit -> suppress
+unknown/OOD input -> suppress
 conflicting unit -> downweight or flag
 ```
 
@@ -96,7 +136,64 @@ Primary metric:
 inactive_leakage = Σ_{k inactive} g_k(x)
 ```
 
-### 3.3 Verifier-guided mathematical discovery
+Additional metrics:
+
+```text
+unknown_operator_assimilation_rate
+inactive_pmax
+ood_entropy
+ood_pmax
+wrong_operator_projection_rate
+```
+
+### 4.3 Mode-switched runtime fusion
+
+Goal:
+
+```text
+Select a small candidate fusion set for the current mode, then compose corrected bias fields in parallel.
+```
+
+Mode selection is not the main semantics. It is a runtime mechanism.
+
+```text
+mode selector:
+  chooses candidate control fields
+
+corrector:
+  gates semantic applicability
+
+fusion:
+  composes corrected fields
+```
+
+This differs from routing to one expert. The target is safe composition of multiple control directions.
+
+### 4.4 Compositional mathematical proxy
+
+Goal:
+
+```text
+Use mathematical and bias-field operators as verifiable proxy domains.
+```
+
+Examples:
+
+- scalar arithmetic
+- vector and matrix algebra
+- aggregation/statistics
+- calculus operators
+- probability/information operators
+- bias/logit algebra
+- PDE residual operators
+
+Success criterion:
+
+```text
+Composed operator programs preserve exact or reference effects better than raw fusion and wrong-composition baselines.
+```
+
+### 4.5 Verifier-guided candidate generation
 
 Goal:
 
@@ -105,16 +202,6 @@ Generate candidate programs, formulas, transformations, or constructions and kee
 ```
 
 The model should not be treated as a proof oracle. It is a candidate generator and bias composer.
-
-Candidate classes:
-
-- algorithm candidates
-- formula candidates
-- rewrite candidates
-- invariant candidates
-- PDE solution candidates
-- counterexample candidates
-- proof-step candidates
 
 Verifier classes:
 
@@ -125,7 +212,7 @@ Verifier classes:
 - symbolic simplifier
 - theorem prover or proof assistant, later
 
-### 3.4 Scientific operator system
+### 4.6 Scientific operator sandbox
 
 Goal:
 
@@ -145,30 +232,41 @@ candidate solution / transformation / invariant
 
 This is more realistic than claiming direct solution of arbitrary open PDEs.
 
-### 3.5 Controllable generation through bias algebra
+## 5. Final target model classes
 
-Goal:
+### Target A: Logit Bias Semantics Model
+
+A system that treats model control as typed operations on bias fields:
 
 ```text
-Represent generation controls as typed bias-field operations.
+bias add / subtract / complete / project / remove / agree / normalize / entropy-match / KL-budget
 ```
 
-Examples:
+Objective:
 
-- add style or task bias
-- remove unsafe/risky direction
-- preserve useful orthogonal component
-- enforce entropy/KL budget
-- detect conflict between controls
-- fuse multiple validators/scorers
+```text
+Achieve controlled generation behavior whose meaning is measurable through softmax and verifier effects.
+```
 
-This differs from ordinary prompt engineering because the control is explicit in bias/logit/operator space.
+### Target B: Corrector-Gated Fusion Model
 
-## 4. Final target model classes
+A fusion system that composes runtime-selected corrected units:
 
-### Target A: Operator Library Model
+```text
+S_runtime selected for the task or mode
+correctors decide preserve/suppress
+fusion remains stable as unit count grows
+```
 
-A model family made of many small units:
+Objective:
+
+```text
+Scale from 4 units -> 16 -> 64 -> 256 without inactive leakage dominating.
+```
+
+### Target C: Operator Library Proxy Model
+
+A model family made of small verifiable units:
 
 ```text
 scalar + vector + linalg + calculus + probability + bias + control units
@@ -177,26 +275,10 @@ scalar + vector + linalg + calculus + probability + bias + control units
 Objective:
 
 ```text
-Solve unseen composed operator programs better than monolithic small baselines.
+Solve unseen composed operator programs and measure whether learned composition tracks exact composition.
 ```
 
-### Target B: Self-Suppressing Fusion Model
-
-A fusion system that can run many units simultaneously:
-
-```text
-all units active at runtime
-correctors decide preserve/suppress
-fusion remains stable as unit count grows
-```
-
-Objective:
-
-```text
-Scale from 4 units -> 16 -> 64 -> 256 without leakage dominating.
-```
-
-### Target C: Verifier-Guided Discovery Model
+### Target D: Verifier-Guided Discovery Model
 
 A system that proposes candidates and relies on verifiers:
 
@@ -208,20 +290,6 @@ Objective:
 
 ```text
 Discover useful algorithms, transforms, invariants, or counterexamples in bounded benchmark domains.
-```
-
-### Target D: Bias Algebra Control Model
-
-A model that treats logit/bias control as an algebra:
-
-```text
-bias add / subtract / project / remove / agree / normalize / entropy-match / KL-budget
-```
-
-Objective:
-
-```text
-Achieve controlled generation behavior that is inspectable and compositional.
 ```
 
 ### Target E: PDE Residual Fusion Model
@@ -238,23 +306,23 @@ Objective:
 Generate candidate PDE solutions or transformations whose residuals are lower than baselines.
 ```
 
-## 5. What would count as genuinely new
+## 6. What would count as genuinely new
 
-The project should not claim novelty for generic expert routing, adapter composition, logit steering, or neural operators.
+The project should not claim novelty for generic expert routing, adapter composition, logit steering, neural operators, or arithmetic approximation.
 
-The stronger claim is:
-
-```text
-Typed operator-specific units can be trained independently, paired with self-suppressing correctors, and fused always-on while preserving compositional semantics and limiting inactive leakage.
-```
-
-A still stronger claim is:
+A safer claim is:
 
 ```text
-This architecture can serve as a substrate for verifier-guided mathematical and scientific discovery.
+Learned bias modules are not assumed to be safely composable by raw addition. They become meaningful compositional control units only when their logit-space effects are typed, measured, and gated by applicability correctors.
 ```
 
-## 6. Milestone ladder
+A stronger claim, if supported by experiments, is:
+
+```text
+Runtime-selected sets of corrected bias operators can compose into unseen control transformations while limiting inactive leakage and preserving measurable softmax/verifier effects.
+```
+
+## 7. Milestone ladder
 
 ### Milestone 0: Core reproducibility
 
@@ -262,14 +330,17 @@ This architecture can serve as a substrate for verifier-guided mathematical and 
 - raw vs corrected fusion
 - gate matrix
 - leakage metrics
+- OOD peakedness
+- operator assimilation error
 
-### Milestone 1: Operator expansion
+### Milestone 1: Bias algebra primitives
 
-- scalar numeric
-- compare/sort/top-k
-- aggregation/statistics
-- linalg dot/proj/matmul
-- bias algebra units
+- bias add/subtract
+- positive agreement
+- projection removal
+- completion target-current
+- residual stability
+- exact vs learned softmax effect comparison
 
 ### Milestone 2: Composition benchmark
 
@@ -277,11 +348,13 @@ This architecture can serve as a substrate for verifier-guided mathematical and 
 - length OOD
 - type mismatch tests
 - unseen operator programs
+- wrong-composition baselines
 - program-only vs distilled-unit comparison
 
-### Milestone 3: Large unit count
+### Milestone 3: Runtime-selected fusion sets
 
-- 16, 64, 256 unit always-on fusion
+- mode-specific fusion sets
+- 16, 64, 256 unit corrected fusion
 - leakage scaling law
 - conflict detection
 - type-gate and pattern-gate ablations
@@ -299,15 +372,16 @@ This architecture can serve as a substrate for verifier-guided mathematical and 
 - boundary and initial condition units
 - residual descent and candidate generation
 
-### Milestone 6: Discovery benchmarks
+### Milestone 6: LLM bias-fusion prototype
 
-- matrix multiplication decompositions
-- sorting/search heuristics
-- combinatorial constructions
-- invariant discovery
-- PDE transformation candidates
+- fixed base LLM
+- small bias/corrector units
+- mode-switched fusion sets
+- softmax effect measurement
+- verifier-score shift measurement
+- comparison against raw steering and wrong-mode activation
 
-## 7. Non-goals
+## 8. Non-goals
 
 The project should not initially claim:
 
@@ -316,17 +390,19 @@ The project should not initially claim:
 - replacement of symbolic solvers
 - general AGI-style reasoning
 - uncontrolled natural-language semantic correctness
+- that raw LLM bias addition is safe
+- that this is simply a faster MoE router
 
 The correct initial framing is:
 
 ```text
-verifiable candidate generation and compositional operator fusion
+verifiable logit-space semantics and corrector-gated compositional bias fusion
 ```
 
-## 8. North-star goal
+## 9. North-star goal
 
 The north-star target is:
 
 ```text
-A typed, always-on library of self-suppressing operator units that can compose mathematical, symbolic, numerical, and control operations into larger behaviors, while using verifiers to separate valid discoveries from hallucinated outputs.
+A typed, runtime-selected library of corrected bias operators that can compose model-control directions in logit space, while using verifiers and leakage metrics to separate meaningful control effects from raw-fusion artifacts.
 ```
