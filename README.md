@@ -11,13 +11,13 @@ U_k = (M_k, C_k)
 - `M_k`: main operator model that produces an operator-specific bias, logit contribution, or proposal.
 - `C_k`: corrector / gate that suppresses the unit when the operator is not applicable.
 
-The always-on fusion rule is:
+The runtime fusion rule is:
 
 ```text
-z_final = z_0 + Σ_k g_k(x) b_k(x)
+z_final = z_0 + Σ_{k in S_runtime} g_k(x) b_k(x)
 ```
 
-where every unit is executed, but irrelevant units are suppressed by their own correctors.
+where `S_runtime` is the selected runtime fusion set for the current task or experiment. The full registry may contain many units, but only the selected runtime set is loaded for a run. Within that set, irrelevant units are suppressed by their own correctors.
 
 ## Core design rules
 
@@ -29,10 +29,15 @@ where every unit is executed, but irrelevant units are suppressed by their own c
 6. The tokenizer is part of the model ABI and must be fixed per tokenizer version.
 7. Fusion is allowed only between checkpoints with the same tokenizer profile and vocabulary hash.
 8. Mathematical and non-mathematical operators are separated by `kind`.
+9. `dispatch` must remain false in runtime fusion manifests.
+10. Numbers, equality, and structural expression tokens are shared ABI tokens across all units.
+11. Operator units learn transformation distributions over the shared numeric/equality ABI; they must not redefine numbers or equality.
 
 ## Initial documents
 
 - [`docs/tokenizer_design.md`](docs/tokenizer_design.md): tokenizer and vocabulary policy.
+- [`docs/shared_numeric_equality_abi.md`](docs/shared_numeric_equality_abi.md): shared number/equality ABI policy for all units.
+- [`docs/equivalence_trace_training_plan.md`](docs/equivalence_trace_training_plan.md): equality trace data and anti-shortcut / anti-loop training policy.
 - [`configs/tokenizer/tokenizer_core_v1.yaml`](configs/tokenizer/tokenizer_core_v1.yaml): initial tokenizer profile.
 - [`configs/operators/registry.yaml`](configs/operators/registry.yaml): initial operator registry scaffold.
 
@@ -58,7 +63,35 @@ The first learned units should target:
 <OP_CTRL_ABSTAIN>
 ```
 
-The first evaluation target is not broad problem solving. It is reproducible verification that always-on fusion suppresses inactive units and preserves active units.
+The first evaluation target is not broad problem solving. It is reproducible verification that runtime-selected fusion suppresses inactive units and preserves active units.
+
+## Shared numeric and equality ABI
+
+Numbers and equality are common infrastructure, not operator-specific semantics.
+
+```text
+shared ABI:
+  numeric tokens
+  equality token
+  structural expression tokens
+
+operator-specific layer:
+  ADD transformation distribution
+  MUL transformation distribution
+  NEG transformation distribution
+  VERIFY / PROGRESS / STOP judgments
+```
+
+For example, `ADD` and `MUL` may propose different transformations, but they must use the same numeric token meanings and the same equality relation marker.
+
+```text
+<OP_ADD> <NEXT_EQ> 3 + 4 + 5 -> 7 + 5
+<OP_MUL> <NEXT_EQ> 3 * 4 * 5 -> 12 * 5
+<VERIFY_EQ> 6 = 6 -> VALID
+<PROGRESS?> 6 = 6 -> NO_PROGRESS
+```
+
+Valid equivalence is not the same as useful progress. Equality traces must therefore separate next-step proposal, verification, progress scoring, and stop decisions.
 
 ## Key metrics
 
@@ -74,3 +107,8 @@ The first evaluation target is not broad problem solving. It is reproducible ver
 - `short_mixed_leakage`
 - `length_ood_accuracy`
 - `depth_ood_accuracy`
+- `first_equals_final_answer_rate`
+- `equals_to_eos_rate`
+- `equals_continuation_rate`
+- `repeated_state_rate`
+- `no_progress_window_rate`
