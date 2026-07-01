@@ -24,6 +24,8 @@ The goal is:
 expression -> valid next transformation candidates -> verified progress -> verifier-backed stop
 ```
 
+This plan depends on the shared ABI policy in [`shared_numeric_equality_abi.md`](shared_numeric_equality_abi.md): numeric tokens, equality, and expression structure are common across all units; operator units learn transformations over that common substrate.
+
 ## 1. Core distinction
 
 ```text
@@ -41,9 +43,12 @@ stop verifier:
 
 loop detector:
   rejects repeated, cyclic, or no-progress equality chains
+
+shared numeric/equality ABI:
+  provides common number and equality semantics used by all units
 ```
 
-All five are needed.
+All six are needed.
 
 ## 2. Main training hazards
 
@@ -110,7 +115,36 @@ progress scoring:
 
 Do not collapse all objectives into one sequence format.
 
-## 4. Token policy
+## 4. Shared ABI boundary
+
+Numbers and equality are not operator-specific skills.
+
+```text
+shared across all units:
+  numeric tokens
+  equality marker
+  expression structure
+
+operator-specific:
+  which equivalent transformation to propose
+  which rewrite rule to apply
+  which domain constraints are valid
+```
+
+ADD, MUL, NEG, VERIFY, PROGRESS, and STOP units must use compatible number and equality semantics.
+
+Example:
+
+```text
+<OP_ADD> <NEXT_EQ> 3 + 4 + 5 -> 7 + 5
+<OP_MUL> <NEXT_EQ> 3 * 4 * 5 -> 12 * 5
+<VERIFY_EQ> 6 = 6 -> VALID
+<PROGRESS?> 6 = 6 -> NO_PROGRESS
+```
+
+The operator marker changes the transformation distribution. It does not change what `3`, `4`, `5`, `12`, or `=` mean.
+
+## 5. Token policy
 
 Use typed delimiters instead of treating plain equals as a universal final-answer or universal-continuation marker.
 
@@ -141,11 +175,11 @@ Recommended tokens:
 
 Plain `=` may appear in rendered text, but the model-facing target should distinguish nonterminal equality, final answer emission, and stop decisions.
 
-## 5. Target formats
+## 6. Target formats
 
 For each example, generate multiple tasks, not one universal chain.
 
-### 5.1 Value task
+### 6.1 Value task
 
 ```yaml
 task: final_value
@@ -153,7 +187,7 @@ input: "1 + 2 + 3"
 target: "6"
 ```
 
-### 5.2 Next-step task
+### 6.2 Next-step task
 
 ```yaml
 task: next_step
@@ -164,7 +198,7 @@ target:
 terminal: false
 ```
 
-### 5.3 Trace-continuation task
+### 6.3 Trace-continuation task
 
 ```yaml
 task: trace_continue
@@ -177,7 +211,7 @@ target:
 terminal: true
 ```
 
-### 5.4 Stop task
+### 6.4 Stop task
 
 ```yaml
 task: stop_decision
@@ -189,7 +223,7 @@ target: stop
 reason: canonical_value_reached
 ```
 
-### 5.5 Verification task
+### 6.5 Verification task
 
 ```yaml
 task: verify_step
@@ -198,7 +232,7 @@ after: "3 + 3"
 target: valid
 ```
 
-### 5.6 Progress task
+### 6.6 Progress task
 
 ```yaml
 task: progress_score
@@ -210,7 +244,7 @@ target:
   reason: reduced_unresolved_additions
 ```
 
-### 5.7 Strategy task
+### 6.7 Strategy task
 
 ```yaml
 task: choose_strategy
@@ -222,7 +256,7 @@ allowed_strategies:
 target: difference_of_squares
 ```
 
-## 6. Equality chains are allowed, but not everywhere
+## 7. Equality chains are allowed, but not everywhere
 
 Rendered equality chains are still useful.
 
@@ -248,11 +282,11 @@ Rules:
 - Include verification-only tasks where no answer is emitted.
 ```
 
-## 7. Canonical trace vs augmented traces
+## 8. Canonical trace vs augmented traces
 
 Use two trace modes.
 
-### 7.1 Canonical trace
+### 8.1 Canonical trace
 
 Deterministic trace used for tests and regression.
 
@@ -264,7 +298,7 @@ Example:
 
 Canonical traces should be stored structurally and rendered only when needed.
 
-### 7.2 Augmented traces
+### 8.2 Augmented traces
 
 Multiple valid traces used for training diversity.
 
@@ -278,7 +312,7 @@ Examples:
 
 All augmented traces must verify to the same canonical value, but some training records should stop before the final answer and ask only for the next verified transformation.
 
-## 8. Non-monotonic trace policy
+## 9. Non-monotonic trace policy
 
 Equivalence traces need not decrease expression size at every step.
 
@@ -300,7 +334,7 @@ global verified progress must improve
 
 Do not train the model to always simplify immediately. Train it to choose verified transformations that improve the solution path.
 
-## 9. Anti-loop policy
+## 10. Anti-loop policy
 
 A valid equivalence step is not automatically a good training target.
 
@@ -333,7 +367,7 @@ Rules:
 - Stop decisions are trained explicitly.
 ```
 
-## 10. Progress potential
+## 11. Progress potential
 
 Use a progress potential to distinguish useful growth from equality spam.
 
@@ -356,7 +390,7 @@ local non-monotonicity allowed
 bounded-window no-progress forbidden
 ```
 
-## 11. Trace validity rule
+## 12. Trace validity rule
 
 Do not emit arbitrary or unverified chains.
 
@@ -375,7 +409,7 @@ progress: true
 
 The rule must be explicit and verifiable.
 
-## 12. Supported first operators
+## 13. Supported first operators
 
 Start with exact finite operators:
 
@@ -405,7 +439,7 @@ program-only derived operators
 symbolic rewrites
 ```
 
-## 13. Training mix
+## 14. Training mix
 
 Use a mixed objective distribution.
 
@@ -423,7 +457,7 @@ progress_score: 5%
 
 The final-answer objective should not dominate early training, and the continuation objective should not dominate stop training.
 
-## 14. Metrics
+## 15. Metrics
 
 Add trace-specific, shortcut-specific, and loop-specific metrics:
 
@@ -447,6 +481,8 @@ rule_cycle_rate
 identity_insertion_rate
 max_trace_length_violation_rate
 no_progress_window_rate
+shared_numeric_token_consistency
+shared_equality_token_consistency
 ```
 
 Especially monitor:
@@ -457,11 +493,13 @@ equals_to_eos_rate
 equals_continuation_rate
 repeated_state_rate
 no_progress_window_rate
+shared_numeric_token_consistency
+shared_equality_token_consistency
 ```
 
-These detect whether the model has learned either unwanted shortcut: terminate immediately or continue forever.
+These detect whether the model has learned either unwanted shortcut: terminate immediately or continue forever. The shared-token metrics detect whether units remain compatible on numbers and equality.
 
-## 15. Final rule
+## 16. Final rule
 
 ```text
 Do not train equality as a final-answer shortcut.
@@ -470,5 +508,6 @@ Train value separately.
 Train next-step transformations separately.
 Train stop decisions separately.
 Train verification and progress separately.
+Keep number and equality semantics shared across all operator units.
 Expose full equality chains only as one view, not as the universal target.
 ```
