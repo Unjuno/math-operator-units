@@ -32,12 +32,14 @@ where `S_runtime` is the selected runtime fusion set for the current task or exp
 9. `dispatch` must remain false in runtime fusion manifests.
 10. Numbers, equality, and structural expression tokens are shared ABI tokens across all units.
 11. Operator units learn transformation distributions over the shared numeric/equality ABI; they must not redefine numbers or equality.
+12. Raw fusion must not assume inactive units are neutral; corrected fusion must measure and suppress inactive bias leakage.
 
 ## Initial documents
 
 - [`docs/tokenizer_design.md`](docs/tokenizer_design.md): tokenizer and vocabulary policy.
 - [`docs/shared_numeric_equality_abi.md`](docs/shared_numeric_equality_abi.md): shared number/equality ABI policy for all units.
 - [`docs/equivalence_trace_training_plan.md`](docs/equivalence_trace_training_plan.md): equality trace data and anti-shortcut / anti-loop training policy.
+- [`docs/raw_fusion_failure_observations.md`](docs/raw_fusion_failure_observations.md): preliminary 0.1K proxy observations motivating corrector-gated fusion.
 - [`configs/tokenizer/tokenizer_core_v1.yaml`](configs/tokenizer/tokenizer_core_v1.yaml): initial tokenizer profile.
 - [`configs/operators/registry.yaml`](configs/operators/registry.yaml): initial operator registry scaffold.
 
@@ -64,6 +66,18 @@ The first learned units should target:
 ```
 
 The first evaluation target is not broad problem solving. It is reproducible verification that runtime-selected fusion suppresses inactive units and preserves active units.
+
+## Preliminary raw fusion observation
+
+Early 0.1K proxy experiments suggest that inactive operator models do not reliably produce neutral outputs on out-of-distribution inputs. For example, an ADD-only model exposed to subtraction-like inputs can assimilate the unknown operator into addition, producing peaked but wrong predictions rather than uncertainty.
+
+This motivates treating a stable fusion unit as a pair:
+
+```text
+operator unit = main model + applicability corrector
+```
+
+The main model proposes an operator-specific contribution. The corrector suppresses that contribution when the operator is inactive, unknown, or out-of-domain.
 
 ## Shared numeric and equality ABI
 
@@ -112,3 +126,9 @@ Valid equivalence is not the same as useful progress. Equality traces must there
 - `equals_continuation_rate`
 - `repeated_state_rate`
 - `no_progress_window_rate`
+- `ood_entropy`
+- `ood_pmax`
+- `unknown_operator_assimilation_rate`
+- `wrong_operator_projection_rate`
+- `length_breakpoint`
+- `length_margin`
