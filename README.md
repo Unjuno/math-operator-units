@@ -7,11 +7,11 @@ The goal is not primarily to build a neural calculator, a faster router, keyword
 Each operator unit has two components:
 
 ```text
-U_k = (M_k, C_k)
+U_k = (M_k, R_k)
 ```
 
-- `M_k`: main operator model that produces an operator-specific bias, logit contribution, or proposal.
-- `C_k`: corrector / contribution calibrator that controls scale, confidence, angle, or reliability of that bias field when it is composed with other fields.
+- `M_k`: generator that produces a sequence-level bias field, logit contribution, or proposal.
+- `R_k`: generation-path reliability calibrator that audits whether `M_k`'s generated path is reliable for `M_k` and attenuates or removes unreliable components before composition.
 
 The composition-first runtime rule is:
 
@@ -79,11 +79,13 @@ The mathematical operator experiments are controlled proxies for this goal. They
 12. Direct summation must not assume inactive fields are neutral; calibrated composition must measure and control inactive bias leakage.
 13. A learned bias module has semantic force only through its measured softmax/verifier effect and its calibrated contribution to the same-prefix next-token distribution.
 14. Runtime control should be framed as same-prefix parallel bias-field composition, not keyword-based mode switching.
+15. A generator should not be required to self-certify its own path; reliability calibration is performed by the paired `R_k` model.
 
 ## Initial documents
 
 - [`docs/logit_bias_semantics.md`](docs/logit_bias_semantics.md): primary research framing for logit-space bias semantics.
 - [`docs/parallel_sequence_bias_control.md`](docs/parallel_sequence_bias_control.md): same-prefix parallel model/unit outputs and bias-field control.
+- [`docs/generation_path_reliability_calibrator.md`](docs/generation_path_reliability_calibrator.md): generator + path reliability calibrator design.
 - [`docs/tokenizer_design.md`](docs/tokenizer_design.md): tokenizer and vocabulary policy.
 - [`docs/shared_numeric_equality_abi.md`](docs/shared_numeric_equality_abi.md): shared number/equality ABI policy for all units.
 - [`docs/equivalence_trace_training_plan.md`](docs/equivalence_trace_training_plan.md): equality trace data and anti-shortcut / anti-loop training policy.
@@ -122,10 +124,10 @@ Early 0.1K proxy experiments suggest that inactive operator models do not reliab
 This motivates treating a stable fusion unit as a pair:
 
 ```text
-operator unit = main model + contribution calibrator
+operator unit = generator + generation-path reliability calibrator
 ```
 
-The main model proposes an operator-specific contribution. The calibrator controls scale, confidence, angle, or reliability so that raw peakedness alone does not dominate the final same-prefix next-token distribution.
+The generator proposes an operator-specific bias field. The calibrator audits whether the generated path is reliable for that generator and attenuates or removes unreliable components so that raw peakedness alone does not dominate the final same-prefix next-token distribution.
 
 ## Shared numeric and equality ABI
 
@@ -189,3 +191,6 @@ Valid equivalence is not the same as useful progress. Equality traces must there
 - `control_success_rate`
 - `confidence_calibration_error`
 - `angle_alignment_score`
+- `path_reliability_auc`
+- `attenuation_precision`
+- `attenuation_recall`
