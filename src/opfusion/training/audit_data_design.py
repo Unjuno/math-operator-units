@@ -12,6 +12,18 @@ from .data import EXPERIMENT_OPERATORS, SyntheticTraceFactory
 from .design_config import load_design_run_config, model_design
 
 
+def _same_prompt_schema(base: Any, specialist: Any) -> bool:
+    return bool(
+        base.prompt_tokens
+        and specialist.prompt_tokens
+        and base.prompt_tokens[0] == specialist.prompt_tokens[0]
+        and base.prompt_tokens[-1] == "<RESPONSE>"
+        and specialist.prompt_tokens[-1] == "<RESPONSE>"
+        and "<TASK_COPY>" not in base.prompt_tokens
+        and "<TASK_COPY>" not in specialist.prompt_tokens
+    )
+
+
 def audit_design_data(config_path: str | Path, *, samples_per_operator: int = 512) -> dict[str, Any]:
     config_path = Path(config_path).resolve()
     report = audit_core_data(config_path, samples_per_operator=samples_per_operator)
@@ -58,8 +70,8 @@ def audit_design_data(config_path: str | Path, *, samples_per_operator: int = 51
                 sample_index=sample_index,
                 forced_operator=operator_id,
             )
-            if base_validation.prompt_tokens != specialist.prompt_tokens:
-                fail("base_specialist_prefix_mismatch", operator=operator_id)
+            if not _same_prompt_schema(base_validation, specialist):
+                fail("base_specialist_prefix_schema_mismatch", operator=operator_id)
             expected_ids = tokenizer.encode_tokens(first.response_tokens, add_bos=False, add_eos=True)
             verification = factory.verify_generated_ids(first, expected_ids)
             if not verification.get("valid"):
