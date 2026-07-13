@@ -1,0 +1,43 @@
+experiment:
+  id: gpt_operator_factory_v1
+  output_dir: runs/gpt_operator_factory_v1
+  model_config: configs/model/gpt_operator_1m_v1.yaml
+  tokenizer_config: configs/tokenizer/operator_experiment_v1.yaml
+  operators:
+    - scalar.add
+    - aggregation.sum
+    - scalar.neg
+    - scalar.min
+    - scalar.max
+  joint_model_id: joint.all_five
+  seeds: [0, 1, 2]
+  require_cuda: true
+  precision: fp32
+  max_parameters: 1000000
+  deterministic_algorithms: false
+  continue_on_error: false
+
+  data:
+    operand_min: -64
+    operand_max: 64
+    min_terms: 3
+    max_terms: 8
+    numeric_token_min: -1024
+    numeric_token_max: 1024
+
+  train:
+    batch_size: 128
+    max_steps: 200000
+    eval_every: 1000
+    eval_batches: 8
+    log_every: 100
+    checkpoint_every: 10000
+    checkpoint_steps: [0, 100, 300, 1000, 3000, 10000, 30000, 100000, 200000]
+    optimizer:
+      learning_rate: 0.0003
+      min_learning_rate: 0.00003
+      warmup_steps: 2000
+      weight_decay: 0.1
+      beta1: 0.9
+      beta2: 0.95
+      grad_clip_norm: 1.0

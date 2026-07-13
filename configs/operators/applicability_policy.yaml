@@ -1,59 +1,43 @@
-policy_version: 1
+policy_version: 2
 purpose: decide whether a catalog operator can become a learned unit or runtime fusion unit
 
 core_rule: "No rule, no evaluator, no verifier, no dataset regularity -> no learned unit."
+
+execution_order:
+  - build_generator_models
+  - preserve_intermediate_checkpoints
+  - train_joint_reference
+  - evaluate_raw_composition
+  - add_oracle_or_learned_calibration_as_separate_ablations
 
 levels:
   L0:
     name: candidate
     meaning: name collected from a source catalog
-    allowed_uses:
-      - planning
-      - source_catalog
-    required_fields:
-      - source
-      - source_name
+    allowed_uses: [planning, source_catalog]
+    required_fields: [source, source_name]
   L1:
     name: specified
     meaning: canonical token, kind, domain, and type signature exist
-    allowed_uses:
-      - backlog
-      - tokenizer_capacity_planning
-    required_fields:
-      - opcode
-      - canonical_token
-      - kind
-      - domain
-      - type_signature
+    allowed_uses: [backlog, tokenizer_capacity_planning]
+    required_fields: [opcode, canonical_token, kind, domain, type_signature]
   L2:
     name: evaluable
     meaning: exact evaluator, numeric evaluator, verifier, program definition, or dataset scoring rule exists
-    allowed_uses:
-      - benchmark_design
-      - evaluator_design
-    required_fields:
-      - supervision_source
-      - evaluator_fn_or_verifier_fn_or_program_or_scoring_rule
-      - domain_restrictions
+    allowed_uses: [benchmark_design, evaluator_design]
+    required_fields: [supervision_source, evaluator_fn_or_verifier_fn_or_program_or_scoring_rule, domain_restrictions]
   L3:
     name: trainable
     meaning: train/validation/test and negative distributions are defined
-    allowed_uses:
-      - unit_training
-      - corrector_training
-    required_fields:
-      - train_distribution
-      - validation_distribution
-      - test_distribution
-      - negative_distribution
-      - failure_modes
+    allowed_uses: [unit_training, optional_corrector_training]
+    required_fields: [train_distribution, validation_distribution, test_distribution, negative_distribution, failure_modes]
   L4:
     name: fusible
-    meaning: unit, corrector, metrics, and compatibility metadata exist
-    allowed_uses:
-      - runtime_fusion_manifest
+    meaning: trained unit, metrics, compatibility metadata, and an explicit calibration mode exist
+    allowed_uses: [runtime_fusion_manifest]
     required_fields:
       - trained_unit
+      - calibration_mode
       - corrector_or_no_corrector_justification
       - metrics
       - tokenizer_profile
@@ -62,65 +46,45 @@ levels:
       - output_space_id
 
 supervision_sources:
-  exact_generator:
-    trainable: true
-    description: exact programmatic target generation
-  numeric_evaluator:
-    trainable: true
-    description: numeric target generation with tolerance and domain restrictions
-  verifier:
-    trainable: conditional
-    description: output can be checked even if generation is hard
-  dataset:
-    trainable: conditional
-    description: stable pattern can be learned from curated data and scoring rules
-  program:
-    trainable: false
-    description: operator is represented as a composition over existing operators unless distilled later
-  tool:
-    trainable: false
-    description: external tool-backed operation with reproducible interface
-  none:
-    trainable: false
-    description: may remain candidate/spec-only but cannot become learned unit
+  exact_generator: {trainable: true, description: exact programmatic target generation}
+  numeric_evaluator: {trainable: true, description: numeric target generation with tolerance and domain restrictions}
+  verifier: {trainable: conditional, description: output can be checked even if generation is hard}
+  dataset: {trainable: conditional, description: stable pattern can be learned from curated data and scoring rules}
+  program: {trainable: false, description: operator is represented as a composition over existing operators unless distilled later}
+  tool: {trainable: false, description: external tool-backed operation with reproducible interface}
+  none: {trainable: false, description: candidate/spec-only only}
 
 implementation_mode_rules:
   unit:
     minimum_level: L3
-    requires:
-      - evaluator_or_verifier_or_dataset_scoring
-      - train_distribution
-      - negative_distribution
+    requires: [evaluator_or_verifier_or_dataset_scoring, train_distribution, negative_distribution]
   distilled_unit:
     minimum_level: L3
-    requires:
-      - source_program
-      - distillation_dataset
-      - comparison_against_program
+    requires: [source_program, distillation_dataset, comparison_against_program]
   program:
     minimum_level: L2
-    requires:
-      - program_definition
-      - dependencies_exist
+    requires: [program_definition, dependencies_exist]
   tool:
     minimum_level: L2
-    requires:
-      - reproducible_tool_interface
-      - failure_policy
+    requires: [reproducible_tool_interface, failure_policy]
   spec_only:
     minimum_level: L0
     requires: []
   dataset_backed:
     minimum_level: L3
-    requires:
-      - dataset
-      - scoring_rule
-      - bias_or_label_audit
+    requires: [dataset, scoring_rule, bias_or_label_audit]
 
 runtime_fusion_rule:
   minimum_level: L4
-  require_trained_corrector: true
-  allow_no_corrector_only_if: explicit_no_corrector_justification
+  require_trained_corrector: false
+  require_explicit_calibration_mode: true
+  allowed_calibration_modes:
+    - raw
+    - oracle_applicability
+    - learned_scalar_reliability
+    - learned_tokenwise_reliability
+    - removal_field
+  require_no_corrector_justification_when_raw: true
   require_metrics:
     - single_accuracy
     - fusion_accuracy
@@ -133,9 +97,14 @@ runtime_fusion_rule:
     - registry_assignment_hash
     - output_space_id
 
+model_factory_v1:
+  corrector_required: false
+  reason: generator checkpoints must exist before routing or reliability calibration can be isolated experimentally
+
 final_workflow:
   - search_broadly
   - specify_carefully
   - evaluate_strictly
   - train_narrowly
-  - fuse_only_validated_units
+  - preserve_checkpoints
+  - compare_raw_and_calibrated_fusion
