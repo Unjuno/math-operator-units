@@ -1,0 +1,46 @@
+tokenizer:
+  name: operator_experiment_tokenizer
+  profile: operator_experiment_v2
+  version: 2.0.0
+  compatibility: fixed_vocab
+
+policy:
+  token_ids_are_model_abi: true
+  allow_vocab_growth: false
+  reserved_or_blank_tokens: false
+  require_vocab_hash_for_checkpoints: true
+
+special_tokens:
+  - <PAD>
+  - <BOS>
+  - <EOS>
+  - <UNK>
+  - <RESPONSE>
+  - <TASK_COPY>
+  - <EQ_STEP>
+  - <TRACE_STOP>
+
+structural_tokens:
+  - <PLUS>
+  - <COMMA>
+  - <LBRACK>
+  - <RBRACK>
+
+type_tokens: []
+
+numeric_tokens:
+  atomic_integer_range:
+    min: -1024
+    max: 1024
+    format: <N_{value}>
+
+core_operator_tokens:
+  experiment_v2:
+    - <OP_SCALAR_ADD>
+    - <OP_AGG_SUM>
+    - <OP_SCALAR_NEG>
+    - <OP_SCALAR_MIN>
+    - <OP_SCALAR_MAX>
+
+reserved_operator_slots:
+  count: 0

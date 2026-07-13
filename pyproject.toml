@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "operator-unit-fusion"
-version = "0.2.0"
-description = "GPT operator-model factory and logit-space fusion experiments with fixed tokenizer ABI."
+version = "0.3.0"
+description = "Dependency-ordered GPT model factory and logit-space bias-fusion experiments with a fixed tokenizer ABI."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [

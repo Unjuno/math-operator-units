@@ -1,184 +1,231 @@
 # Math Operator Units
 
-This repository studies **bias fusion for language models**.
+This repository builds the controlled GPT checkpoint set required to test **logit-space bias fusion**. Mathematical operators are the experimental instrument, not the final application: their prompts, equality transitions, final values, out-of-distribution cases, and failures can be generated and verified exactly.
 
-The central operation is simple: obtain logit-space bias fields from several models or model variants, combine those fields, and apply the result to one next-token distribution.
-
-```text
-base logits z_base(x)
-+ fused bias F(B_1(x), ..., B_n(x))
-= fused logits z_fused(x)
-```
-
-The mathematical operator models in this repository are not the final application. They are a controlled experimental system chosen because inputs, intermediate transformations, final answers, and failure cases can be generated and verified exactly.
-
-## Research question
-
-For a shared prefix `x`, let a base model produce `z_base(x)` and a specialist model `k` produce `z_k(x)`. Define its bias field as:
+For a shared prefix `x`, the experiment defines each specialist field relative to a trained common base:
 
 ```text
 B_k(x) = z_k(x) - z_base(x)
-```
-
-A fusion rule produces:
-
-```text
 z_fused(x) = z_base(x) + F(B_1(x), ..., B_n(x))
-p_fused(x) = softmax(z_fused(x))
 ```
 
-The main question is whether a fusion rule can preserve the useful contribution of each specialist while avoiding amplification of irrelevant or incorrect contributions.
+The v2 factory is designed to create the minimum useful model set first. It does not assume that raw addition works, and it does not hide a router or learned corrector inside model generation.
 
-A jointly trained model is used as a reference distribution:
+## V2 model set
+
+For every seed, one dependency-ordered batch run creates seven trained GPT models:
 
 ```text
-L_match = D(p_joint, p_fused)
+shared random initialization
+        ↓
+base.common
+        ├── scalar.add
+        ├── aggregation.sum
+        ├── scalar.neg
+        ├── scalar.min
+        ├── scalar.max
+        └── joint.all_five.exposure_matched
 ```
 
-`L_match = 0` means that the fused and joint next-token distributions are identical under the selected divergence. It does not by itself prove that either model is correct, so task accuracy and trace validity must also be measured.
+`base.common` learns the shared number/expression ABI and a deterministic copy/response protocol, but not arithmetic answers. All five specialists and the joint reference start from exactly the same completed base checkpoint.
 
-## Why error amplification matters
+The production configuration uses three seeds:
 
-A model that is outside its trained domain does not necessarily emit a neutral bias. It may produce a structured, confident, and wrong logit shift. Adding several such fields can amplify an incorrect token rather than cancel noise.
+- 7 trained models per seed;
+- 21 trained models total;
+- 3 preserved random initial checkpoints;
+- 32 runtime specialist subsets per seed;
+- 16 logical observation checkpoints per trained model, or 336 model/checkpoint observations in total.
 
-This repository therefore separates:
+The 32 subsets are manifests over the five trained specialists. They are not 32 separately trained models.
 
-1. raw bias fusion;
-2. measurement of leakage, conflict, and error amplification;
-3. optional routing, weighting, or calibration methods tested only after the raw baseline is understood.
+## Equality-transition training
 
-A corrector or router is not part of the definition of bias fusion and is not assumed to be necessary in advance.
-
-## Why mathematical operators are used
-
-Mathematical operators provide a convenient testbed because:
-
-- data can be generated without annotation noise;
-- intermediate states can be checked exactly;
-- final answers have exact verifiers;
-- operator-specific and mixed distributions can be constructed deliberately;
-- inactive-model leakage can be measured directly;
-- a joint reference model can be trained on the exact union of specialist data.
-
-The project is not primarily a calculator, symbolic solver, mixture-of-experts router, or claim that arbitrary LLMs can already be fused safely.
-
-## Current model factory
-
-The current implementation creates five specialist GPT checkpoints and one joint checkpoint for each seed:
-
-1. `scalar.add`
-2. `aggregation.sum`
-3. `scalar.neg`
-4. `scalar.min`
-5. `scalar.max`
-6. `joint.all_five`
-
-The five specialists define `2^5 = 32` runtime subsets. These subsets are manifests referencing checkpoints; they are not 32 separately trained models.
-
-The factory is GPT-only. Earlier perceptron, NN, and MLP experiments remain proxy observations and are not treated as GPT evidence.
-
-## Model and tokenizer contract
-
-- architecture: causal GPT decoder
-- trainable-parameter ceiling: `1,000,000`
-- current profile: `848,624` parameters
-- vocabulary size: `2,064`
-- context length: `128`
-- training backend: CUDA for production runs
-- tokenizer: fixed experiment-specific vocabulary
-- reserved or blank operator slots: disabled
-- checkpoints: initial, early, periodic, and final states with optimizer and RNG state
-
-The current model is small relative to a 24 GB RTX 3090. Hardware capacity is therefore not the primary constraint; throughput, data generation, experiment balance, and correctness of the loss definition must be benchmarked before a long unattended run.
-
-## Equality-trace data
-
-Training examples use contractive equality traces. A resolved subexpression is replaced by its value and is not copied into the next state.
+Specialists produce verified contractive equality traces:
 
 ```text
-<OP_AGG_SUM>
-1 + 2 + 3 + 4
+<OP_AGG_SUM> 1 + 2 + 3 + 4 <RESPONSE>
 <EQ_STEP> 3 + 3 + 4
 <EQ_STEP> 6 + 4
 <EQ_STEP> 10
 <TRACE_STOP>
 ```
 
-`<EQ_STEP>` and `<TRACE_STOP>` make the transition and termination semantics explicit.
+The prompt is visible to the model but excluded from cross-entropy. Only response tokens are supervised. This prevents randomly sampled operands from creating an irreducible prompt-prediction loss floor.
 
-## Current status and known gaps
+The data generator is deterministic by seed, split, step, sample index, and operator. It provides:
 
-The repository currently contains a working checkpoint-generation scaffold, but the present production configuration should **not** be treated as the final four-week experiment yet.
+- train and IID validation ranges;
+- value OOD operands;
+- length OOD expressions;
+- exact canonical values;
+- deterministic equality traces;
+- explicit trace stopping.
 
-Known issues that must be corrected before the long run:
+The default operators are ADD, variable-length SUM, NEG, MIN reduction, and MAX reduction.
 
-1. `shared_initial.pt` is a random shared initialization, not a trained common base model.
-2. The current language-model loss includes prompt tokens; randomly generated operands create an irreducible loss floor. Prompt tokens must be masked when the target is the generated trace.
-3. At the same optimizer step, `joint.all_five` receives about one fifth as many examples per operator as each specialist. A fair comparison needs explicit exposure matching or separate step-matched and exposure-matched references.
-4. The factory writes 32 subset manifests but does not yet execute bias fusion or calculate `L_match`.
-5. Exact answer accuracy, complete-trace validity, stopping behavior, inactive leakage, and OOD tests are not yet part of the training evaluation.
-6. The bias origin should be a trained common base when the experiment is intended to isolate operator-specific changes.
+## Arch Linux setup
 
-These are experimental-design issues, not merely documentation details.
+The scripts use Bash, Python virtual environments, `nvidia-smi`, `flock`, and optional `systemd-inhibit`. They do not assume Ubuntu or `apt`.
 
-## Intended experiment pipeline
+```bash
+git clone https://github.com/Unjuno/math-operator-units.git
+cd math-operator-units
+bash scripts/bootstrap_arch_linux.sh
+```
+
+The bootstrap script creates `.venv`, installs the project, reports PyTorch/CUDA status, and prints detected VRAM. It does not silently change the NVIDIA kernel driver. On Arch Linux, verify `nvidia-smi` after kernel or driver upgrades.
+
+A specific PyTorch wheel index can be supplied when required:
+
+```bash
+TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128 \
+  bash scripts/bootstrap_arch_linux.sh
+```
+
+Use an index compatible with the locally installed NVIDIA driver. Omitting `TORCH_INDEX_URL` uses the normal PyPI resolver.
+
+## One-command production run
+
+Detached multi-day run:
+
+```bash
+bash scripts/run_bias_fusion_factory_v2.sh \
+  configs/experiments/gpt_bias_fusion_factory_v2.yaml \
+  detach
+```
+
+Foreground run:
+
+```bash
+bash scripts/run_bias_fusion_factory_v2.sh
+```
+
+Before production, the launcher performs:
+
+1. CUDA, GPU, VRAM, BF16, and disk checks;
+2. the complete pytest suite;
+3. a resolved model/checkpoint plan;
+4. a short v2 CUDA smoke batch;
+5. launch through a restartable watchdog.
+
+Logs are written under `logs/`. The detached PID is written to:
 
 ```text
-shared random initialization
-        ↓
-train common BaseGPT
-        ↓
-branch from the same BaseGPT checkpoint
-        ├── five specialist GPT models
-        └── one or more joint reference GPT models
-        ↓
-measure every saved checkpoint
-        ↓
-extract specialist bias fields relative to BaseGPT
-        ↓
-run all 32 subsets with candidate fusion rules
-        ↓
-compare fused distribution, joint distribution, and exact task behavior
-        ↓
-only then test routing, weighting, or calibration ablations
+runs/gpt_bias_fusion_factory_v2/batch.pid
 ```
 
-## Setup
+Re-running the same command is the resume procedure. Completed jobs are skipped and incomplete jobs load `last.pt`.
+
+## 16 GB and larger GPUs
+
+The factory does not require a fixed 24 GB assumption. When `micro_batch_size: 0`, each job probes the configured candidates on the actual GPU:
+
+```text
+128, 64, 32, 16, 8, 4
+```
+
+It selects the largest fitting micro-batch and uses gradient accumulation to preserve the configured effective batch size of 128.
+
+For the exposure-matched joint reference, every optimizer step accumulates one full effective batch for each of the five operators:
+
+```text
+ADD 128 + SUM 128 + NEG 128 + MIN 128 + MAX 128
+```
+
+This matches per-operator exposure without requiring all 640 examples to reside in VRAM simultaneously.
+
+## Automatic scheduling and recovery
+
+The batch queue is dependency ordered:
+
+```text
+base → five specialists → exposure-matched joint → next seed
+```
+
+Operational recovery is distinct from a learned bias corrector.
+
+- CUDA OOM: restore the same step RNG, halve the micro-batch, preserve effective batch through accumulation, and retry the same step.
+- Non-finite loss/gradient: resume the last good checkpoint with a predeclared learning-rate reduction, up to the configured limit.
+- Process interruption: the watchdog restarts the batch and each job resumes from `last.pt`.
+- Duplicate launch: `flock` prevents two factories from writing the same output tree.
+- Sleep/shutdown inhibition: `systemd-inhibit` is used when available.
+
+Every automatic change is recorded in `recovery.jsonl` and `runtime_state.json`. Recovery never changes architecture, tokenizer, data ranges, model identity, or effective per-operator exposure.
+
+## Production configuration
+
+The committed production profile uses:
+
+```text
+architecture: causal GPT decoder
+parameters: 863,184
+parameter limit: 1,000,000
+context length: 256
+vocabulary size: 2,066
+precision: BF16 when supported, otherwise FP32
+TF32: enabled for supported CUDA FP32 kernels
+max optimizer steps: 50,000 per model
+seeds: 0, 1, 2
+```
+
+The configured step count is a reproducible upper plan, not a guarantee of a four- or five-day duration. Actual wall time depends on the GPU, driver, PyTorch build, selected micro-batch, CPU data generation, storage, and evaluation overhead. The smoke run must pass on the target machine before leaving the process unattended.
+
+## Checkpoints and outputs
+
+The 16 observation locations are defined as fractions of total training:
+
+```text
+0%, 0.1%, 0.3%, 1%, 3%, 5%, 10%, 20%, 30%, 40%,
+50%, 60%, 70%, 80%, 90%, 100%
+```
+
+Rolling resume state is updated every 500 steps. Each permanent checkpoint records:
+
+- model and optimizer state;
+- CPU and CUDA RNG state;
+- parent base and random-initial checkpoint identities;
+- task loss and generation metrics;
+- cumulative examples and per-operator exposure;
+- micro-batch and learning-rate recovery state;
+- tokenizer profile and vocabulary hash;
+- parameter distance from the parent base and random initialization.
+
+Output layout:
+
+```text
+runs/gpt_bias_fusion_factory_v2/
+├── experiment_plan.json
+├── batch_state.json
+└── seed_<n>/
+    ├── shared_initial.pt
+    ├── base_common/
+    ├── scalar_add/
+    ├── aggregation_sum/
+    ├── scalar_neg/
+    ├── scalar_min/
+    ├── scalar_max/
+    ├── joint_all_five_exposure_matched/
+    ├── model_inventory.json
+    ├── fusion_subsets/
+    └── fusion_checkpoint_grid/
+```
+
+## Plan without training
 
 ```bash
-python -m venv .venv
-source .venv/bin/activate
-python -m pip install --upgrade pip
-python -m pip install -e ".[dev]"
-python -m pytest -q
+.venv/bin/opfusion-train-batch \
+  --config configs/experiments/gpt_bias_fusion_factory_v2.yaml \
+  --plan-only
 ```
 
-## CUDA smoke test
+## Research boundary
 
-The existing launcher checks CUDA, disk space, tests, and a short six-job smoke batch:
+This factory produces the checkpoint set and aligned manifests needed for the bias-fusion experiment. Raw, mean, weighted, routed, or learned-correction fusion rules must be evaluated as separate runtime conditions. A joint model is a reference distribution, not proof that any fusion rule exists.
 
-```bash
-bash scripts/run_operator_factory_cuda.sh \
-  configs/experiments/gpt_operator_factory_smoke.yaml
-```
+Detailed operational contracts:
 
-The current `gpt_operator_factory_v1.yaml` remains useful for implementation testing and checkpoint-format validation, but it should be revised before starting the unattended production run described above.
-
-## Existing documents
-
-- [`docs/logit_bias_semantics.md`](docs/logit_bias_semantics.md): mathematical definition of bias fusion
-- [`docs/parallel_sequence_bias_control.md`](docs/parallel_sequence_bias_control.md): same-prefix runtime formulation
-- [`docs/gpt_operator_model_factory.md`](docs/gpt_operator_model_factory.md): current factory and required corrections
-- [`docs/equivalence_trace_training_plan.md`](docs/equivalence_trace_training_plan.md): equality-trace policy
-- [`docs/raw_fusion_failure_observations.md`](docs/raw_fusion_failure_observations.md): historical proxy observations and testable failure hypotheses
-- [`docs/generation_path_reliability_calibrator.md`](docs/generation_path_reliability_calibrator.md): optional later calibration design
-
-## Core rules
-
-1. Bias fusion is the research target; mathematical operators are the controlled testbed.
-2. All compared models must share architecture, tokenizer ABI, and a clearly defined base checkpoint.
-3. Raw fusion must be measured before introducing routing or correction.
-4. Error amplification is an empirical failure mode to quantify, not a reason to assume one correction method in advance.
-5. Joint and specialist models must be compared under explicit step, token, and per-operator exposure accounting.
-6. Distribution matching and task correctness are separate measurements.
-7. Long CUDA runs require a passed smoke test and an approved experiment configuration.
+- [`docs/gpt_operator_model_factory.md`](docs/gpt_operator_model_factory.md)
+- [`docs/arch_linux_runbook.md`](docs/arch_linux_runbook.md)
+- [`docs/equivalence_trace_training_plan.md`](docs/equivalence_trace_training_plan.md)
+- [`docs/logit_bias_semantics.md`](docs/logit_bias_semantics.md)

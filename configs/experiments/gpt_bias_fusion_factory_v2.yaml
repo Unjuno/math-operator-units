@@ -1,0 +1,82 @@
+experiment:
+  id: gpt_bias_fusion_factory_v2
+  output_dir: runs/gpt_bias_fusion_factory_v2
+  model_config: configs/model/gpt_operator_1m_v2.yaml
+  tokenizer_config: configs/tokenizer/operator_experiment_v2.yaml
+
+  base_model_id: base.common
+  operators:
+    - scalar.add
+    - aggregation.sum
+    - scalar.neg
+    - scalar.min
+    - scalar.max
+  joint_model_ids:
+    - joint.all_five.exposure_matched
+
+  seeds: [0, 1, 2]
+  require_cuda: true
+  precision: auto
+  allow_tf32: true
+  max_parameters: 1000000
+  deterministic_algorithms: false
+  continue_on_error: false
+
+  data:
+    operand_min: -64
+    operand_max: 64
+    min_terms: 3
+    max_terms: 8
+    numeric_token_min: -1024
+    numeric_token_max: 1024
+    value_ood_abs_min: 65
+    value_ood_abs_max: 80
+    length_ood_min_terms: 9
+    length_ood_max_terms: 10
+
+  train:
+    response_only_loss: true
+    effective_batch_size: 128
+    micro_batch_size: 0
+    micro_batch_candidates: [128, 64, 32, 16, 8, 4]
+    max_steps: 50000
+    eval_every: 1000
+    eval_batches: 2
+    generation_eval_every: 5000
+    generation_eval_examples: 8
+    log_every: 100
+    resume_every: 500
+    checkpoint_every: 50000
+    checkpoint_steps: []
+    checkpoint_fractions:
+      - 0.0
+      - 0.001
+      - 0.003
+      - 0.01
+      - 0.03
+      - 0.05
+      - 0.10
+      - 0.20
+      - 0.30
+      - 0.40
+      - 0.50
+      - 0.60
+      - 0.70
+      - 0.80
+      - 0.90
+      - 1.0
+    optimizer:
+      learning_rate: 0.0003
+      min_learning_rate: 0.00003
+      warmup_steps: 1000
+      weight_decay: 0.1
+      beta1: 0.9
+      beta2: 0.95
+      grad_clip_norm: 1.0
+
+  recovery:
+    max_retries_per_job: 5
+    minimum_micro_batch_size: 4
+    non_finite_lr_factor: 0.5
+    max_lr_reductions: 2
+    restart_delay_seconds: 30
