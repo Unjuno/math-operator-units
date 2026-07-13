@@ -19,8 +19,15 @@ jobs:
       - name: Install package
         run: python -m pip install -e ".[dev]"
       - name: Validate shell launchers
-        run: bash -n scripts/run_operator_factory_cuda.sh scripts/watch_operator_factory.sh
+        run: bash -n scripts/run_operator_factory_cuda.sh scripts/watch_operator_factory.sh scripts/run_bias_fusion_factory_surface_v3.sh scripts/watch_bias_fusion_factory_surface_v3.sh
       - name: Audit repository config
         run: opfusion-audit .
       - name: Run tests
-        run: pytest -q
+        run: pytest -q --junitxml=pytest-report.xml
+      - name: Upload pytest report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pytest-${{ matrix.python-version }}
+          path: pytest-report.xml
+          if-no-files-found: error

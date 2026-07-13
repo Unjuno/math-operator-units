@@ -1,0 +1,12 @@
+model:
+  vocab_size: 2065
+  d_model: 112
+  n_layers: 4
+  n_heads: 4
+  d_ff: 448
+  max_seq_len: 256
+  dropout: 0.1
+  weight_tying: true
+  bias: false
+  tokenizer_profile: operator_experiment_surface_v3
+  parameter_limit: 1000000

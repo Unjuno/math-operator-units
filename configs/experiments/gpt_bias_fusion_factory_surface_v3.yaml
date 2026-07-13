@@ -1,8 +1,8 @@
 experiment:
-  id: gpt_bias_fusion_factory_v2
-  output_dir: runs/gpt_bias_fusion_factory_v2
-  model_config: configs/model/gpt_operator_1m_v2.yaml
-  tokenizer_config: configs/tokenizer/operator_experiment_v2.yaml
+  id: gpt_bias_fusion_factory_surface_v3
+  output_dir: runs/gpt_bias_fusion_factory_surface_v3
+  model_config: configs/model/gpt_operator_1m_surface_v3.yaml
+  tokenizer_config: configs/tokenizer/operator_experiment_surface_v3.yaml
 
   base_model_id: base.common
   operators:
@@ -29,13 +29,18 @@ experiment:
     max_terms: 8
     numeric_token_min: -1024
     numeric_token_max: 1024
-    value_ood_abs_min: 65
-    value_ood_abs_max: 80
+    operand_ood_abs_min: 65
+    operand_ood_abs_max: 80
     length_ood_min_terms: 9
     length_ood_max_terms: 10
     partition_modulus: 100
     train_bucket_end: 70
     validation_bucket_end: 85
+    full_trace_weight: 60
+    continuation_weight: 25
+    terminal_weight: 15
+    max_partition_attempts: 20000
+    randomized_train_reduction: true
 
   train:
     response_only_loss: true
@@ -47,7 +52,7 @@ experiment:
     eval_batches: 2
     eval_examples: 256
     generation_eval_every: 5000
-    generation_eval_examples: 8
+    generation_eval_examples: 16
     generation_max_new_tokens: 256
     log_every: 100
     resume_every: 500

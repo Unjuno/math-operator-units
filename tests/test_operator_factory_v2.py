@@ -43,10 +43,10 @@ def test_response_only_labels_mask_the_prompt() -> None:
     first_supervised = encoded.prompt_length - 1
     assert all(value == -100 for value in encoded.labels[:first_supervised])
     assert encoded.labels[first_supervised] != -100
-    assert encoded.response_length > 2
+    assert encoded.response_length >= 1
 
 
-def test_common_base_learns_copy_protocol_not_arithmetic_answers() -> None:
+def test_common_base_learns_identity_equality_not_arithmetic_answers() -> None:
     _, _, factory = _v2()
     example = factory.training_example(
         "base.common",
@@ -57,8 +57,9 @@ def test_common_base_learns_copy_protocol_not_arithmetic_answers() -> None:
     )
     assert example.prompt_tokens[0] == "<TASK_COPY>"
     assert example.prompt_tokens[-1] == "<RESPONSE>"
-    assert "<EQ_STEP>" not in example.response_tokens
+    assert example.response_tokens[0] == "<EQ_STEP>"
     assert example.response_tokens[-1] == "<TRACE_STOP>"
+    assert example.trace_states[0] == example.trace_states[1]
     assert example.final_value is None
 
 

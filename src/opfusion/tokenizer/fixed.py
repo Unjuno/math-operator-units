@@ -4,7 +4,7 @@ import hashlib
 import json
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Iterable, Sequence
+from typing import Iterable, Mapping, Sequence
 
 from .build_vocab import build_vocab
 
@@ -17,21 +17,40 @@ class TokenizerMetadata:
 
 
 class FixedVocabTokenizer:
-    """Whitespace/token-list tokenizer for the controlled operator experiment.
+    """Whitespace/token-list tokenizer for controlled operator experiments.
 
-    The training data generator emits complete token strings. This tokenizer does
-    not guess lexical boundaries, grow the vocabulary, or allocate blank/reserved
-    slots at runtime.
+    The generator emits complete token strings. The tokenizer never guesses
+    lexical boundaries or grows the vocabulary at runtime. Optional aliases
+    let implementation-facing names (for example ``<EQ_STEP>``) resolve to a
+    canonical surface token (for example ``=``) without adding another model
+    output class.
     """
 
-    def __init__(self, tokens: Sequence[str], *, profile: str = "operator_experiment_v1") -> None:
+    def __init__(
+        self,
+        tokens: Sequence[str],
+        *,
+        profile: str = "operator_experiment_v1",
+        aliases: Mapping[str, str] | None = None,
+    ) -> None:
         if len(tokens) != len(set(tokens)):
             raise ValueError("token vocabulary contains duplicates")
         self.tokens = list(tokens)
-        self.token_to_id = {token: index for index, token in enumerate(self.tokens)}
+        self.aliases = dict(aliases or {})
+        canonical = {token: index for index, token in enumerate(self.tokens)}
+        for alias, target in self.aliases.items():
+            if not isinstance(alias, str) or not alias:
+                raise ValueError(f"invalid tokenizer alias: {alias!r}")
+            if alias in canonical:
+                raise ValueError(f"tokenizer alias collides with canonical token: {alias}")
+            if target not in canonical:
+                raise ValueError(f"tokenizer alias target is not in the vocabulary: {alias} -> {target}")
+        self.token_to_id = dict(canonical)
+        self.token_to_id.update({alias: canonical[target] for alias, target in self.aliases.items()})
         self.profile = profile
+        hash_payload: object = self.tokens if not self.aliases else {"tokens": self.tokens, "aliases": self.aliases}
         self.vocab_hash = hashlib.sha256(
-            json.dumps(self.tokens, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+            json.dumps(hash_payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True).encode("utf-8")
         ).hexdigest()
         for required in ("<PAD>", "<BOS>", "<EOS>", "<UNK>"):
             if required not in self.token_to_id:
@@ -45,7 +64,10 @@ class FixedVocabTokenizer:
         with path.open("r", encoding="utf-8") as handle:
             data = yaml.safe_load(handle) or {}
         profile = data.get("tokenizer", {}).get("profile", path.stem)
-        return cls(build_vocab(path), profile=profile)
+        aliases = data.get("aliases", {}) or {}
+        if not isinstance(aliases, dict):
+            raise TypeError("tokenizer aliases must be a mapping")
+        return cls(build_vocab(path), profile=profile, aliases={str(k): str(v) for k, v in aliases.items()})
 
     @property
     def vocab_size(self) -> int:
@@ -110,5 +132,6 @@ class FixedVocabTokenizer:
             "profile": self.profile,
             "vocab_hash": self.vocab_hash,
             "tokens": self.tokens,
+            "aliases": self.aliases,
         }
         path.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")

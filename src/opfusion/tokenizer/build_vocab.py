@@ -115,6 +115,11 @@ def build_vocab_map(config_path: str | Path, repo_root: str | Path | None = None
 
 
 def build_vocab_hash(config_path: str | Path, repo_root: str | Path | None = None) -> str:
+    config = load_yaml(config_path)
     vocab = build_vocab(config_path, repo_root=repo_root)
-    payload = json.dumps(vocab, ensure_ascii=False, separators=(",", ":"))
-    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+    aliases = config.get("aliases", {}) or {}
+    if aliases and not isinstance(aliases, dict):
+        raise TypeError("tokenizer aliases must be a mapping")
+    payload: object = vocab if not aliases else {"tokens": vocab, "aliases": {str(k): str(v) for k, v in aliases.items()}}
+    encoded = json.dumps(payload, ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    return hashlib.sha256(encoded.encode("utf-8")).hexdigest()

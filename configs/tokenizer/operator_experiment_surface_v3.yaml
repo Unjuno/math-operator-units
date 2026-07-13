@@ -1,0 +1,57 @@
+tokenizer:
+  name: operator_experiment_surface_tokenizer
+  profile: operator_experiment_surface_v3
+  version: 3.0.0
+  compatibility: fixed_vocab_with_aliases
+
+policy:
+  token_ids_are_model_abi: true
+  allow_vocab_growth: false
+  reserved_or_blank_tokens: false
+  require_vocab_hash_for_checkpoints: true
+  model_outputs_surface_equality: true
+  model_terminates_with_eos: true
+
+special_tokens:
+  - <PAD>
+  - <BOS>
+  - <EOS>
+  - <UNK>
+  - <RESPONSE>
+  - <TASK_COPY>
+
+structural_tokens:
+  - "+"
+  - ","
+  - "["
+  - "]"
+  - "="
+
+type_tokens: []
+
+# Generator-facing compatibility names resolve to ordinary surface tokens.
+# They do not add output classes to the model vocabulary.
+aliases:
+  <PLUS>: "+"
+  <COMMA>: ","
+  <LBRACK>: "["
+  <RBRACK>: "]"
+  <EQ_STEP>: "="
+  <TRACE_STOP>: <EOS>
+
+numeric_tokens:
+  atomic_integer_range:
+    min: -1024
+    max: 1024
+    format: <N_{value}>
+
+core_operator_tokens:
+  experiment_surface_v3:
+    - <OP_SCALAR_ADD>
+    - <OP_AGG_SUM>
+    - <OP_SCALAR_NEG>
+    - <OP_SCALAR_MIN>
+    - <OP_SCALAR_MAX>
+
+reserved_operator_slots:
+  count: 0
