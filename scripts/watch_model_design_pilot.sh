@@ -8,7 +8,7 @@ WORKER="${WORKER:-$ROOT/scripts/run_model_design_pilot.sh}"
 MAX_RESTARTS="${MAX_RESTARTS:-20}"
 RESTART_DELAY_SECONDS="${RESTART_DELAY_SECONDS:-60}"
 STALL_TIMEOUT_SECONDS="${STALL_TIMEOUT_SECONDS:-21600}"
-STALL_CHECK_SECONDS="${STALL_CHECK_SECONDS:-300}"
+STALL_CHECK_SECONDS="${STALL_CHECK_SECONDS:-60}"
 LOCK_FILE="${LOCK_FILE:-$ROOT/runs/model_design_pilot/pilot.lock}"
 STATE_FILE="${STATE_FILE:-$ROOT/runs/model_design_pilot/pilot_state.json}"
 PID_FILE="${PID_FILE:-$ROOT/runs/model_design_pilot/pilot.pid}"
@@ -76,15 +76,28 @@ cleanup_pid() {
 attempt=0
 child_pid=""
 child_is_process_group=0
+child_state() {
+  if [[ -z "$child_pid" ]]; then
+    return 1
+  fi
+  ps -o stat= -p "$child_pid" 2>/dev/null | awk 'NR==1 {print substr($1,1,1)}'
+}
+child_is_active() {
+  local state
+  state="$(child_state)"
+  [[ -n "$state" && "$state" != "Z" && "$state" != "X" ]]
+}
 stop_worker() {
-  if [[ -z "$child_pid" ]] || ! kill -0 "$child_pid" 2>/dev/null; then
+  if [[ -z "$child_pid" ]]; then
     return
   fi
-  if [[ "$child_is_process_group" == "1" ]]; then
-    kill -TERM -- "-$child_pid" 2>/dev/null || true
-  else
-    pkill -TERM -P "$child_pid" 2>/dev/null || true
-    kill -TERM "$child_pid" 2>/dev/null || true
+  if child_is_active; then
+    if [[ "$child_is_process_group" == "1" ]]; then
+      kill -TERM -- "-$child_pid" 2>/dev/null || true
+    else
+      pkill -TERM -P "$child_pid" 2>/dev/null || true
+      kill -TERM "$child_pid" 2>/dev/null || true
+    fi
   fi
   wait "$child_pid" 2>/dev/null || true
 }
@@ -119,9 +132,9 @@ while true; do
   stalled=0
 
   if [[ -n "$PILOT_LOG" ]]; then
-    while kill -0 "$child_pid" 2>/dev/null; do
+    while child_is_active; do
       sleep "$STALL_CHECK_SECONDS"
-      if ! kill -0 "$child_pid" 2>/dev/null; then
+      if ! child_is_active; then
         break
       fi
       now="$(date +%s)"
