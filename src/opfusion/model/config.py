@@ -36,7 +36,7 @@ class GPTConfig:
 
     @classmethod
     def from_dict(cls, d: dict[str, Any]) -> GPTConfig:
-        keys = {f.name for f in cls.__dataclass_fields__}
+        keys = set(cls.__dataclass_fields__)
         filtered = {k: v for k, v in d.items() if k in keys}
         return cls(**filtered)
 
