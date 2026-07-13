@@ -1,354 +1,202 @@
-# Parallel Sequence Bias Control
+# Same-Prefix Bias Fusion
 
-This document corrects the runtime-control framing.
+## 1. Runtime target
 
-The goal is not keyword-based mode switching. The goal is to run multiple model or unit outputs over the same sequence context, fully compose their bias fields, and let the composed field change the next-token distribution.
-
-## 1. Core idea
-
-Given the same sequence prefix `x`, multiple models, units, or control heads can be run in parallel:
-
-```text
-z_0(v | x)      base logits
-z_1(v | x)      model or unit 1 logits
-z_2(v | x)      model or unit 2 logits
-...
-z_n(v | x)      model or unit n logits
-```
-
-Convert these outputs into bias fields:
-
-```text
-B_i(v | x) = z_i(v | x) - z_0(v | x)
-```
-
-or use already centered fields:
-
-```text
-B_i(v | x) in R^{|V|}
-```
-
-The operator calculator acts on these fields:
-
-```text
-F(v | x) = O(B_1, B_2, ..., B_n)(v | x)
-```
-
-The resulting control field is injected into the same sequence distribution:
-
-```text
-z_final(v | x) = z_0(v | x) + lambda F(v | x)
-p_final(v | x) = softmax(z_final(v | x))
-```
-
-This is the runtime target: bias control over the same sequence context.
-
-## 2. What this is not
-
-This is not:
-
-```text
-keyword appears -> switch mode
-parser reads an operator -> choose a symbolic unit
-route the input to one expert
-hard-select one bias and discard the others by default
-replace symbolic computation with a neural calculator
-```
-
-Keyword or parser-driven switching can be useful for debugging, but it is not the research target.
-
-The target is:
-
-```text
-parallel model or unit outputs
-+ full bias-field composition
-+ confidence / alignment / contribution calibration
-+ softmax and verifier effect measurement
-```
-
-## 3. Relation to the mathematical operator calculator
-
-The mathematical operator calculator is a proxy for learning and testing operators over bias fields.
-
-Examples:
-
-```text
-ADD:              F = A + B
-MEAN:             F = (A + B) / 2
-SUB:              F = A - B
-AGREE:            F = A_+ B_+
-WEIGHTED_SUM:     F = w_A A + w_B B
-ANGLE_SELECT:     F = weighted field by confidence/alignment
-CONFLICT:         detect disagreement between A and B
-REMOVE:           F = A - Proj_C(A)
-COMPLETE:         F = T - A
-RESIDUAL:         R = T - explained(T)
-```
-
-These operations are interesting because the same forms can be applied to logit-space control fields from parallel model outputs.
-
-## 4. Same-prefix parallelism
-
-The central runtime pattern is:
+The runtime target is to evaluate several models or model variants on the same token prefix and combine their logit-space changes before decoding the next token.
 
 ```text
 same prefix x
-  -> base model logits z_0
-  -> control model or unit logits z_1, z_2, ...
-  -> convert to bias fields B_i
-  -> compose the fields with bias operator O
-  -> inject F into z_0
+  -> common base logits z_base(x)
+  -> specialist logits z_1(x), z_2(x), ..., z_n(x)
+  -> bias fields B_k(x) = z_k(x) - z_base(x)
+  -> fused field B_fused(x) = F(B_1(x), ..., B_n(x))
+  -> z_fused(x) = z_base(x) + B_fused(x)
+  -> p_fused(x) = softmax(z_fused(x))
   -> decode next token
 ```
 
-This differs from routing:
+Every field is defined over the same vocabulary, token position, and prefix.
+
+## 2. Why same-prefix evaluation matters
+
+Bias fields cannot be compared safely when they were produced from different tokenizers, different prefixes, or different output spaces.
+
+The minimum ABI requirements are:
+
+- identical ordered vocabulary;
+- identical tokenizer profile and vocabulary hash;
+- identical prefix token IDs;
+- identical sequence position;
+- compatible model output shape;
+- a clearly identified common base checkpoint.
+
+The common base is part of the experimental definition. It should represent shared behavior that is not intended to be counted repeatedly in every specialist field.
+
+## 3. Fusion is not routing
+
+Routing and fusion are different operations.
 
 ```text
 routing:
-  choose one or a few experts
+  choose one model or a small subset
 
-parallel bias control:
-  keep the same sequence context and compose multiple control fields
+bias fusion:
+  combine fields produced in the same output space
 ```
 
-The desired behavior is not that a symbolic controller chooses `ADD` or `SUB` first. The desired behavior is that both fields can exist in the same vocabulary space, are composed, and the final softmax makes tokens supported by the stronger or more coherent composed field more likely.
+A router may later provide weights or select a subset, but that does not replace the need to define and evaluate the fusion rule itself.
 
-## 5. Confidence and angle-based composition
+The first experiment should not hide routing inside the specialist models or inside the fusion baseline.
 
-A central hypothesis is:
+## 4. Raw fusion baseline
+
+The simplest baseline is:
 
 ```text
-When multiple bias fields are composed, the token direction with higher confidence, margin, or alignment becomes more likely after softmax.
+B_raw(x) = sum_k alpha_k B_k(x)
+z_raw(x) = z_base(x) + B_raw(x)
 ```
 
-For example, if `B_add` pushes `+` and `B_sub` pushes `-`, then the composed field determines which token becomes more likely:
+The coefficients `alpha_k` must be reported explicitly.
+
+Initial baselines should include:
+
+1. unscaled sum;
+2. arithmetic mean;
+3. fixed coefficient sweeps;
+4. centered-field variants;
+5. single-specialist controls;
+6. empty/base-only control.
+
+Raw fusion is required even when it fails, because the failure pattern defines what a later correction method must actually solve.
+
+## 5. Error amplification
+
+The central failure mode is not merely that a specialist gives a wrong answer. The concern is that a specialist can produce a confident non-zero field on an irrelevant or out-of-domain prefix.
 
 ```text
-F = O(B_add, B_sub)
-p_final = softmax(z_0 + lambda F)
+irrelevant specialist field
++ another irrelevant specialist field
++ another aligned error
+= amplified incorrect token probability
 ```
 
-The selected token should emerge from the composed distribution, not from a prior parser decision.
-
-Possible confidence or alignment signals:
+For token `v_wrong`:
 
 ```text
-pmax of the field-induced distribution
-logit margin between top candidates
-entropy reduction
-cosine alignment with a reference or consensus field
-agreement with verifier or progress field
-stability across perturbations
+B_1(v_wrong | x) > 0
+B_2(v_wrong | x) > 0
+B_3(v_wrong | x) > 0
 ```
 
-A normalized field form is useful:
+can produce:
 
 ```text
-B_hat_i = Center(B_i) / (||Center(B_i)|| + eps)
+sum_k B_k(v_wrong | x) >> 0
 ```
 
-A confidence-weighted composition can be written as:
+The experiment must therefore measure the contribution of inactive specialists rather than assuming that they are neutral.
+
+## 6. Mathematical operator models as a testbed
+
+The mathematical operator models are used because same-prefix fusion can be inspected precisely.
+
+Examples include:
+
+- an addition specialist;
+- a variable-length sum specialist;
+- a negation specialist;
+- minimum and maximum specialists;
+- a joint model trained on the union of those data families.
+
+The task family provides exact answers and exact intermediate transitions. This makes it possible to determine whether fusion:
+
+- preserves the correct next transformation;
+- changes the final answer correctly;
+- amplifies an irrelevant operator bias;
+- terminates at the correct point;
+- approaches the jointly trained reference distribution.
+
+The operator task is not the final application. It is the measurement system.
+
+## 7. Joint-reference comparison
+
+For each prefix `x`, compare:
 
 ```text
-F = sum_i w_i B_hat_i
-w_i = softmax(tau q_i)
+p_fused(. | x)
+p_joint(. | x)
 ```
 
-where `q_i` is a confidence, calibration, alignment, or verifier-supported quality score.
-
-## 6. Corrector role
-
-A corrector should not be understood as a parser-based symbolic operator selector.
-
-The corrector is better understood as a contribution calibrator over a bias field.
-
-General form:
+using a reported divergence:
 
 ```text
-F(v | x) = sum_i c_i(v | x) B_i(v | x)
+L_match(x) = D(p_joint(. | x), p_fused(. | x))
 ```
 
-Lower-rank scalar form:
+Aggregate this separately for:
+
+- each specialist domain;
+- mixed-domain data;
+- inactive-specialist conditions;
+- value OOD data;
+- sequence-length OOD data;
+- each saved training checkpoint.
+
+Distribution matching must be reported alongside exact answer and trace-validity metrics.
+
+## 8. Optional later mechanisms
+
+After raw fusion is measured, later experiments may test:
+
+- oracle applicability weights;
+- fixed norm balancing;
+- learned scalar weights;
+- token-wise weights;
+- routing;
+- confidence or entropy weighting;
+- projection removal;
+- learned residual correction.
+
+These are alternative hypotheses for reducing fusion error. None is part of the basic definition of bias fusion.
+
+A later mechanism is useful only when it improves a clearly defined baseline without obscuring whether the specialist fields themselves contain composable information.
+
+## 9. Required measurements
+
+At minimum, record:
 
 ```text
-F(v | x) = sum_i g_i(x) B_i(v | x)
-```
-
-The token-wise form is more general:
-
-```text
-c_i(v | x) in [0, 1]
-```
-
-Interpretation:
-
-```text
-corrector = contribution calibrator over a bias field
-```
-
-not:
-
-```text
-corrector = parser-based symbolic operator selector
-```
-
-Important distinction:
-
-```text
-composition first:
-  compare and combine the parallel fields in the same space
-
-calibration second:
-  prevent raw confidence, OOD peakedness, or irrelevant fields from dominating incorrectly
-```
-
-## 7. Why direct summation is not enough
-
-A naive assumption is:
-
-```text
-irrelevant control field -> neutral contribution
-```
-
-Early proxy experiments suggest this assumption can fail. Irrelevant units can emit peaked, structured wrong biases.
-
-Therefore direct fusion:
-
-```text
-z_raw = z_0 + sum_i B_i
-```
-
-must be compared against calibrated composition:
-
-```text
-z_final = z_0 + O_calibrated(B_1, B_2, ..., B_n)
-```
-
-The goal is not to remove competition between fields. The goal is to make competition meaningful by calibrating field scale, confidence, angle, and reliability.
-
-## 8. Slot-wise control as an implementation detail
-
-Slot-wise control can be useful in mathematical generation:
-
-```text
-operator slot
-operand slot
-result slot
-equality-boundary slot
-stop slot
-```
-
-However, slot-wise control is an implementation of bias-field control, not the main definition.
-
-The central object remains the same-prefix bias field:
-
-```text
-B_i(v | x)
-```
-
-and the central question remains:
-
-```text
-Can bias operators transform and compose parallel control fields so that the composed softmax prefers the intended high-confidence or high-alignment direction?
-```
-
-## 9. Minimal example
-
-Suppose two parallel units produce fields over the same prefix:
-
-```text
-B_add(v | x)
-B_sub(v | x)
-```
-
-At an operator-like position:
-
-```text
-B_add may push `+`
-B_sub may push `-`
-```
-
-The intended experiment is not simply:
-
-```text
-turn ADD off and keep SUB
-```
-
-The intended experiment is:
-
-```text
-compose B_add and B_sub
-calibrate their scale or confidence if needed
-apply softmax
-observe whether `+` or `-` becomes more likely
-```
-
-Example calibrated composition:
-
-```text
-F = w_add B_add + w_sub B_sub
-p_final = softmax(z_0 + lambda F)
-```
-
-If the subtract field has higher calibrated confidence or stronger alignment with the desired control objective, then:
-
-```text
-w_sub B_sub(- | x) > w_add B_add(+ | x)
-```
-
-and `-` becomes more likely after softmax.
-
-At a result-like position, the same mechanism applies:
-
-```text
-B_add may push `7`
-B_sub may push `-1`
-```
-
-The composed and calibrated field determines whether `7` or `-1` becomes more likely.
-
-## 10. Evaluation
-
-Key measurements:
-
-```text
-softmax_effect_kl
-softmax_effect_jsd
-control_success_rate
-raw_vs_calibrated_delta
+single_model_task_loss
+single_model_exact_accuracy
+complete_trace_accuracy
+stop_accuracy
 inactive_bias_norm
-inactive_pmax
-wrong_control_projection_rate
-parallel_field_agreement
-parallel_field_conflict
-confidence_calibration_error
-angle_alignment_score
-verifier_score_shift
+inactive_top_probability
+wrong_token_amplification
+field_agreement
+field_conflict
+raw_fusion_task_loss
+raw_fusion_exact_accuracy
+joint_reference_task_loss
+joint_vs_fused_kl_or_jsd
+value_ood_accuracy
+length_ood_accuracy
 ```
 
-For a reference field `F_ref` and learned field `F_model`:
+Measurements must be aligned by seed, base checkpoint, tokenizer ABI, and training exposure.
+
+## 10. Short framing
 
 ```text
-p_ref   = softmax(z_0 + F_ref)
-p_model = softmax(z_0 + F_model)
-```
-
-Measure:
-
-```text
-KL(p_ref || p_model)
-JSD(p_ref, p_model)
-Delta verifier effect
-```
-
-## 11. Correct short framing
-
-```text
-This project uses a mathematical operator calculator as a controlled proxy for learning operators over parallel logit or bias fields. The aim is to run multiple model or unit outputs over the same sequence context, compose those outputs with bias algebra, calibrate their confidence and alignment when needed, and inject the resulting control field back into the next-token distribution.
+This project studies same-prefix bias fusion. Multiple GPT variants are evaluated on the same token prefix, their logit changes relative to a common base are combined, and the resulting field is applied to one next-token distribution. Mathematical operator models are used because the intended behavior and the amplification of incorrect contributions can be verified exactly. Routing and calibration are later comparison methods, not the definition of fusion.
 ```
 
 Japanese:
 
 ```text
-このプロジェクトでは、数学的演算器を、並列に得られたlogit/bias fieldを操作するための制御proxyとして使う。同じ系列prefixに対して複数のmodel/unit出力を並列に出し、それらをbias algebraで完全に合成し、必要なら確度・角度・信頼性を校正し、得られたcontrol fieldを次token分布に注入することが目的である。
+このプロジェクトでは、同一prefixに対する複数GPTのlogit変化を共通baseとの差分として取り出し、
+それらをbias fusionして一つの次token分布を構成する。数学演算子モデルは、正しい寄与、
+不要なbias、相互干渉、誤差増幅を厳密に検証できる実験系として使う。routingや補正は、
+raw fusionを測定した後に比較する別の手法であり、fusionそのものの定義ではない。
 ```
