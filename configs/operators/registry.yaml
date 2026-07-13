@@ -1,12 +1,42 @@
-registry_version: 1
+registry_version: 2
 project: math-operator-units
-tokenizer_profile: tokenizer_core_v1
 
 model_profiles:
   gpt_nano_v1:
     model_class: GPTModel
     config_path: configs/model/gpt_nano_v1.yaml
-    description: "GPT-style transformer decoder, d_model=64, n_layers=2, ~700K params"
+    tokenizer_profile: tokenizer_core_v1
+    description: legacy planning/smoke profile
+  gpt_operator_1m_v1:
+    model_class: GPTModel
+    config_path: configs/model/gpt_operator_1m_v1.yaml
+    tokenizer_profile: operator_experiment_v1
+    parameter_limit: 1000000
+    actual_parameter_count: 848624
+    description: GPT-only production profile for the five-operator model factory
+
+experiment_sets:
+  gpt_operator_factory_v1:
+    purpose: create independent GPT operator checkpoints and one all-data joint reference
+    model_profile: gpt_operator_1m_v1
+    tokenizer_profile: operator_experiment_v1
+    operators:
+      - scalar.add
+      - aggregation.sum
+      - scalar.neg
+      - scalar.min
+      - scalar.max
+    joint_model_id: joint.all_five
+    independent_unit_count: 5
+    runtime_subset_count: 32
+    shared_initialization_per_seed: true
+    corrector_required_for_model_generation: false
+    allowed_later_calibration_modes:
+      - raw
+      - oracle_applicability
+      - learned_scalar_reliability
+      - learned_tokenwise_reliability
+      - removal_field
 
 operator_kinds:
   - math_exact
@@ -37,19 +67,13 @@ operators:
     implementation_mode: unit
     priority: S0
     evaluator_fn: eval_zero
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector_profile: gate_corrector
-      tier: nano
-    required_metrics:
-      - single_accuracy
-      - fusion_accuracy
-      - inactive_leakage_mean
+    default_unit: {model_profile: gpt_nano_v1, corrector_profile: gate_corrector, tier: nano}
+    required_metrics: [single_accuracy, fusion_accuracy, inactive_leakage_mean]
 
   - opcode: <ID>
     id: scalar.id
     canonical_token: <OP_SCALAR_ID>
-    symbol: "id"
+    symbol: id
     kind: math_exact
     domain: scalar
     type_signature: "X -> X"
@@ -57,10 +81,7 @@ operators:
     implementation_mode: unit
     priority: S0
     evaluator_fn: eval_id
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector_profile: gate_corrector
-      tier: nano
+    default_unit: {model_profile: gpt_nano_v1, corrector_profile: gate_corrector, tier: nano}
 
   - opcode: <NEG>
     id: scalar.neg
@@ -73,10 +94,7 @@ operators:
     implementation_mode: unit
     priority: S0
     evaluator_fn: eval_neg
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector_profile: gate_corrector
-      tier: nano
+    default_unit: {model_profile: gpt_nano_v1, corrector_profile: gate_corrector, tier: nano}
 
   - opcode: <ADD>
     id: scalar.add
@@ -89,14 +107,8 @@ operators:
     implementation_mode: unit
     priority: S0
     evaluator_fn: eval_add
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector_profile: gate_corrector
-      tier: nano
-    negative_generators:
-      - gen_type_mismatch
-      - gen_short_mixed
-      - gen_other_scalar_ops
+    default_unit: {model_profile: gpt_nano_v1, corrector_profile: gate_corrector, tier: nano}
+    negative_generators: [gen_type_mismatch, gen_short_mixed, gen_other_scalar_ops]
 
   - opcode: <SUB>
     id: scalar.sub
@@ -116,7 +128,7 @@ operators:
   - opcode: <ABS>
     id: scalar.abs
     canonical_token: <OP_SCALAR_ABS>
-    symbol: "abs"
+    symbol: abs
     kind: math_exact
     domain: scalar
     type_signature: "Scalar -> Scalar"
@@ -124,15 +136,12 @@ operators:
     implementation_mode: unit
     priority: S0
     evaluator_fn: eval_abs
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector_profile: gate_corrector
-      tier: micro
+    default_unit: {model_profile: gpt_nano_v1, corrector_profile: gate_corrector, tier: micro}
 
   - opcode: <POS>
     id: scalar.pos
     canonical_token: <OP_SCALAR_POS>
-    symbol: "x_+"
+    symbol: x_+
     kind: math_exact
     domain: scalar
     type_signature: "Scalar -> Scalar"
@@ -140,15 +149,12 @@ operators:
     implementation_mode: unit
     priority: S0
     evaluator_fn: eval_pos
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector_profile: gate_corrector
-      tier: micro
+    default_unit: {model_profile: gpt_nano_v1, corrector_profile: gate_corrector, tier: micro}
 
   - opcode: <MIN>
     id: scalar.min
     canonical_token: <OP_SCALAR_MIN>
-    symbol: "min"
+    symbol: min
     kind: math_exact
     domain: scalar
     type_signature: "ScalarSeq -> Scalar"
@@ -156,15 +162,12 @@ operators:
     implementation_mode: unit
     priority: S0
     evaluator_fn: eval_min
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector_profile: gate_corrector
-      tier: micro
+    default_unit: {model_profile: gpt_nano_v1, corrector_profile: gate_corrector, tier: micro}
 
   - opcode: <MAX>
     id: scalar.max
     canonical_token: <OP_SCALAR_MAX>
-    symbol: "max"
+    symbol: max
     kind: math_exact
     domain: scalar
     type_signature: "ScalarSeq -> Scalar"
@@ -172,15 +175,26 @@ operators:
     implementation_mode: unit
     priority: S0
     evaluator_fn: eval_max
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector_profile: gate_corrector
-      tier: micro
+    default_unit: {model_profile: gpt_nano_v1, corrector_profile: gate_corrector, tier: micro}
+
+  - opcode: <SUM_ALL>
+    id: aggregation.sum
+    canonical_token: <OP_AGG_SUM>
+    symbol: sum
+    kind: math_exact
+    domain: aggregation
+    type_signature: "ScalarSeq -> Scalar"
+    primitive: true
+    implementation_mode: unit
+    priority: S0
+    evaluator_fn: eval_sum
+    default_unit: {model_profile: gpt_operator_1m_v1, corrector_profile: null, tier: micro}
+    training_trace: contractive_equality_chain
 
   - opcode: <BIAS_ADD>
     id: bias.add
     canonical_token: <OP_BIAS_ADD>
-    symbol: "A+B"
+    symbol: A+B
     kind: bias_algebra
     domain: bias
     type_signature: "Bias x Bias -> Bias"
@@ -188,15 +202,12 @@ operators:
     implementation_mode: unit
     priority: S0
     evaluator_fn: eval_bias_add
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector_profile: gate_corrector
-      tier: nano
+    default_unit: {model_profile: gpt_nano_v1, corrector_profile: gate_corrector, tier: nano}
 
   - opcode: <BIAS_SUB>
     id: bias.sub
     canonical_token: <OP_BIAS_SUB>
-    symbol: "A-B"
+    symbol: A-B
     kind: bias_algebra
     domain: bias
     type_signature: "Bias x Bias -> Bias"
@@ -204,15 +215,12 @@ operators:
     implementation_mode: unit
     priority: S0
     evaluator_fn: eval_bias_sub
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector_profile: gate_corrector
-      tier: nano
+    default_unit: {model_profile: gpt_nano_v1, corrector_profile: gate_corrector, tier: nano}
 
   - opcode: <BIAS_CENTER>
     id: bias.center
     canonical_token: <OP_BIAS_CENTER>
-    symbol: "A-mean(A)"
+    symbol: A-mean(A)
     kind: bias_algebra
     domain: bias
     type_signature: "Bias -> Bias"
@@ -220,15 +228,12 @@ operators:
     implementation_mode: unit
     priority: S0
     evaluator_fn: eval_bias_center
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector_profile: gate_corrector
-      tier: nano
+    default_unit: {model_profile: gpt_nano_v1, corrector_profile: gate_corrector, tier: nano}
 
   - opcode: <BIAS_POS>
     id: bias.pos
     canonical_token: <OP_BIAS_POS>
-    symbol: "A_+"
+    symbol: A_+
     kind: bias_algebra
     domain: bias
     type_signature: "Bias -> Bias"
@@ -236,15 +241,12 @@ operators:
     implementation_mode: unit
     priority: S0
     evaluator_fn: eval_bias_pos
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector_profile: gate_corrector
-      tier: micro
+    default_unit: {model_profile: gpt_nano_v1, corrector_profile: gate_corrector, tier: micro}
 
   - opcode: <GATE>
     id: control.gate
     canonical_token: <OP_CTRL_GATE>
-    symbol: "g(x)"
+    symbol: g(x)
     kind: non_math_control
     domain: control
     type_signature: "Input -> [0,1]"
@@ -252,15 +254,12 @@ operators:
     implementation_mode: unit
     priority: S0
     evaluator_fn: eval_gate_targets
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector: null
-      tier: nano
+    default_unit: {model_profile: gpt_nano_v1, corrector: null, tier: nano}
 
   - opcode: <SUPPRESS>
     id: control.suppress
     canonical_token: <OP_CTRL_SUPPRESS>
-    symbol: "g*b"
+    symbol: g*b
     kind: non_math_control
     domain: control
     type_signature: "Gate x Bias -> Bias"
@@ -268,15 +267,12 @@ operators:
     implementation_mode: unit
     priority: S0
     evaluator_fn: eval_suppress
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector: null
-      tier: nano
+    default_unit: {model_profile: gpt_nano_v1, corrector: null, tier: nano}
 
   - opcode: <ABSTAIN>
     id: control.abstain
     canonical_token: <OP_CTRL_ABSTAIN>
-    symbol: "abstain"
+    symbol: abstain
     kind: non_math_control
     domain: control
     type_signature: "Input -> Abstain"
@@ -284,10 +280,7 @@ operators:
     implementation_mode: unit
     priority: S1
     evaluator_fn: eval_abstain
-    default_unit:
-      model_profile: gpt_nano_v1
-      corrector_profile: gate_corrector
-      tier: nano
+    default_unit: {model_profile: gpt_nano_v1, corrector_profile: gate_corrector, tier: nano}
 
 future_operator_policy:
   prefer_program_for_derived: true
@@ -305,6 +298,10 @@ required_checkpoint_metadata:
   - train_generator
   - negative_generator
   - metrics
+  - seed
+  - training_step
+  - initial_checkpoint
+  - parameter_count
 
 core_metrics:
   - single_accuracy
@@ -319,3 +316,6 @@ core_metrics:
   - short_mixed_leakage
   - length_ood_accuracy
   - depth_ood_accuracy
+  - per_operator_validation_loss
+  - initial_to_current_l2
+  - joint_reference_loss
