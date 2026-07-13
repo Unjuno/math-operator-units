@@ -21,7 +21,7 @@ CONDITIONS = (
 )
 
 
-def test_pilot_configs_use_deterministic_math_and_reserve_iid_test() -> None:
+def test_pilot_configs_use_deterministic_math_and_reserve_final_splits() -> None:
     for condition in CONDITIONS:
         config = load_design_run_config(ROOT / f"configs/experiments/model_design_pilot_{condition}.yaml")
         assert config.deterministic_algorithms
@@ -29,10 +29,13 @@ def test_pilot_configs_use_deterministic_math_and_reserve_iid_test() -> None:
         assert config.seeds == (0,)
 
     launcher = (ROOT / "scripts/run_model_design_pilot.sh").read_text(encoding="utf-8")
-    assert "evaluation_splits=(validation operand_ood length_ood)" in launcher
+    assert "evaluation_splits=(validation)" in launcher
     assert "opfusion-evaluate-unit-diagnostics" in launcher
     assert "opfusion-audit-pilot-pairs" in launcher
     assert "--split test" not in launcher
+    declared = launcher.split("evaluation_splits=", 1)[1].split("for condition", 1)[0]
+    assert "operand_ood" not in declared
+    assert "length_ood" not in declared
 
 
 def test_pilot_and_final_evaluation_seed_namespaces_are_separate() -> None:
