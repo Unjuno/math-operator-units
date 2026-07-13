@@ -37,6 +37,10 @@ def test_pilot_configs_use_deterministic_math_and_reserve_final_splits() -> None
     assert "operand_ood" not in declared
     assert "length_ood" not in declared
 
+    trainer_surface = (ROOT / "src/opfusion/training/trainer_surface.py").read_text(encoding="utf-8")
+    assert 'splits = ("validation",)' in trainer_surface
+    assert 'splits = ("validation", "operand_ood", "length_ood")' not in trainer_surface
+
 
 def test_pilot_and_final_evaluation_seed_namespaces_are_separate() -> None:
     pilot = ROOT / "configs/experiments/model_design_pilot_weak_retention.yaml"
