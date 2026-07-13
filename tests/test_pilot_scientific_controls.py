@@ -45,6 +45,11 @@ def test_pilot_configs_use_deterministic_math_and_reserve_final_splits() -> None
     assert 'splits = ("validation",)' in trainer_surface
     assert 'splits = ("validation", "operand_ood", "length_ood")' not in trainer_surface
 
+    production_launcher = (ROOT / "scripts/run_bias_fusion_factory_surface_v4.sh").read_text(encoding="utf-8")
+    assert "corrected model-design pilot gate: passed" in production_launcher
+    assert 'index.get("reserved_final_splits")' in production_launcher
+    assert 'payload.get("evaluation_splits") != ["validation"]' in production_launcher
+
 
 def test_pilot_and_final_evaluation_seed_namespaces_are_separate() -> None:
     pilot = ROOT / "configs/experiments/model_design_pilot_weak_retention.yaml"
