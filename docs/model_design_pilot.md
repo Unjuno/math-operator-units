@@ -88,11 +88,46 @@ Every output root receives `experiment_contract.json`. The fingerprint includes:
 
 A mismatched output directory is rejected before checkpoint reuse. Changing learning rate, base mode, retention weights, data ranges, trainer code, or tokenizer requires a new output directory.
 
-## Execution
+## One-command unattended execution
+
+Run the entire 2×2 pilot, including all seven models per condition and validation/test fusion evaluation, with one detached command:
 
 ```bash
 bash scripts/run_model_design_pilot.sh detach
 ```
+
+The detached process is a watchdog. It:
+
+- runs the four conditions sequentially in the declared order;
+- holds a global `flock` lock so two pilots cannot write the same outputs;
+- uses `systemd-inhibit` when available;
+- resumes incomplete model jobs from `last.pt`;
+- skips a condition only after validating its completion marker, reports, config hash, and Git commit;
+- retries unexpected worker failures up to `MAX_RESTARTS=20` by default;
+- does not retry permanent preflight failures such as missing CUDA, missing executables, insufficient disk, or duplicate launch;
+- writes phase and retry state to `runs/model_design_pilot/pilot_state.json`.
+
+The default free-disk gate is 15 GiB. Override only after estimating the complete checkpoint footprint:
+
+```bash
+MIN_FREE_GB=20 MAX_RESTARTS=30 \
+  bash scripts/run_model_design_pilot.sh detach
+```
+
+Check progress without parsing the full log:
+
+```bash
+bash scripts/status_model_design_pilot.sh
+```
+
+Follow the current log:
+
+```bash
+latest_log="$(ls -1t logs/model_design_pilot_*.log | head -1)"
+tail -f "$latest_log"
+```
+
+Re-running the detached command after a process interruption is safe. Completed jobs and verified completed conditions are reused. A machine reboot cannot be recovered by `nohup`; after reboot, verify the GPU and run the same detached command again.
 
 Outputs:
 

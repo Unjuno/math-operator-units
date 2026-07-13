@@ -14,6 +14,8 @@ from opfusion.training.design_config import load_design_run_config, model_design
 PRIMARY_CONFIG = Path("configs/experiments/gpt_bias_fusion_factory_surface_v4.yaml")
 PRIMARY_LAUNCHER = Path("scripts/run_bias_fusion_factory_surface_v4.sh")
 PILOT_LAUNCHER = Path("scripts/run_model_design_pilot.sh")
+PILOT_WATCHER = Path("scripts/watch_model_design_pilot.sh")
+PILOT_STATUS = Path("scripts/status_model_design_pilot.sh")
 LEGACY_V3_LAUNCHER = Path("scripts/run_bias_fusion_factory_surface_v3.sh")
 TYPED_V2_LAUNCHER = Path("scripts/run_bias_fusion_factory_v2.sh")
 ARCH_BOOTSTRAP = Path("scripts/bootstrap_arch_linux.sh")
@@ -113,13 +115,15 @@ def audit_repo(repo_root: str | Path, *, data_samples_per_operator: int = 32) ->
     try:
         launcher = _read(root, PRIMARY_LAUNCHER)
         pilot = _read(root, PILOT_LAUNCHER)
+        pilot_watcher = _read(root, PILOT_WATCHER)
+        pilot_status = _read(root, PILOT_STATUS)
         bootstrap = _read(root, ARCH_BOOTSTRAP)
         runbook = _read(root, ARCH_RUNBOOK)
         legacy_v3 = _read(root, LEGACY_V3_LAUNCHER)
         typed_v2 = _read(root, TYPED_V2_LAUNCHER)
     except FileNotFoundError as exc:
         errors.append({"kind": "missing_operational_file", "path": str(exc)})
-        launcher = pilot = bootstrap = runbook = legacy_v3 = typed_v2 = ""
+        launcher = pilot = pilot_watcher = pilot_status = bootstrap = runbook = legacy_v3 = typed_v2 = ""
 
     check(str(PRIMARY_CONFIG) in launcher, "primary_launcher_default_config_mismatch")
     check("opfusion-train-batch-design" in launcher, "primary_launcher_uses_legacy_batch_runner")
@@ -129,6 +133,12 @@ def audit_repo(repo_root: str | Path, *, data_samples_per_operator: int = 32) ->
     check("identity_retention" in pilot, "pilot_missing_identity_retention")
     check("weak_unanchored" in pilot, "pilot_missing_weak_unanchored")
     check("weak_retention" in pilot, "pilot_missing_weak_retention")
+    check("watch_model_design_pilot.sh" in pilot, "pilot_detach_does_not_use_watchdog")
+    check("status_model_design_pilot.sh" in pilot, "pilot_does_not_advertise_status_command")
+    check("MAX_RESTARTS" in pilot_watcher, "pilot_watchdog_has_no_retry_limit")
+    check("OPFUSION_PILOT_WATCHED" in pilot_watcher, "pilot_watchdog_does_not_mark_worker")
+    check("pilot_state.json" in pilot_watcher, "pilot_watchdog_has_no_state_file")
+    check("completed_models" in pilot_status, "pilot_status_omits_model_progress")
     check("run_model_design_pilot.sh" in bootstrap, "bootstrap_does_not_advertise_pilot")
     check("gpt_bias_fusion_factory_surface_v4" in bootstrap, "bootstrap_omits_surface_v4")
     check("gpt_bias_fusion_factory_surface_v4" in runbook, "runbook_omits_surface_v4")

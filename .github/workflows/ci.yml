@@ -33,6 +33,8 @@ jobs:
           scripts/run_bias_fusion_factory_surface_v4.sh
           scripts/watch_bias_fusion_factory_surface_v4.sh
           scripts/run_model_design_pilot.sh
+          scripts/watch_model_design_pilot.sh
+          scripts/status_model_design_pilot.sh
       - name: Audit canonical repository contract
         run: opfusion-audit . --data-samples-per-operator 32
       - name: Audit canonical generated data
