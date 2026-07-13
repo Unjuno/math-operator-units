@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "operator-unit-fusion"
-version = "0.1.0"
-description = "Typed operator-unit fusion experiments with fixed tokenizer ABI and runtime fusion manifests."
+version = "0.2.0"
+description = "GPT operator-model factory and logit-space fusion experiments with fixed tokenizer ABI."
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
@@ -17,9 +17,16 @@ dependencies = [
 dev = [
   "pytest>=8.0",
 ]
+publish = [
+  "huggingface_hub>=0.24",
+]
 
 [project.scripts]
 opfusion-audit = "opfusion.audit:main"
+opfusion-train-one = "opfusion.training.trainer:main"
+opfusion-train-batch = "opfusion.training.batch:main"
+opfusion-checkpoint-trajectory = "opfusion.training.analyze:main"
+opfusion-export-bundle = "opfusion.training.export:main"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
