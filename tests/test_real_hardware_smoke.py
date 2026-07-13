@@ -61,7 +61,7 @@ def test_cuda_smoke_is_standalone_verified_and_used_by_production() -> None:
     assert "OPFUSION_ALLOW_V4_PRODUCTION" not in script
 
     assert "run_surface_v4_cuda_smoke.sh" in production_launcher
-    assert 'SKIP_STATIC_PREFLIGHT=1 "$CUDA_SMOKE" "$SMOKE_CONFIG"' in production_launcher
+    assert 'SKIP_STATIC_PREFLIGHT=1 bash "$CUDA_SMOKE" "$SMOKE_CONFIG"' in production_launcher
     assert "run_surface_v4_cuda_smoke.sh" in bootstrap
     assert "TORCH_INDEX_URL" in bootstrap
     assert "--upgrade torch --index-url" in bootstrap
