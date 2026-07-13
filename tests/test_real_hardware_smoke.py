@@ -58,6 +58,10 @@ def test_cuda_smoke_is_standalone_verified_and_used_by_production() -> None:
     assert "SMOKE_EVALUATION_SEED" in script
     assert "cuda_smoke_complete.json" in script
     assert "expected seven completed smoke models" in script
+    assert "nvidia_driver_version" in script
+    assert "torch_cuda_runtime" in script
+    assert 'gpu.get("name") == props.name' in script
+    assert "smoke output_dir must be a relative path below runs/" in script
     assert "OPFUSION_ALLOW_V4_PRODUCTION" not in script
 
     assert "run_surface_v4_cuda_smoke.sh" in production_launcher
