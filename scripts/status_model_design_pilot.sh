@@ -58,7 +58,7 @@ import json
 from pathlib import Path
 
 conditions = ["identity_unanchored", "identity_retention", "weak_unanchored", "weak_retention"]
-splits = ["validation", "operand_ood", "length_ood"]
+splits = ["validation"]
 print("progress:")
 for condition in conditions:
     root = Path("runs/model_design_pilot") / condition
@@ -75,7 +75,7 @@ for condition in conditions:
     status = "complete" if marker.is_file() else "incomplete"
     print(
         f"  {condition}: {status}; completed_models={len(jobs)}/7; "
-        f"fusion_reports={reports}/3; unit_reports={diagnostics}/3"
+        f"fusion_reports={reports}/1; unit_reports={diagnostics}/1"
     )
 index = Path("evaluations/model_design_pilot/index.json")
 pair = Path("audits/model_design_pilot/pair_consistency.json")
@@ -88,7 +88,7 @@ if pair.is_file():
         print("pair_consistency: unreadable")
 else:
     print("pair_consistency: not present")
-print("final_iid_test: reserved/not run by pilot")
+print("final_splits: iid_test, operand_ood, length_ood reserved/not run by pilot")
 PY
 fi
 
