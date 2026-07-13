@@ -30,7 +30,7 @@ EOF
   exit 64
 fi
 
-if [[ ! -x "$PYTHON" || ! -x "$TRAIN_BATCH" || ! -x "$REPO_AUDIT" || ! -x "$AUDIT_DATA" || ! -x "$CUDA_SMOKE" ]]; then
+if [[ ! -x "$PYTHON" || ! -x "$TRAIN_BATCH" || ! -x "$REPO_AUDIT" || ! -x "$AUDIT_DATA" || ! -f "$CUDA_SMOKE" ]]; then
   echo "virtual environment or launcher is missing/stale; run: bash scripts/bootstrap_arch_linux.sh" >&2
   exit 1
 fi
@@ -109,7 +109,7 @@ mkdir -p audits logs runs/gpt_bias_fusion_factory_surface_v4
 
 if [[ "${SKIP_SMOKE:-0}" != "1" ]]; then
   echo "Running verified surface-v4 CUDA smoke batch..."
-  SKIP_STATIC_PREFLIGHT=1 "$CUDA_SMOKE" "$SMOKE_CONFIG"
+  SKIP_STATIC_PREFLIGHT=1 bash "$CUDA_SMOKE" "$SMOKE_CONFIG"
 fi
 
 WATCH=(bash scripts/watch_bias_fusion_factory_surface_v4.sh "$CONFIG")
