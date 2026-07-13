@@ -28,6 +28,10 @@ def test_pilot_configs_use_deterministic_math_and_reserve_final_splits() -> None
         assert not config.allow_tf32
         assert config.seeds == (0,)
 
+    production = load_design_run_config(ROOT / "configs/experiments/gpt_bias_fusion_factory_surface_v4.yaml")
+    assert production.deterministic_algorithms
+    assert not production.allow_tf32
+
     launcher = (ROOT / "scripts/run_model_design_pilot.sh").read_text(encoding="utf-8")
     assert "evaluation_splits=(validation)" in launcher
     assert "opfusion-evaluate-unit-diagnostics" in launcher
