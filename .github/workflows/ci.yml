@@ -18,10 +18,25 @@ jobs:
           python-version: ${{ matrix.python-version }}
       - name: Install package
         run: python -m pip install -e ".[dev]"
+      - name: Validate Python modules
+        run: python -m compileall -q src tests
       - name: Validate shell launchers
-        run: bash -n scripts/run_operator_factory_cuda.sh scripts/watch_operator_factory.sh scripts/run_bias_fusion_factory_surface_v3.sh scripts/watch_bias_fusion_factory_surface_v3.sh
-      - name: Audit repository config
-        run: opfusion-audit .
+        run: >-
+          bash -n
+          scripts/bootstrap_arch_linux.sh
+          scripts/run_operator_factory_cuda.sh
+          scripts/watch_operator_factory.sh
+          scripts/run_bias_fusion_factory_v2.sh
+          scripts/watch_bias_fusion_factory_v2.sh
+          scripts/run_bias_fusion_factory_surface_v3.sh
+          scripts/watch_bias_fusion_factory_surface_v3.sh
+      - name: Audit canonical repository contract
+        run: opfusion-audit . --data-samples-per-operator 32
+      - name: Audit canonical generated data
+        run: >-
+          opfusion-audit-data
+          --config configs/experiments/gpt_bias_fusion_factory_surface_v3.yaml
+          --samples-per-operator 64
       - name: Run tests
         run: pytest -q --junitxml=pytest-report.xml
       - name: Upload pytest report
