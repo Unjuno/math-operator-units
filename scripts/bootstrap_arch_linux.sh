@@ -57,8 +57,11 @@ PY
 cat <<'EOF'
 Setup complete.
 
-Required first run: four-condition model-design pilot
+Required first run: all four model-design conditions, unattended
   bash scripts/run_model_design_pilot.sh detach
+
+Pilot status
+  bash scripts/status_model_design_pilot.sh
 
 Guarded production candidate after reviewing the pilot:
   OPFUSION_ALLOW_V4_PRODUCTION=1 \
@@ -66,9 +69,10 @@ Guarded production candidate after reviewing the pilot:
       configs/experiments/gpt_bias_fusion_factory_surface_v4.yaml \
       detach
 
-The v4 path uses a weak multitask common base, inactive-operator retention,
-validation-selected endpoints, and strict experiment fingerprints. Legacy
-surface-v3 and typed-v2 launchers require explicit opt-in.
+The pilot watchdog runs conditions sequentially, resumes incomplete checkpoints,
+and retries unexpected worker failures. The v4 path uses a weak multitask common
+base, inactive-operator retention, validation-selected endpoints, and strict
+experiment fingerprints. Legacy surface-v3 and typed-v2 launchers require opt-in.
 
 On Arch Linux, verify `nvidia-smi` after every kernel/driver update. The script
 does not assume Ubuntu packages or apt.
