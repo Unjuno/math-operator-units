@@ -56,6 +56,8 @@ def test_cuda_smoke_is_standalone_verified_and_used_by_production() -> None:
     assert "opfusion-evaluate-unit-diagnostics" in script
     assert "--split validation" in script
     assert "SMOKE_EVALUATION_SEED" in script
+    assert script.count('--evaluation-seed "$SMOKE_EVALUATION_SEED"') == 2
+    assert 'diagnostics_payload.get("evaluation_seed") == evaluation_seed' in script
     assert "cuda_smoke_complete.json" in script
     assert "expected seven completed smoke models" in script
     assert "nvidia_driver_version" in script
