@@ -1,0 +1,1 @@
+This marker records that PR #4 must not merge until the exact verifier accepts the valid scalar.neg zero transition and rejects empty equality segments. Remove this file when those two regressions are fixed and tests pass.
