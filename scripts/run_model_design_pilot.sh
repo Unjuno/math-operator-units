@@ -72,7 +72,7 @@ write_state() {
   local condition="${2:-}"
   local phase="${3:-}"
   local detail="${4:-}"
-  "$PYTHON" - "$STATE_FILE" "$status" "$condition" "$phase" "$detail" <<'PY'
+  "$PYTHON" - "$STATE_FILE" "$status" "$condition" "$phase" "$detail" "$$" <<'PY'
 import json
 import os
 import sys
@@ -92,7 +92,7 @@ existing.update(
         "condition": sys.argv[3] or None,
         "phase": sys.argv[4] or None,
         "detail": sys.argv[5] or None,
-        "worker_pid": os.getpid(),
+        "worker_pid": int(sys.argv[6]),
         "updated_unix": time.time(),
     }
 )
@@ -126,22 +126,23 @@ condition_complete() {
   if [[ -n "$(git status --porcelain --untracked-files=no 2>/dev/null || true)" ]]; then
     return 1
   fi
-  "$PYTHON" - "$marker" "$validation" "$test" "$manifest" "$config" <<'PY'
+  "$PYTHON" - "$marker" "$validation" "$test" "$manifest" "$config" "$output" <<'PY'
 import hashlib
 import json
 import subprocess
 import sys
 from pathlib import Path
 
-marker, validation, test, manifest, config = map(Path, sys.argv[1:])
-for path in (marker, validation, test, manifest, config):
+marker, validation, test, manifest, config, output = map(Path, sys.argv[1:])
+for path in (marker, validation, test, manifest, config, output / "experiment_contract.json"):
     if not path.is_file():
         raise SystemExit(1)
 try:
-    payload = json.loads(marker.read_text(encoding="utf-8"))
+    completion = json.loads(marker.read_text(encoding="utf-8"))
     json.loads(validation.read_text(encoding="utf-8"))
     json.loads(test.read_text(encoding="utf-8"))
-    json.loads(manifest.read_text(encoding="utf-8"))
+    manifest_payload = json.loads(manifest.read_text(encoding="utf-8"))
+    contract = json.loads((output / "experiment_contract.json").read_text(encoding="utf-8"))
 except Exception:
     raise SystemExit(1)
 try:
@@ -149,7 +150,42 @@ try:
 except Exception:
     raise SystemExit(1)
 config_sha = hashlib.sha256(config.read_bytes()).hexdigest()
-raise SystemExit(0 if payload.get("git_commit") == commit and payload.get("config_sha256") == config_sha else 1)
+fingerprint = contract.get("fingerprint")
+if not (
+    completion.get("status") == "completed"
+    and completion.get("git_commit") == commit
+    and completion.get("config_sha256") == config_sha
+    and completion.get("experiment_fingerprint") == fingerprint
+    and manifest_payload.get("experiment_fingerprint") == fingerprint
+):
+    raise SystemExit(1)
+
+def resolve_checkpoint(value: object) -> Path:
+    path = Path(str(value))
+    return path if path.is_absolute() else Path.cwd() / path
+
+checkpoint_values = [
+    manifest_payload.get("base_checkpoint"),
+    manifest_payload.get("joint_reference_checkpoint"),
+    *manifest_payload.get("unit_checkpoints", {}).values(),
+]
+if any(value is None or not resolve_checkpoint(value).is_file() for value in checkpoint_values):
+    raise SystemExit(1)
+complete_files = sorted((output / "seed_0").glob("*/complete.json"))
+if len(complete_files) != 7:
+    raise SystemExit(1)
+for complete_path in complete_files:
+    try:
+        payload = json.loads(complete_path.read_text(encoding="utf-8"))
+    except Exception:
+        raise SystemExit(1)
+    selected = payload.get("selected_checkpoint")
+    final = payload.get("final_checkpoint")
+    if selected is None or final is None:
+        raise SystemExit(1)
+    if not resolve_checkpoint(selected).is_file() or not resolve_checkpoint(final).is_file():
+        raise SystemExit(1)
+raise SystemExit(0)
 PY
 }
 
@@ -174,6 +210,7 @@ commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(
 payload = {
     "condition": condition,
     "status": "completed",
+    "expected_model_count": 7,
     "git_commit": commit,
     "config_sha256": hashlib.sha256(config.read_bytes()).hexdigest(),
     "experiment_fingerprint": contract["fingerprint"],
@@ -214,7 +251,7 @@ for condition in "${conditions[@]}"; do
   output="runs/model_design_pilot/${condition}"
   if condition_complete "$condition" "$config"; then
     echo "=== MODEL DESIGN PILOT: ${condition} already complete; skipping ==="
-    write_state running "$condition" skipped "verified completion marker and reports"
+    write_state running "$condition" skipped "verified completion marker, reports, contracts, and checkpoints"
     continue
   fi
 
@@ -243,6 +280,10 @@ for condition in "${conditions[@]}"; do
       --out "evaluations/model_design_pilot/${condition}_${split}.json"
   done
   mark_condition_complete "$condition" "$config"
+  if ! condition_complete "$condition" "$config"; then
+    echo "condition completion verification failed: $condition" >&2
+    exit 1
+  fi
   write_state running "$condition" completed "condition training and evaluation completed"
 done
 
