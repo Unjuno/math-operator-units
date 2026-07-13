@@ -46,21 +46,26 @@ def test_response_only_labels_mask_the_prompt() -> None:
     assert encoded.response_length >= 1
 
 
-def test_common_base_learns_identity_equality_not_arithmetic_answers() -> None:
+def test_common_base_uses_the_same_prefix_and_a_neutral_identity_target() -> None:
     _, _, factory = _v2()
-    example = factory.training_example(
-        "base.common",
+    kwargs = dict(
         seed=0,
         split="train",
-        step=0,
+        step=3,
         sample_index=3,
+        forced_operator="aggregation.sum",
     )
-    assert example.prompt_tokens[0] == "<TASK_COPY>"
-    assert example.prompt_tokens[-1] == "<RESPONSE>"
-    assert example.response_tokens[0] == "<EQ_STEP>"
-    assert example.response_tokens[-1] == "<TRACE_STOP>"
-    assert example.trace_states[0] == example.trace_states[1]
-    assert example.final_value is None
+    base = factory.training_example("base.common", **kwargs)
+    specialist = factory.training_example("aggregation.sum", **kwargs)
+    assert base.prompt_tokens == specialist.prompt_tokens
+    assert base.prompt_tokens[0] == "<OP_AGG_SUM>"
+    assert base.prompt_tokens[-1] == "<RESPONSE>"
+    assert base.response_tokens[0] == "<EQ_STEP>"
+    assert base.response_tokens[-1] == "<TRACE_STOP>"
+    assert base.trace_states[0] == base.trace_states[1]
+    assert base.final_value is None
+    assert base.task == "identity_equivalence"
+    assert specialist.final_value is not None
 
 
 def test_v2_plan_has_minimum_seven_models_and_sixteen_checkpoints() -> None:
