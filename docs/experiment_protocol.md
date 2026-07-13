@@ -9,70 +9,120 @@ B_k(x) = z_k(x) - z_base(x)
 z_raw(x) = z_base(x) + sum_k B_k(x)
 ```
 
-The primary question is whether those independently trained fields can be composed during autoregressive generation without destroying task correctness, trace validity, or stopping behavior.
+The primary question is whether independently trained fields can be composed during autoregressive generation without destroying task correctness, trace validity, or stopping behavior. This is an existence and failure-analysis experiment. Raw addition is not assumed to work, and the primary condition contains no hidden input router or learned fusion corrector.
 
-This is an existence and failure-analysis experiment. It does not assume that raw addition is correct, and it does not include a hidden router or learned corrector in the primary condition.
+## 2. Surface policy
 
-## 2. Canonical condition
-
-The only production condition is `surface_v3`:
+All main and pilot conditions use the ordinary surface tokenizer/model ABI:
 
 ```text
-config:    configs/experiments/gpt_bias_fusion_factory_surface_v3.yaml
-launcher:  scripts/run_bias_fusion_factory_surface_v3.sh
 tokenizer: configs/tokenizer/operator_experiment_surface_v3.yaml
 model:     configs/model/gpt_operator_1m_surface_v3.yaml
 ```
 
-The model predicts ordinary `=`, arithmetic punctuation, numeric tokens, and EOS. `<EQ_STEP>` and `<TRACE_STOP>` are implementation aliases only and are not separate output classes in the surface vocabulary.
+The model predicts ordinary `=`, arithmetic punctuation, numeric tokens, and EOS. `<EQ_STEP>` and `<TRACE_STOP>` are implementation aliases, not separate output classes.
 
-Typed v2 is a diagnostic ablation. It must not be substituted for the canonical condition.
+Typed v2 is a diagnostic output-token ablation. Surface v3 is retained as the identity-base/unanchored control. Neither is the default production design.
 
-## 3. Minimum trained model set
+## 3. Required model-design pilot
 
-For each seed:
+Before the three-seed run, train one seed under four conditions:
+
+```text
+identity base × unanchored specialists
+identity base × retention-anchored specialists
+weak multitask base × unanchored specialists
+weak multitask base × retention-anchored specialists
+```
+
+The four configurations differ only in the base target mode and specialist regularization. Architecture, tokenizer, operator set, seed, task batch, optimizer family, evaluation protocol, and endpoint selection remain fixed.
+
+The pilot determines whether fusion behavior is dominated by:
+
+- repeated cancellation of an identity-base policy;
+- inactive-operator specialist drift;
+- or a more fundamental incompatibility among the learned fields.
+
+The guarded production candidate is `surface_v4`, but it must not advance merely because it is implemented.
+
+## 4. Minimum trained model set
+
+For each condition and seed:
 
 ```text
 shared random initialization
         ↓
-base.common
-        ├── scalar.add
-        ├── aggregation.sum
-        ├── scalar.neg
-        ├── scalar.min
-        ├── scalar.max
-        └── joint.all_five.exposure_matched
+base.common selected.pt
+        ├── scalar.add selected.pt
+        ├── aggregation.sum selected.pt
+        ├── scalar.neg selected.pt
+        ├── scalar.min selected.pt
+        ├── scalar.max selected.pt
+        └── joint.all_five.exposure_matched selected.pt
 ```
 
-The production configuration uses three seeds, producing 21 trained models.
+The production candidate uses three seeds, producing 21 trained models. All specialists and the joint reference start from the exact validation-selected `base.common` checkpoint for that seed. Tokenizer profile, vocabulary hash, architecture, experiment fingerprint, and parent parameter state must match.
 
-All specialists and the joint reference must start from the exact same completed `base.common` checkpoint for that seed. Tokenizer profile, vocabulary hash, architecture, and initial parameter state must match.
+## 5. Common-base conditions
 
-## 4. Common-base contract
-
-The common base and every specialist use the same model-facing prefix:
+Base and specialist inputs use the same prompt schema:
 
 ```text
 <OP_*> expression <RESPONSE>
 ```
 
-The common base receives a neutral identity target:
+### Identity control
+
+The identity base learns:
 
 ```text
 expression = expression <EOS>
 ```
 
-A specialist receives the verified operator transition target. The base therefore learns the shared expression/equality/EOS protocol without receiving the arithmetic answer, while `B_k(x)` is still defined on the same prefix schema used to train the specialist.
+It teaches shared expression/equality/EOS syntax while withholding arithmetic transitions. It is retained because it maximizes the task-specific change required from each specialist.
 
-The repository audit fails if base and specialist prompts diverge.
+### Weak multitask candidate
 
-## 5. Training-data generation
+The weak base receives verified targets from all five operators only in a restricted domain:
+
+```text
+absolute input operand <= 8
+input term count <= 4
+```
+
+Specialists receive the full training domain. The goal is to place common reduction and stopping behavior in the base while leaving domain extension and specialization in each field.
+
+The weak base is not assumed superior. The pilot must establish whether it reduces shared cancellation and improves fusion without erasing specialist differentiation.
+
+## 6. Specialist conditions
+
+### Unanchored control
+
+```text
+L = L_task
+```
+
+All parameters are fine-tuned on the assigned operator. Behavior on inactive operators is unconstrained.
+
+### Retention-anchored candidate
+
+```text
+L = L_task
+  + lambda_KL * KL(p_base || p_specialist) on inactive operators
+  + lambda_param * mean((theta_specialist - theta_base)^2)
+```
+
+The selected base is frozen. KL is applied on response-supervised positions for the four inactive operator families. This is specialist-training regularization, not routing or fusion-time correction.
+
+Retention coefficients are global experimental hyperparameters. Any tuning must use validation data and a separate output directory; test metrics must not select them.
+
+## 7. Training-data generation
 
 Data are generated deterministically from seed, split, optimizer step, sample index, and operator.
 
 ### IID partitioning
 
-A stable hash of the normalized `(operator, initial values)` key assigns examples to disjoint domains:
+A stable hash of normalized `(operator, initial values)` assigns examples to disjoint domains:
 
 ```text
 0–69   train
@@ -80,7 +130,7 @@ A stable hash of the normalized `(operator, initial values)` key assigns example
 85–99  IID test
 ```
 
-Changing generator seed does not move the same normalized problem into a different IID split.
+Changing generator seed does not move the same normalized problem into another IID split.
 
 ### Training views
 
@@ -90,68 +140,99 @@ continuation        25%
 terminal → EOS      15%
 ```
 
-SUM, MIN, and MAX use deterministic randomized valid adjacent reductions in training. Validation and test use canonical left-fold traces for checkpoint comparability.
+SUM, MIN, and MAX use deterministic randomized valid adjacent reductions in training. Validation and test use canonical left-fold traces.
 
 ### OOD conditions
 
-- `operand_ood`: input operands are outside the training operand range.
-- `length_ood`: reduction inputs are longer than the training range.
+- `operand_ood`: input operands lie outside the full specialist training operand range.
+- `length_ood`: reduction inputs are longer than the full specialist training range.
 
-`operand_ood` is not an unseen-vocabulary claim because numeric tokens may occur elsewhere in training.
+`operand_ood` is not an unseen-vocabulary claim because the same numeric tokens may occur in other positions during training.
 
 ### Required invariants
 
-The preflight audit checks:
+The design-aware preflight checks:
 
 - deterministic replay;
 - disjoint IID splits;
-- exact arithmetic validity of every transition;
+- exact arithmetic validity of each transition;
 - no prompt-label leakage;
 - no unknown tokens;
 - no context overflow;
 - non-left valid training paths when randomization is enabled;
-- correct surface equality/EOS policy;
-- valid common-base identity examples.
+- ordinary equality/EOS surface behavior;
+- weak-base operand and length limits;
+- verifier-valid base and specialist examples;
+- compatible base/specialist prompt schemas.
 
-## 6. Optimization and exposure matching
+## 8. Optimization and exposure matching
 
-Specialists process one effective batch of 128 examples per optimizer step.
+A specialist processes one effective task batch of 128 examples per optimizer step. Retention examples are auxiliary and recorded separately.
 
-The exposure-matched joint processes one effective batch for each of the five operators before one optimizer update:
+The exposure-matched joint processes one effective task batch for each operator before one optimizer update:
 
 ```text
 ADD 128 + SUM 128 + NEG 128 + MIN 128 + MAX 128
 ```
 
-This makes per-operator example exposure comparable to a specialist trained for the same number of optimizer steps. A step-matched but non-exposure-matched joint may be added later only as a separate ablation.
+This matches per-operator example exposure, not gradient magnitude or every notion of optimization effort. A step-matched mixed-batch joint or gradient-scale control must be reported as a separate ablation if added.
 
-Micro-batch size is selected on the actual GPU. Gradient accumulation preserves the declared effective batch and per-operator exposure.
+Micro-batch size is selected on the actual GPU. Gradient accumulation preserves the declared effective task batch and joint per-operator exposure.
 
-## 7. Runtime fusion conditions
+## 9. Validation-selected endpoints
 
-At minimum, evaluate these conditions on identical prefixes and generation settings:
+Every job retains `final.pt`, but scientific endpoint manifests and downstream branches use `selected.pt`.
+
+```text
+selected.pt = positive-step permanent checkpoint with minimum validation token NLL
+```
+
+Selection rules:
+
+- specialist: its assigned operator validation NLL;
+- joint: mean validation NLL across the five operators;
+- base: base validation NLL.
+
+Test data are never used for selection. `final.pt` and checkpoint-grid manifests remain available for step-matched trajectory analysis.
+
+## 10. Experiment fingerprints
+
+Every design-safe output root contains `experiment_contract.json`. The fingerprint includes:
+
+- normalized run configuration;
+- model-design controls;
+- model/tokenizer configuration hashes;
+- vocabulary hash;
+- relevant training/evaluation source hashes;
+- Git revision when available.
+
+A changed configuration or implementation cannot reuse the same output directory. Legacy nonempty output directories without a contract are rejected. Do not delete the contract to force checkpoint adoption.
+
+## 11. Runtime fusion conditions
+
+At minimum, evaluate on identical prefixes and generation settings:
 
 1. `base`
 2. `relevant_specialist`
 3. `raw_sum`: `z_base + sum B_k`
 4. `bias_mean`: `z_base + mean B_k`
-5. `joint_reference`, only when a matched joint exists
+5. `joint_reference`, only where a matched joint exists
 
-Global scalar weights may be selected on validation data and reported as a secondary condition. Input-dependent routing and learned correction are later experiments, not part of the raw baseline.
+Global scalar weights may be selected on validation data and frozen for test as a secondary condition. Input-dependent routing and learned correction are later experiments.
 
-Logit-space diagnostics should also use vocabulary-centered fields:
+Logit diagnostics should also use vocabulary-centered fields:
 
 ```text
 B_centered = B - mean_vocab(B)
 ```
 
-Centering does not change the softmax distribution and removes the irrelevant vocabulary-wise additive constant from norms and cosine measurements.
+Centering leaves softmax unchanged and removes the irrelevant vocabulary-wise additive constant from norms and cosine measurements.
 
-## 8. Evaluation
+## 12. Evaluation
 
-Generation is greedy until EOS or the declared maximum new-token limit. It is not forced to the reference response length.
+Generation is greedy until EOS or the declared maximum token limit. It is not forced to the reference length.
 
-Report per operator, split, seed, checkpoint, and fusion condition:
+Report per operator, split, seed, checkpoint, model-design condition, and fusion condition:
 
 - response exact accuracy;
 - token accuracy;
@@ -161,46 +242,48 @@ Report per operator, split, seed, checkpoint, and fusion condition:
 - mean generated length;
 - gold-token negative log-likelihood;
 - next-token agreement with the matched joint;
-- KL or Jensen-Shannon divergence to the matched joint, where available.
+- Jensen-Shannon or KL divergence to the matched joint;
+- parameter displacement from the selected base;
+- retention KL and parameter-anchor diagnostics where active.
 
 Raw autoregressive generation is primary. Verifier-assisted decoding must be reported separately.
 
-## 9. What the 32 subset manifests mean
+## 13. Subset-manifest claims
 
-Five specialists produce 32 possible runtime subsets. They are not 32 trained joint models.
+Five specialists define 32 runtime subsets; they are not 32 trained joint models.
 
-The available `joint.all_five.exposure_matched` checkpoint is a matched reference only for the all-five subset. It is not a valid joint reference for an arbitrary two-, three-, or four-specialist subset.
-
-Therefore:
+The available `joint.all_five.exposure_matched` checkpoint is matched only to the all-five subset. Therefore:
 
 - empty subset may be checked against the base;
-- singleton subsets may be checked for specialist reconstruction;
+- singleton subsets may check specialist reconstruction;
 - all-five fusion may be compared to the all-five joint;
-- intermediate subsets may be used for leakage, interference, and stability diagnostics;
-- intermediate-subset equivalence to joint training cannot be claimed without a corresponding `joint.S` model.
+- intermediate subsets may diagnose leakage, interference, and stability;
+- intermediate-subset equivalence to joint training requires a corresponding `joint.S` model.
 
-A stronger follow-up should train selected diagnostic joint references such as ADD+SUM, ADD+NEG, and MIN+MAX rather than treating the all-five joint as universal.
+## 14. Go/no-go sequence
 
-## 10. Go/no-go sequence
-
-Before a multi-day run:
+First execute the model-design pilot:
 
 ```bash
 bash scripts/bootstrap_arch_linux.sh
-.venv/bin/opfusion-audit .
-.venv/bin/opfusion-audit-data \
-  --config configs/experiments/gpt_bias_fusion_factory_surface_v3.yaml \
-  --samples-per-operator 512 \
-  --out audits/surface_v3_data_audit.json
-bash scripts/run_bias_fusion_factory_surface_v3.sh \
-  configs/experiments/gpt_bias_fusion_factory_surface_v3.yaml \
-  detach
+bash scripts/run_model_design_pilot.sh detach
 ```
 
-The launcher itself repeats tests, repository audit, data audit, static planning, and CUDA smoke training. Do not bypass a failed gate.
+Review validation and test reports for all four conditions. The weak-base/retention candidate advances only if it preserves specialist performance while reducing inactive interference or improving fusion stability.
 
-## 11. Scope of conclusions
+Then, and only then, acknowledge and start the guarded production candidate:
 
-This experiment can establish whether independently trained operator fields compose on a shared autoregressive surface policy and can characterize interference, leakage, stopping failures, and error amplification.
+```bash
+OPFUSION_ALLOW_V4_PRODUCTION=1 \
+  bash scripts/run_bias_fusion_factory_surface_v4.sh \
+    configs/experiments/gpt_bias_fusion_factory_surface_v4.yaml \
+    detach
+```
 
-It cannot by itself establish arbitrary natural-language model fusion. Operator tags, atomic integer tokens, synthetic grammar, and the limited model scale remain controlled simplifications. Those factors should be relaxed in staged follow-up experiments only after the surface condition is understood.
+The production launcher repeats tests, repository audit, design-aware data audit, static planning, and CUDA smoke training. Do not bypass a failed gate.
+
+## 15. Scope of conclusions
+
+This experiment can establish whether independently trained operator fields compose on a shared autoregressive surface policy and characterize inactive leakage, interference, stopping failures, distribution mismatch, and error amplification.
+
+It cannot by itself establish arbitrary natural-language model fusion. Operator tags, atomic integer tokens, synthetic grammar, and limited model scale remain controlled simplifications. Those factors should be relaxed only after the surface and model-construction conditions are understood.
