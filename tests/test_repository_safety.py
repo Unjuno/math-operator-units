@@ -17,7 +17,7 @@ def test_repository_audit_passes_for_the_guarded_surface_v4_experiment() -> None
     assert all(report["weak_base_checks"].values())
 
 
-def test_weak_common_base_and_specialists_share_model_facing_prefixes() -> None:
+def test_weak_common_base_and_specialists_share_model_facing_prefix_schema() -> None:
     run = load_design_run_config(PRIMARY)
     design = model_design(run)
     tokenizer = FixedVocabTokenizer.from_config(ROOT / run.tokenizer_config)
@@ -33,7 +33,9 @@ def test_weak_common_base_and_specialists_share_model_facing_prefixes() -> None:
         )
         base = factory.training_example("base.common", **kwargs)
         specialist = factory.training_example(operator_id, **kwargs)
-        assert base.prompt_tokens == specialist.prompt_tokens
+        assert base.prompt_tokens[0] == specialist.prompt_tokens[0]
+        assert base.prompt_tokens[-1] == specialist.prompt_tokens[-1] == "<RESPONSE>"
+        assert "<TASK_COPY>" not in base.prompt_tokens
         assert base.task.startswith("weak_multitask:")
         assert len(base.initial_values) <= design.base_weak_max_terms
         assert all(abs(value) <= design.base_weak_operand_abs_max for value in base.initial_values)
