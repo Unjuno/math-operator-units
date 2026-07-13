@@ -51,20 +51,24 @@ if torch.cuda.is_available():
     print(f"VRAM: {props.total_memory / 1024**3:.1f} GiB")
     print(f"BF16 supported: {torch.cuda.is_bf16_supported()}")
 else:
-    print("Install/enable a compatible NVIDIA driver before the production run.")
+    print("Install/enable a compatible NVIDIA driver before GPU runs.")
 PY
 
 cat <<'EOF'
 Setup complete.
 
-Canonical production launch:
-  bash scripts/run_bias_fusion_factory_surface_v3.sh \
-    configs/experiments/gpt_bias_fusion_factory_surface_v3.yaml \
-    detach
+Required first run: four-condition model-design pilot
+  bash scripts/run_model_design_pilot.sh detach
 
-The launcher performs repository tests, generated-data audit, plan validation,
-and a CUDA smoke run before starting. The typed-token v2 launcher is an
-explicit diagnostic ablation and is not the default production path.
+Guarded production candidate after reviewing the pilot:
+  OPFUSION_ALLOW_V4_PRODUCTION=1 \
+    bash scripts/run_bias_fusion_factory_surface_v4.sh \
+      configs/experiments/gpt_bias_fusion_factory_surface_v4.yaml \
+      detach
+
+The v4 path uses a weak multitask common base, inactive-operator retention,
+validation-selected endpoints, and strict experiment fingerprints. Legacy
+surface-v3 and typed-v2 launchers require explicit opt-in.
 
 On Arch Linux, verify `nvidia-smi` after every kernel/driver update. The script
 does not assume Ubuntu packages or apt.
