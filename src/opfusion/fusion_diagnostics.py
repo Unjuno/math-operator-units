@@ -50,9 +50,10 @@ def evaluate_unit_diagnostics(
     if split not in {"validation", "test", "iid_test", "operand_ood", "length_ood"}:
         raise ValueError(f"unsupported diagnostic split: {split}")
 
-    device = torch.device("cuda" if device_name == "auto" and torch.cuda.is_available() else device_name)
-    if device_name == "auto" and not torch.cuda.is_available():
-        device = torch.device("cpu")
+    if device_name == "auto":
+        device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+    else:
+        device = torch.device(device_name)
 
     base = _load_model(manifest["base_checkpoint"], device=device, tokenizer=tokenizer)
     unit_paths = manifest.get("unit_checkpoints", {})
