@@ -50,7 +50,7 @@ def test_common_base_uses_the_same_prefix_and_a_neutral_identity_target() -> Non
     _, _, factory = _v2()
     kwargs = dict(
         seed=0,
-        split="train",
+        split="validation",
         step=3,
         sample_index=3,
         forced_operator="aggregation.sum",
