@@ -6,6 +6,12 @@ from .data import (
     SyntheticTraceFactory,
     TrainingExample,
 )
+from .strict_verifier import install_strict_verifier
+
+# Install one strict verifier for typed and surface profiles. Keeping the
+# verifier shared prevents evaluation semantics from changing across the main
+# surface condition and the typed diagnostic ablation.
+install_strict_verifier()
 
 __all__ = [
     "OptimizerConfig",
