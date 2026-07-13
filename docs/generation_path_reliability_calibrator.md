@@ -1,12 +1,16 @@
 # Generation-Path Reliability Calibrator
 
-This document defines the model-pair structure for parallel bias composition.
+> **Status:** optional later hypothesis. This document does not define the core project and does not imply that every specialist must be paired with a calibrator. Raw bias fusion must be measured first on the same GPT checkpoints.
 
-The goal is not to enumerate all possible applicability rules for every sequence. Instead, each generator produces its own bias field or candidate sequence path, and a paired calibrator audits whether that generated path is reliable for that generator.
+## 1. Motivation
 
-## 1. Unit structure
+If GPT experiments reproduce structured inactive leakage or error amplification, one possible response is to learn a model-specific reliability signal for each specialist field.
 
-Each operator or control unit is a pair:
+This is only one candidate method. Fixed scaling, centering, norm balancing, routing, projection removal, or no correction may perform better depending on the measured failure mode.
+
+## 2. Candidate model-pair structure
+
+A candidate calibrated unit can be written as:
 
 ```text
 U_k = (M_k, R_k)
@@ -16,31 +20,25 @@ where:
 
 ```text
 M_k:
-  sequence or bias-field generator
+  specialist model or bias-field generator
 
 R_k:
-  generation-path reliability calibrator
+  optional reliability estimator for the field emitted by M_k
 ```
 
-The generator emits a field:
+The specialist field is:
 
 ```text
-B_k(v | x) = M_k(x)
+B_k(v | x) = z_k(v | x) - z_base(v | x)
 ```
 
-The calibrator observes the context and the generated field:
+The optional estimator observes the prefix and field:
 
 ```text
-R_k(x, B_k) -> reliability / attenuation / removal signal
+R_k(x, B_k) -> reliability, attenuation, or removal signal
 ```
 
-The unit contribution becomes:
-
-```text
-B_tilde_k = Calibrate(B_k, R_k(x, B_k))
-```
-
-Two simple forms are:
+Possible corrected forms are:
 
 ```text
 B_tilde_k(v | x) = r_k(v | x) B_k(v | x)
@@ -52,142 +50,123 @@ or:
 B_tilde_k(v | x) = B_k(v | x) - E_k(v | x)
 ```
 
-where `E_k` is an estimated error or removal field.
+where `E_k` is an estimated error field.
 
-## 2. What the calibrator checks
+## 3. Questions the estimator may address
 
-The calibrator does not need to know every possible valid sequence globally.
-
-It checks whether the generator's own proposed direction looks like a valid generation path for that generator:
+A reliability estimator may attempt to predict:
 
 ```text
-Is this field consistent with M_k's learned operator family?
-Is this path likely to be an in-domain path for M_k?
-Is M_k showing an assimilation error?
-Is M_k producing high confidence in a context where it is usually unreliable?
-Is this field aligned with verifier, progress, or consensus signals?
+Is this field in-domain for M_k?
+Is the field likely to amplify a wrong token?
+Is the field stable across perturbations?
+Is the field aligned with an exact verifier?
+Is M_k assimilating an unknown operator into its trained operator family?
 ```
 
-Thus the calibrator is local to the generator's failure profile.
-
-It is not:
+It should not be assumed to be:
 
 ```text
-global parser
-hard operator selector
-complete applicability oracle
+a global parser
+a complete applicability oracle
+a proof that the specialist field is composable
+the definition of bias fusion
 ```
 
-## 3. Composition after per-unit calibration
+## 4. Experimental order
 
-All units can be run over the same prefix:
+The required comparison order is:
 
 ```text
-B_1, B_2, ..., B_n
+1. raw specialist fields
+2. raw sum and fixed-scaling baselines
+3. measured inactive leakage and error amplification
+4. oracle weighting as an upper-bound control
+5. learned reliability estimation, if justified
 ```
 
-Each field is calibrated by its own reliability model:
+A reliability estimator must use the same base checkpoint, specialist checkpoints, tokenizer ABI, evaluation prefixes, and joint reference as the raw baseline.
+
+## 5. Composition with optional calibration
+
+Raw composition is:
 
 ```text
-B_tilde_1, B_tilde_2, ..., B_tilde_n
+B_raw = F(B_1, B_2, ..., B_n)
 ```
 
-Then the fields are composed:
+A calibrated comparison is:
 
 ```text
-F = O(B_tilde_1, B_tilde_2, ..., B_tilde_n)
+B_calibrated = F(B_tilde_1, B_tilde_2, ..., B_tilde_n)
 ```
 
-and injected into the base logits:
+Both are applied to the same base logits:
 
 ```text
-z_final = z_0 + lambda F
-p_final = softmax(z_final)
+z_raw = z_base + B_raw
+z_calibrated = z_base + B_calibrated
 ```
 
-The intent is that valid generation paths remain strong, while unreliable or assimilated paths are attenuated before final composition.
+The method is useful only if it improves distribution matching and exact task behavior without merely hiding failure through hard routing.
 
-## 4. Training data for R_k
+## 6. Candidate training data
 
-The generator `M_k` is trained mainly on its own operator family.
+A later estimator may use fields produced by a frozen specialist on:
 
-The calibrator `R_k` must see both owned and non-owned cases.
-
-Positive examples:
+Positive or reliable cases:
 
 ```text
-contexts and generated fields where M_k is in-domain
-valid trajectories from M_k's operator family
-fields whose softmax effect matches the reference effect
+in-domain prefixes
+valid equality traces
+fields aligned with exact verifier targets
+stable fields across equivalent paraphrases or trace states
 ```
 
-Negative examples:
+Negative or unreliable cases:
 
 ```text
-fields produced by M_k on other operator families
-OOD length or depth cases
-ambiguous or malformed paths
-high-confidence wrong paths
-operator assimilation errors
-fields that conflict with verifier or progress signals
+other operator families
+value and length OOD inputs
+malformed traces
+high-confidence wrong generations
+operator assimilation events
+fields that amplify an incorrect token
 ```
 
-Labels can include:
+Possible labels include:
 
 ```text
 reliability score
 attenuation weight
-error field E_k
-owned_path / non_owned_path
-verifier-aligned / verifier-conflicting
+error field
+verifier agreement
+wrong-token amplification
 ```
 
-## 5. Important distinction
+## 7. Required controls
 
-The calibrator does not decide the final answer directly.
+A learned estimator must be compared against:
 
-It decides how much of its paired generator's bias field should survive into composition.
+- raw fusion;
+- fixed scalar coefficients;
+- field centering;
+- norm balancing;
+- oracle applicability;
+- specialist-only and base-only controls.
 
-```text
-M_k proposes a bias field.
-R_k audits that proposal.
-The composition operator combines the audited fields.
-Softmax chooses from the final distribution.
-```
+It should also be tested without explicit operator identity to determine whether it is detecting field reliability or simply routing by the operator token.
 
-This keeps the project in bias-control space rather than parser-driven symbolic routing.
-
-## 6. Failure mode addressed
-
-A generator can be confidently wrong outside its training distribution.
-
-Example:
+## 8. Short framing
 
 ```text
-M_ADD sees a subtraction-like context
-M_ADD emits an addition-like field anyway
-```
-
-Without a calibrator, the field may dominate because it is peaked.
-
-With a reliability calibrator:
-
-```text
-R_ADD detects that the generation path is not reliable for M_ADD
-R_ADD attenuates or removes the error component
-B_tilde_ADD becomes small or less harmful
-```
-
-The purpose is not to prevent competition between models. The purpose is to prevent unreliable confidence from dominating the composed field.
-
-## 7. Short framing
-
-```text
-Each generator is paired with a reliability calibrator. The generator proposes a sequence-level bias field; the calibrator audits whether that generated path is reliable for that generator and attenuates unreliable components. All calibrated fields are then fully composed and decoded through softmax.
+A generation-path reliability calibrator is an optional method for reducing measured error amplification in specialist bias fields. It is evaluated only after raw bias fusion and simpler fixed transformations have been measured. Its success would show that learned reliability weighting helps the fusion system; it would not by itself show that raw bias fields are naturally composable.
 ```
 
 Japanese:
 
 ```text
-各生成モデルには、その生成経路を監査する信頼性校正器を対応させる。生成モデルは系列レベルのbias fieldを提案し、校正器はその経路がその生成モデルにとって信頼できるかを判定し、危険な成分を減衰または除去する。その後、全ての校正済みbias fieldを完全に合成し、softmaxで次token分布を得る。
+生成経路の信頼性補正器は、specialist bias fieldで実測された誤差増幅を減らすための候補手法である。
+まずraw bias fusionと固定係数・中心化などの単純baselineを測定し、その後に同じcheckpoint上で比較する。
+補正器が有効でも、それは補正付きfusionの有効性を示すのであり、raw biasが自然に合成可能であることの証明ではない。
 ```
