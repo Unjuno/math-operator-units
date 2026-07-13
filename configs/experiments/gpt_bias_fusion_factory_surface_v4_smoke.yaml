@@ -1,0 +1,87 @@
+experiment:
+  id: gpt_bias_fusion_factory_surface_v4_smoke
+  output_dir: runs/gpt_bias_fusion_factory_surface_v4_smoke
+  model_config: configs/model/gpt_operator_1m_surface_v3.yaml
+  tokenizer_config: configs/tokenizer/operator_experiment_surface_v3.yaml
+
+  base_model_id: base.common
+  operators:
+    - scalar.add
+    - aggregation.sum
+    - scalar.neg
+    - scalar.min
+    - scalar.max
+  joint_model_ids:
+    - joint.all_five.exposure_matched
+
+  seeds: [0]
+  require_cuda: true
+  precision: auto
+  allow_tf32: true
+  max_parameters: 1000000
+  deterministic_algorithms: false
+  continue_on_error: false
+
+  model_design:
+    base_target_mode: weak_multitask
+    base_weak_operand_abs_max: 4
+    base_weak_max_terms: 4
+    selection_metric: validation_nll
+    strict_experiment_fingerprint: true
+    specialist_regularization:
+      retention_kl_weight: 0.10
+      retention_examples_per_inactive_operator: 2
+      parameter_anchor_weight: 0.000001
+
+  data:
+    operand_min: -16
+    operand_max: 16
+    min_terms: 3
+    max_terms: 5
+    numeric_token_min: -1024
+    numeric_token_max: 1024
+    operand_ood_abs_min: 17
+    operand_ood_abs_max: 20
+    length_ood_min_terms: 6
+    length_ood_max_terms: 7
+    partition_modulus: 100
+    train_bucket_end: 70
+    validation_bucket_end: 85
+    full_trace_weight: 60
+    continuation_weight: 25
+    terminal_weight: 15
+    max_partition_attempts: 20000
+    randomized_train_reduction: true
+
+  train:
+    response_only_loss: true
+    effective_batch_size: 8
+    micro_batch_size: 0
+    micro_batch_candidates: [8, 4]
+    max_steps: 3
+    eval_every: 1
+    eval_batches: 1
+    eval_examples: 8
+    generation_eval_every: 1
+    generation_eval_examples: 2
+    generation_max_new_tokens: 64
+    log_every: 1
+    resume_every: 1
+    checkpoint_every: 1
+    checkpoint_steps: [0, 1, 2, 3]
+    checkpoint_fractions: []
+    optimizer:
+      learning_rate: 0.0003
+      min_learning_rate: 0.00003
+      warmup_steps: 1
+      weight_decay: 0.1
+      beta1: 0.9
+      beta2: 0.95
+      grad_clip_norm: 1.0
+
+  recovery:
+    max_retries_per_job: 2
+    minimum_micro_batch_size: 4
+    non_finite_lr_factor: 0.5
+    max_lr_reductions: 1
+    restart_delay_seconds: 1

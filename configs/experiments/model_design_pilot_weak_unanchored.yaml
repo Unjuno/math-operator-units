@@ -1,0 +1,79 @@
+experiment:
+  id: model_design_pilot_weak_unanchored
+  output_dir: runs/model_design_pilot/weak_unanchored
+  model_config: configs/model/gpt_operator_1m_surface_v3.yaml
+  tokenizer_config: configs/tokenizer/operator_experiment_surface_v3.yaml
+  base_model_id: base.common
+  operators: [scalar.add, aggregation.sum, scalar.neg, scalar.min, scalar.max]
+  joint_model_ids: [joint.all_five.exposure_matched]
+  seeds: [0]
+  require_cuda: true
+  precision: auto
+  allow_tf32: true
+  max_parameters: 1000000
+  deterministic_algorithms: false
+  continue_on_error: false
+
+  model_design:
+    base_target_mode: weak_multitask
+    base_weak_operand_abs_max: 8
+    base_weak_max_terms: 4
+    selection_metric: validation_nll
+    strict_experiment_fingerprint: true
+    specialist_regularization:
+      retention_kl_weight: 0.0
+      retention_examples_per_inactive_operator: 0
+      parameter_anchor_weight: 0.0
+
+  data:
+    operand_min: -64
+    operand_max: 64
+    min_terms: 3
+    max_terms: 8
+    numeric_token_min: -1024
+    numeric_token_max: 1024
+    operand_ood_abs_min: 65
+    operand_ood_abs_max: 80
+    length_ood_min_terms: 9
+    length_ood_max_terms: 10
+    partition_modulus: 100
+    train_bucket_end: 70
+    validation_bucket_end: 85
+    full_trace_weight: 60
+    continuation_weight: 25
+    terminal_weight: 15
+    max_partition_attempts: 20000
+    randomized_train_reduction: true
+
+  train:
+    response_only_loss: true
+    effective_batch_size: 128
+    micro_batch_size: 0
+    micro_batch_candidates: [128, 64, 32, 16, 8, 4]
+    max_steps: 3000
+    eval_every: 250
+    eval_batches: 1
+    eval_examples: 128
+    generation_eval_every: 500
+    generation_eval_examples: 16
+    generation_max_new_tokens: 256
+    log_every: 50
+    resume_every: 250
+    checkpoint_every: 250
+    checkpoint_steps: []
+    checkpoint_fractions: [0.0, 0.01, 0.03, 0.10, 0.20, 0.40, 0.60, 0.80, 1.0]
+    optimizer:
+      learning_rate: 0.0003
+      min_learning_rate: 0.00003
+      warmup_steps: 250
+      weight_decay: 0.1
+      beta1: 0.9
+      beta2: 0.95
+      grad_clip_norm: 1.0
+
+  recovery:
+    max_retries_per_job: 5
+    minimum_micro_batch_size: 4
+    non_finite_lr_factor: 0.5
+    max_lr_reductions: 2
+    restart_delay_seconds: 10

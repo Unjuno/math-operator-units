@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "operator-unit-fusion"
-version = "0.5.0"
+version = "0.6.0"
 description = "Dependency-ordered GPT model factory and logit-space bias-fusion experiments with fixed tokenizer ABIs."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -24,10 +24,13 @@ publish = [
 [project.scripts]
 opfusion-audit = "opfusion.audit:main"
 opfusion-audit-data = "opfusion.training.audit_data:main"
+opfusion-audit-data-design = "opfusion.training.audit_data_design:main"
 opfusion-train-one = "opfusion.training.trainer:main"
 opfusion-train-one-surface = "opfusion.training.trainer_surface:main"
+opfusion-train-one-design = "opfusion.training.trainer_design:main"
 opfusion-train-batch = "opfusion.training.batch:main"
 opfusion-train-batch-surface = "opfusion.training.batch_surface:main"
+opfusion-train-batch-design = "opfusion.training.batch_design:main"
 opfusion-evaluate-fusion = "opfusion.fusion_eval:main"
 opfusion-checkpoint-trajectory = "opfusion.training.analyze:main"
 opfusion-export-bundle = "opfusion.training.export:main"

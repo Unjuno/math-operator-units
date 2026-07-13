@@ -5,6 +5,8 @@ __pycache__/
 runs/
 checkpoints/
 logs/
+audits/
+evaluations/
 exports/
 *.pt
 *.pth

@@ -1,19 +1,19 @@
 # Math Operator Units
 
-This repository builds the controlled GPT checkpoint set required to test **logit-space bias fusion**. Mathematical operators are the experimental instrument, not the final application: their inputs, intermediate transformations, final answers, and failure cases can be generated and verified exactly.
+This repository builds controlled GPT checkpoints for testing **logit-space bias fusion**. Mathematical operators are the experimental instrument: inputs, intermediate transformations, final values, stopping behavior, and invalid traces can all be generated and verified exactly.
 
-For a shared prefix `x`, each specialist field is defined relative to a trained common base:
+For one shared prefix `x`:
 
 ```text
 B_k(x) = z_k(x) - z_base(x)
 z_fused(x) = z_base(x) + F(B_1(x), ..., B_n(x))
 ```
 
-The repository does not assume that raw bias addition works, and it does not hide a router or learned corrector inside model generation.
+The repository does not assume that raw addition works, and it does not hide an input router or learned fusion corrector inside the primary model factory.
 
-## Main condition: surface-form v3
+## Surface policy
 
-The primary experiment uses ordinary model-facing equality punctuation and EOS:
+The model predicts ordinary equality punctuation and EOS:
 
 ```text
 <OP_AGG_SUM> 1 + 2 + 3 + 4 <RESPONSE>
@@ -23,240 +23,219 @@ The primary experiment uses ordinary model-facing equality punctuation and EOS:
 <EOS>
 ```
 
-The model vocabulary contains the literal tokens `+`, `,`, `[`, `]`, and `=`. It does **not** contain `<EQ_STEP>` or `<TRACE_STOP>` as output classes. Generator-facing aliases resolve to `=` and `<EOS>` without increasing the vocabulary. This keeps the implementation typed while ensuring that fusion is evaluated on an ordinary next-token equality/EOS policy rather than on experiment-only control tokens.
+The surface vocabulary contains literal `+`, `,`, `[`, `]`, and `=` tokens. `<EQ_STEP>` and `<TRACE_STOP>` are implementation aliases only; they are not separate output classes.
 
-The older typed-token v2 configuration remains in the repository as a diagnostic ablation and checkpoint-compatibility condition. It is not the main production run.
+## Do not start with the three-seed production run
 
-## Model set
+The original surface-v3 construction used an identity common base and unrestricted specialist fine-tuning. That is a valid control, but a failed fusion result would be ambiguous because:
 
-For every seed, one dependency-ordered batch creates seven trained GPT models:
+- every specialist may repeat the same correction away from the identity policy;
+- inactive operators may drift without constraint;
+- the fixed final training step may be worse than an earlier checkpoint.
 
-```text
-shared random initialization
-        ↓
-base.common
-        ├── scalar.add
-        ├── aggregation.sum
-        ├── scalar.neg
-        ├── scalar.min
-        ├── scalar.max
-        └── joint.all_five.exposure_matched
-```
+The required first experiment is therefore a one-seed 2×2 model-design pilot:
 
-`base.common` learns the shared expression ABI, equality syntax, identity transformation, and EOS behavior, but not arithmetic answers. All five specialists and the joint reference start from exactly the same completed base checkpoint.
+| Base | Specialist construction |
+|---|---|
+| identity | unanchored |
+| identity | retention-anchored |
+| weak multitask | unanchored |
+| weak multitask | retention-anchored |
 
-The production configuration uses three seeds:
-
-- 7 trained models per seed;
-- 21 trained models total;
-- 3 preserved random initial checkpoints;
-- 32 runtime specialist subsets per seed;
-- 16 logical observation checkpoints per trained model, or 336 model/checkpoint observations in total.
-
-The 32 subsets are manifests over the five specialists. They are not 32 separately trained models.
-
-## Generated data contract
-
-The prompt is visible to the model but excluded from cross-entropy. Only response tokens are supervised.
-
-IID expressions are assigned to train, validation, or test by a stable hash of the normalized operator/input pair:
-
-```text
-bucket 0–69   → train
-bucket 70–84  → validation
-bucket 85–99  → IID test
-```
-
-The same normalized problem cannot appear in more than one IID split, even across different generator seeds.
-
-Training mixes three views:
-
-```text
-full equality trace       60%
-continuation from a state 25%
-terminal state → EOS      15%
-```
-
-For SUM, MIN, and MAX, training uses deterministic randomized valid adjacent reductions. Validation and test use a canonical left-fold trace so checkpoints remain directly comparable. Every generated transition is checked by the exact verifier.
-
-Evaluation includes:
-
-- IID validation and IID test;
-- operand-position OOD inputs;
-- length OOD inputs;
-- response exact accuracy;
-- final-value accuracy;
-- EOS stopping accuracy;
-- exact trace-validity accuracy;
-- fixed evaluation sample counts independent of the selected CUDA micro-batch.
-
-The operand OOD split means that an input operand occurs outside the training operand range. It is not claimed to use entirely unseen numeric vocabulary tokens.
-
-## Data preflight
-
-Before a long run, audit the generator directly:
-
-```bash
-.venv/bin/opfusion-audit-data \
-  --config configs/experiments/gpt_bias_fusion_factory_surface_v3.yaml \
-  --samples-per-operator 512 \
-  --out audits/surface_v3_data_audit.json
-```
-
-The audit fails on split overlap, invalid arithmetic transitions, nondeterministic replay, prompt-label leakage, unknown tokens, context overflow, broken surface-token policy, or missing non-left reduction paths.
-
-## Arch Linux setup
-
-The scripts use Bash, Python virtual environments, `nvidia-smi`, `flock`, and optional `systemd-inhibit`. They do not assume Ubuntu or `apt`.
+Run it on Arch Linux with:
 
 ```bash
 git clone https://github.com/Unjuno/math-operator-units.git
 cd math-operator-units
 bash scripts/bootstrap_arch_linux.sh
+bash scripts/run_model_design_pilot.sh detach
 ```
 
-The bootstrap script creates `.venv`, installs the project, reports PyTorch/CUDA status, and prints detected VRAM. It does not modify the NVIDIA kernel driver. On Arch Linux, verify `nvidia-smi` after kernel or driver upgrades.
-
-A specific PyTorch wheel index can be supplied when required:
-
-```bash
-TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128 \
-  bash scripts/bootstrap_arch_linux.sh
-```
-
-Use an index compatible with the installed NVIDIA driver. Omitting `TORCH_INDEX_URL` uses the normal PyPI resolver.
-
-## One-command production run
-
-Detached multi-day run:
-
-```bash
-bash scripts/run_bias_fusion_factory_surface_v3.sh \
-  configs/experiments/gpt_bias_fusion_factory_surface_v3.yaml \
-  detach
-```
-
-Foreground run:
-
-```bash
-bash scripts/run_bias_fusion_factory_surface_v3.sh
-```
-
-Before production, the launcher performs:
-
-1. CUDA, GPU, VRAM, BF16, and disk checks;
-2. the complete pytest suite;
-3. the generated-data audit;
-4. a resolved model/checkpoint plan;
-5. a short surface-v3 CUDA smoke batch;
-6. launch through a restartable watchdog.
-
-Logs are written under `logs/`. The detached PID is written to:
+Pilot outputs are written under:
 
 ```text
-runs/gpt_bias_fusion_factory_surface_v3/batch.pid
+runs/model_design_pilot/
+audits/model_design_pilot/
+evaluations/model_design_pilot/
 ```
 
-Re-running the same command is the resume procedure. Completed jobs are skipped and incomplete jobs load `last.pt`.
+Detailed decision criteria are in [`docs/model_design_pilot.md`](docs/model_design_pilot.md).
 
-## 16 GB and larger GPUs
+## Guarded surface-v4 candidate
 
-When `micro_batch_size: 0`, each job probes the configured candidates on the actual GPU:
+After the pilot supports the choice, the guarded production candidate uses:
+
+- a weak multitask common base trained on all five operators only within operands ±8 and at most four terms;
+- five full-domain specialists initialized from the validation-selected base checkpoint;
+- teacher-KL retention on inactive operators;
+- a small parameter anchor to the frozen base;
+- an exposure-matched all-five joint reference;
+- validation-selected endpoints;
+- strict experiment fingerprints.
+
+```bash
+OPFUSION_ALLOW_V4_PRODUCTION=1 \
+  bash scripts/run_bias_fusion_factory_surface_v4.sh \
+    configs/experiments/gpt_bias_fusion_factory_surface_v4.yaml \
+    detach
+```
+
+The environment variable is an operational acknowledgement, not evidence that the pilot succeeded.
+
+## Model set
+
+Each seed creates seven trained models:
+
+```text
+shared random initialization
+        ↓
+base.common selected.pt
+        ├── scalar.add selected.pt
+        ├── aggregation.sum selected.pt
+        ├── scalar.neg selected.pt
+        ├── scalar.min selected.pt
+        ├── scalar.max selected.pt
+        └── joint.all_five.exposure_matched selected.pt
+```
+
+The production candidate uses three seeds: 21 trained models total. The five specialists also define 32 runtime subset manifests; those are not 32 separately trained models.
+
+Only the all-five subset has a matched all-five joint reference. Intermediate subsets are leakage/interference diagnostics unless a corresponding subset-joint model is trained.
+
+## Why `selected.pt` exists
+
+Every job keeps `final.pt`, but dependencies and final subset manifests use the positive-step permanent checkpoint with minimum validation token NLL:
+
+- specialist selection uses its own operator validation NLL;
+- joint selection uses mean validation NLL;
+- base selection uses base validation NLL;
+- test data are never used for selection.
+
+`final.pt` and the checkpoint grid remain available for step-matched trajectory analysis.
+
+## Specialist retention
+
+For a specialist `k`, the anchored condition optimizes:
+
+```text
+L = L_task
+  + lambda_KL * KL(p_base || p_k) on inactive operators
+  + lambda_param * mean((theta_k - theta_base)^2)
+```
+
+The reference base is frozen. This is not a router and not a fusion-time corrector; it constrains how the specialist field is learned.
+
+## Generated data
+
+The prompt is visible but excluded from cross-entropy. Only response tokens are supervised.
+
+IID problems are assigned by a stable hash of `(operator, initial values)`:
+
+```text
+0–69   train
+70–84  validation
+85–99  IID test
+```
+
+Training mixes:
+
+```text
+full trace          60%
+continuation        25%
+terminal → EOS      15%
+```
+
+SUM, MIN, and MAX use deterministic randomized valid adjacent reductions in training. Validation and test use canonical left-fold traces. Evaluation also includes operand-position OOD and length OOD conditions.
+
+Design-aware audit:
+
+```bash
+.venv/bin/opfusion-audit-data-design \
+  --config configs/experiments/gpt_bias_fusion_factory_surface_v4.yaml \
+  --samples-per-operator 512 \
+  --out audits/surface_v4_data_audit.json
+```
+
+The audit checks deterministic replay, split separation, arithmetic transitions, verifier acceptance, response-only labels, vocabulary/context bounds, surface `=`/EOS policy, weak-base limits, and prompt-schema compatibility.
+
+## Experiment fingerprints
+
+Every design-safe output root contains `experiment_contract.json`. The fingerprint covers:
+
+- normalized run configuration;
+- model-design controls;
+- model/tokenizer files and vocabulary hash;
+- relevant training/evaluation source hashes;
+- Git revision when available.
+
+A changed configuration or code revision cannot reuse the same output directory. Move the previous run aside or choose a new `output_dir`; do not delete the contract to force reuse.
+
+## GPU and recovery behavior
+
+The model is a causal GPT decoder with 863,072 parameters, context length 256, and vocabulary size 2,065. On the target GPU, micro-batch candidates are probed from:
 
 ```text
 128, 64, 32, 16, 8, 4
 ```
 
-The largest fitting micro-batch is selected and gradient accumulation preserves the configured effective batch size of 128.
+Gradient accumulation preserves effective task batch 128. The all-five joint accumulates one effective batch per operator before one optimizer update.
 
-For the exposure-matched joint reference, every optimizer step accumulates one full effective batch for each operator:
+Operational recovery includes:
 
-```text
-ADD 128 + SUM 128 + NEG 128 + MIN 128 + MAX 128
-```
+- same-step CUDA OOM retry with a smaller micro-batch;
+- bounded non-finite-loss restart with learning-rate reduction;
+- `last.pt` resume;
+- watchdog restart;
+- `flock` duplicate-run protection;
+- optional `systemd-inhibit` on Arch Linux.
 
-This matches per-operator exposure without requiring all 640 examples to reside in VRAM simultaneously.
+Recovery events are recorded in `recovery.jsonl`; retention terms are recorded in `regularization.jsonl`.
 
-## Automatic scheduling and recovery
+## Fusion evaluation
 
-The queue is dependency ordered:
-
-```text
-base → five specialists → exposure-matched joint → next seed
-```
-
-Operational recovery is distinct from a learned bias corrector.
-
-- CUDA OOM: restore the same-step RNG, halve the micro-batch, preserve effective batch through accumulation, and retry.
-- Non-finite loss/gradient: resume the last good checkpoint with a predeclared learning-rate reduction.
-- Process interruption: restart through the watchdog and resume from `last.pt`.
-- Duplicate launch: `flock` prevents two factories from writing the same output tree.
-- Sleep/shutdown inhibition: `systemd-inhibit` is used when available.
-
-Every automatic change is recorded in `recovery.jsonl` and `runtime_state.json`. Recovery never changes architecture, tokenizer ABI, data ranges, model identity, or effective per-operator exposure.
-
-## Production profile
-
-```text
-architecture: causal GPT decoder
-parameters: 863,072
-parameter limit: 1,000,000
-context length: 256
-vocabulary size: 2,065
-precision: BF16 when supported, otherwise FP32
-TF32: enabled for supported CUDA FP32 kernels
-max optimizer steps: 50,000 per model
-seeds: 0, 1, 2
-```
-
-The configured step count is a reproducible upper plan, not a guarantee of a four- or five-day wall-clock duration. Actual duration must be measured on the target machine during the smoke run.
-
-## Checkpoints and outputs
-
-The 16 observation locations are:
-
-```text
-0%, 0.1%, 0.3%, 1%, 3%, 5%, 10%, 20%, 30%, 40%,
-50%, 60%, 70%, 80%, 90%, 100%
-```
-
-Rolling resume state is updated every 500 steps. Permanent checkpoints record model/optimizer state, RNG state, parent base identity, task and generation metrics, cumulative examples, per-operator exposure, recovery state, tokenizer hash, and parameter distances.
-
-```text
-runs/gpt_bias_fusion_factory_surface_v3/
-├── experiment_plan.json
-├── batch_state.json
-└── seed_<n>/
-    ├── shared_initial.pt
-    ├── base_common/
-    ├── scalar_add/
-    ├── aggregation_sum/
-    ├── scalar_neg/
-    ├── scalar_min/
-    ├── scalar_max/
-    ├── joint_all_five_exposure_matched/
-    ├── model_inventory.json
-    ├── fusion_subsets/
-    └── fusion_checkpoint_grid/
-```
-
-Plan without training:
+After a seed completes:
 
 ```bash
-.venv/bin/opfusion-train-batch-surface \
-  --config configs/experiments/gpt_bias_fusion_factory_surface_v3.yaml \
-  --plan-only
+.venv/bin/opfusion-evaluate-fusion \
+  --config configs/experiments/gpt_bias_fusion_factory_surface_v4.yaml \
+  --manifest runs/gpt_bias_fusion_factory_surface_v4/seed_0/fusion_subsets/subset_31.json \
+  --split test \
+  --examples-per-operator 64 \
+  --out evaluations/seed_0_subset_31_test.json
 ```
+
+The evaluator compares base, relevant specialist, raw bias sum, bias mean, and the matched all-five joint. It reports generation accuracy, final value, EOS, exact trace validity, NLL, joint divergence, and argmax agreement.
+
+## Legacy controls
+
+Identity-base/unanchored surface v3:
+
+```bash
+OPFUSION_ALLOW_LEGACY_SURFACE_V3=1 \
+  bash scripts/run_bias_fusion_factory_surface_v3.sh \
+    configs/experiments/gpt_bias_fusion_factory_surface_v3.yaml \
+    detach
+```
+
+Typed control-token v2:
+
+```bash
+OPFUSION_ALLOW_TYPED_V2=1 \
+  bash scripts/run_bias_fusion_factory_v2.sh \
+    configs/experiments/gpt_bias_fusion_factory_v2.yaml \
+    detach
+```
+
+Do not mix checkpoints or manifests across these output trees.
 
 ## Research boundary
 
-The surface condition is still a controlled synthetic testbed, not a claim about arbitrary natural-language LLM fusion. Its purpose is to avoid making the result depend on bespoke trace-control output tokens while retaining exact verifiability.
+This is a controlled synthetic testbed, not a proof of arbitrary natural-language model fusion. It can establish whether independently trained fields compose on a shared autoregressive surface policy and can characterize inactive leakage, interference, stopping failures, distribution mismatch, and error amplification.
 
-Raw, mean, weighted, routed, and learned-correction fusion rules must be evaluated as separate runtime conditions. A joint model is a reference distribution, not proof that any fusion rule exists.
+Further contracts:
 
-Detailed contracts:
-
-- [`docs/gpt_operator_model_factory.md`](docs/gpt_operator_model_factory.md)
+- [`docs/model_design_pilot.md`](docs/model_design_pilot.md)
+- [`docs/experiment_protocol.md`](docs/experiment_protocol.md)
+- [`docs/fusion_evaluation_runbook.md`](docs/fusion_evaluation_runbook.md)
 - [`docs/arch_linux_runbook.md`](docs/arch_linux_runbook.md)
-- [`docs/equivalence_trace_training_plan.md`](docs/equivalence_trace_training_plan.md)
 - [`docs/logit_bias_semantics.md`](docs/logit_bias_semantics.md)

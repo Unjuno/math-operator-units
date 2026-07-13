@@ -3,22 +3,23 @@ set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
-CONFIG="${1:-configs/experiments/gpt_bias_fusion_factory_surface_v3.yaml}"
+CONFIG="${1:-configs/experiments/gpt_bias_fusion_factory_surface_v4.yaml}"
 MODE="${2:-foreground}"
-SMOKE_CONFIG="${SMOKE_CONFIG:-configs/experiments/gpt_bias_fusion_factory_surface_v3_smoke.yaml}"
+SMOKE_CONFIG="${SMOKE_CONFIG:-configs/experiments/gpt_bias_fusion_factory_surface_v4_smoke.yaml}"
 PYTHON="${PYTHON:-$ROOT/.venv/bin/python}"
-TRAIN_BATCH="${TRAIN_BATCH:-$ROOT/.venv/bin/opfusion-train-batch-surface}"
+TRAIN_BATCH="${TRAIN_BATCH:-$ROOT/.venv/bin/opfusion-train-batch-design}"
 REPO_AUDIT="${REPO_AUDIT:-$ROOT/.venv/bin/opfusion-audit}"
-AUDIT_DATA="${AUDIT_DATA:-$ROOT/.venv/bin/opfusion-audit-data}"
-MIN_FREE_GB="${MIN_FREE_GB:-15}"
+AUDIT_DATA="${AUDIT_DATA:-$ROOT/.venv/bin/opfusion-audit-data-design}"
+MIN_FREE_GB="${MIN_FREE_GB:-20}"
 AUDIT_SAMPLES="${AUDIT_SAMPLES:-512}"
 
-if [[ "${OPFUSION_ALLOW_LEGACY_SURFACE_V3:-0}" != "1" ]]; then
+if [[ "${OPFUSION_ALLOW_V4_PRODUCTION:-0}" != "1" ]]; then
   cat >&2 <<'EOF'
-surface-v3 is the legacy identity-base/unanchored condition and is no longer
-the default production design. Run the model-design pilot instead:
+surface-v4 production is intentionally gated.
+Run the four-condition model-design pilot first and inspect its validation/test reports:
   bash scripts/run_model_design_pilot.sh detach
-To reproduce the legacy condition explicitly, set OPFUSION_ALLOW_LEGACY_SURFACE_V3=1.
+After selecting the weak-base/retention design, re-run with:
+  OPFUSION_ALLOW_V4_PRODUCTION=1 bash scripts/run_bias_fusion_factory_surface_v4.sh ...
 EOF
   exit 64
 fi
@@ -52,34 +53,34 @@ if [[ "$free_kb" -lt "$required_kb" ]]; then
   exit 1
 fi
 
-mkdir -p audits logs runs/gpt_bias_fusion_factory_surface_v3
+mkdir -p audits logs runs/gpt_bias_fusion_factory_surface_v4
 "$PYTHON" -m pytest -q
 "$REPO_AUDIT" . --data-samples-per-operator 64
 "$AUDIT_DATA" \
   --config "$CONFIG" \
   --samples-per-operator "$AUDIT_SAMPLES" \
-  --out audits/surface_v3_data_audit.json
+  --out audits/surface_v4_data_audit.json
 "$TRAIN_BATCH" --config "$CONFIG" --plan-only
 
 if [[ "${SKIP_SMOKE:-0}" != "1" ]]; then
-  echo "Running surface-v3 CUDA smoke batch..."
+  echo "Running surface-v4 CUDA smoke batch..."
   if [[ "${KEEP_SMOKE:-0}" != "1" ]]; then
-    rm -rf runs/gpt_bias_fusion_factory_surface_v3_smoke
+    rm -rf runs/gpt_bias_fusion_factory_surface_v4_smoke
   fi
   "$TRAIN_BATCH" --config "$SMOKE_CONFIG"
 fi
 
-WATCH=(bash scripts/watch_bias_fusion_factory_surface_v3.sh "$CONFIG")
+WATCH=(bash scripts/watch_bias_fusion_factory_surface_v4.sh "$CONFIG")
 if command -v systemd-inhibit >/dev/null 2>&1; then
-  WATCH=(systemd-inhibit --what=sleep:shutdown --why="surface bias fusion model factory" --mode=block "${WATCH[@]}")
+  WATCH=(systemd-inhibit --what=sleep:shutdown --why="surface-v4 bias fusion model factory" --mode=block "${WATCH[@]}")
 fi
 
 if [[ "$MODE" == "detach" ]]; then
   stamp="$(date -u +%Y%m%dT%H%M%SZ)"
-  log="logs/bias_fusion_surface_v3_${stamp}.log"
+  log="logs/bias_fusion_surface_v4_${stamp}.log"
   nohup "${WATCH[@]}" >"$log" 2>&1 &
   pid=$!
-  echo "$pid" > runs/gpt_bias_fusion_factory_surface_v3/batch.pid
+  echo "$pid" > runs/gpt_bias_fusion_factory_surface_v4/batch.pid
   echo "started watchdog PID $pid; log: $log"
 else
   exec "${WATCH[@]}"

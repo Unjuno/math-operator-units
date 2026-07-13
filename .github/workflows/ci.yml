@@ -30,13 +30,21 @@ jobs:
           scripts/watch_bias_fusion_factory_v2.sh
           scripts/run_bias_fusion_factory_surface_v3.sh
           scripts/watch_bias_fusion_factory_surface_v3.sh
+          scripts/run_bias_fusion_factory_surface_v4.sh
+          scripts/watch_bias_fusion_factory_surface_v4.sh
+          scripts/run_model_design_pilot.sh
       - name: Audit canonical repository contract
         run: opfusion-audit . --data-samples-per-operator 32
       - name: Audit canonical generated data
         run: >-
-          opfusion-audit-data
-          --config configs/experiments/gpt_bias_fusion_factory_surface_v3.yaml
+          opfusion-audit-data-design
+          --config configs/experiments/gpt_bias_fusion_factory_surface_v4.yaml
           --samples-per-operator 64
+      - name: Validate guarded production plan
+        run: >-
+          opfusion-train-batch-design
+          --config configs/experiments/gpt_bias_fusion_factory_surface_v4.yaml
+          --plan-only
       - name: Run tests
         run: pytest -q --junitxml=pytest-report.xml
       - name: Upload pytest report
