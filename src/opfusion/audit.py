@@ -70,11 +70,13 @@ def audit_repo(repo_root: str | Path, *, data_samples_per_operator: int = 32) ->
     check(model.param_count <= run.max_parameters <= 1_000_000, "parameter_limit_violation", parameters=model.param_count, limit=run.max_parameters)
 
     # The base and specialists must define logits on the same production prefix.
+    # Validation forces a full arithmetic trace, avoiding the train-only
+    # terminal/continuation mixture in this structural check.
     shared_prefix_checks: dict[str, bool] = {}
     for index, operator_id in enumerate(EXPERIMENT_OPERATORS):
         kwargs = dict(
             seed=91,
-            split="train",
+            split="validation",
             step=index,
             sample_index=index,
             forced_operator=operator_id,
@@ -97,6 +99,7 @@ def audit_repo(repo_root: str | Path, *, data_samples_per_operator: int = 32) ->
         launcher = bootstrap = runbook = typed_launcher = ""
 
     check(str(PRIMARY_CONFIG) in launcher, "primary_launcher_default_config_mismatch")
+    check("opfusion-audit" in launcher, "primary_launcher_skips_repository_audit")
     check("opfusion-audit-data" in launcher, "primary_launcher_skips_data_audit")
     check("gpt_bias_fusion_factory_surface_v3" in bootstrap, "bootstrap_points_to_noncanonical_experiment")
     check("run_bias_fusion_factory_v2.sh" not in bootstrap, "bootstrap_advertises_typed_v2")
