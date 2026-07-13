@@ -38,7 +38,7 @@ jobs:
       - name: Audit canonical repository contract
         run: |
           set +e
-          opfusion-audit . --data-samples-per-operator 32 > repository-audit.json
+          opfusion-audit . --data-samples-per-operator 32 > repository-audit.json 2>&1
           status=$?
           cat repository-audit.json
           exit $status
