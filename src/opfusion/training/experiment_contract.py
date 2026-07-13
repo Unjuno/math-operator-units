@@ -14,7 +14,7 @@ from .config import RunConfig
 from .design_config import model_design
 
 
-CONTRACT_ABI_VERSION = 1
+CONTRACT_ABI_VERSION = 2
 CONTRACT_FILENAME = "experiment_contract.json"
 _CODE_PATHS = (
     "src/opfusion/model/gpt.py",
@@ -24,9 +24,12 @@ _CODE_PATHS = (
     "src/opfusion/training/trainer.py",
     "src/opfusion/training/trainer_surface.py",
     "src/opfusion/training/trainer_design.py",
+    "src/opfusion/training/trainer_design_hardened.py",
     "src/opfusion/training/batch.py",
     "src/opfusion/training/batch_design.py",
+    "src/opfusion/training/audit_pilot_pairs.py",
     "src/opfusion/fusion_eval.py",
+    "src/opfusion/fusion_diagnostics.py",
 )
 
 
