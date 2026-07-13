@@ -3,6 +3,7 @@ set -euo pipefail
 
 CONFIG="${1:-configs/experiments/gpt_operator_factory_v1.yaml}"
 MODE="${2:-foreground}"
+SMOKE_CONFIG="${SMOKE_CONFIG:-configs/experiments/gpt_operator_factory_smoke.yaml}"
 
 python - <<'PY'
 import torch
@@ -13,6 +14,12 @@ print(f"PyTorch: {torch.__version__}")
 PY
 
 python -m pytest -q
+
+if [[ "${SKIP_SMOKE:-0}" != "1" ]]; then
+  echo "Running short CUDA smoke batch..."
+  opfusion-train-batch --config "$SMOKE_CONFIG"
+fi
+
 mkdir -p logs runs/gpt_operator_factory_v1
 
 if [[ "$MODE" == "detach" ]]; then
