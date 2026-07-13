@@ -110,6 +110,16 @@ class RunConfig:
         return self.joint_model_ids[0]
 
     @property
+    def joint_model_id(self) -> str:
+        """Compatibility alias for v1 callers that support one joint model."""
+        return self.primary_joint_model_id
+
+    @property
+    def batch_size(self) -> int:
+        """Compatibility alias for v1 callers before gradient accumulation."""
+        return self.effective_batch_size
+
+    @property
     def resolved_checkpoint_steps(self) -> tuple[int, ...]:
         values = set(int(step) for step in self.checkpoint_steps if 0 <= int(step) <= self.max_steps)
         for fraction in self.checkpoint_fractions:
