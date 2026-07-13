@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import math
 from pathlib import Path
 from typing import Any, Iterable, Sequence
 
@@ -13,6 +12,9 @@ from opfusion.model import GPTConfig, GPTModel
 from opfusion.tokenizer import FixedVocabTokenizer
 from opfusion.training.config import load_run_config
 from opfusion.training.data import EXPERIMENT_OPERATORS, SyntheticTraceFactory
+
+
+DEFAULT_EVALUATION_SEED = 700_000
 
 
 def fuse_logits(
@@ -145,6 +147,7 @@ def evaluate_manifest(
     max_new_tokens: int = 256,
     alpha: float = 1.0,
     device_name: str = "auto",
+    evaluation_seed: int = DEFAULT_EVALUATION_SEED,
 ) -> dict[str, Any]:
     config_path = Path(config_path).resolve()
     root = config_path.parents[2]
@@ -157,6 +160,8 @@ def evaluate_manifest(
         raise RuntimeError("manifest vocabulary hash does not match the configured tokenizer")
     if examples_per_operator <= 0 or max_new_tokens <= 0:
         raise ValueError("evaluation sizes must be positive")
+    if evaluation_seed < 0:
+        raise ValueError("evaluation_seed must be nonnegative")
     if split not in {"validation", "test", "iid_test", "operand_ood", "length_ood"}:
         raise ValueError(f"unsupported evaluation split: {split}")
 
@@ -205,7 +210,7 @@ def evaluate_manifest(
         for sample_index in range(examples_per_operator):
             example = factory.training_example(
                 operator_id,
-                seed=700_000,
+                seed=evaluation_seed,
                 split=split,
                 step=operator_index,
                 sample_index=sample_index,
@@ -299,6 +304,7 @@ def evaluate_manifest(
         "joint_reference_status": manifest.get("joint_reference_status"),
         "split": split,
         "examples_per_operator": examples_per_operator,
+        "evaluation_seed": evaluation_seed,
         "alpha": alpha,
         "device": str(device),
         "results": results,
@@ -314,6 +320,7 @@ def main(argv: Iterable[str] | None = None) -> int:
     parser.add_argument("--examples-per-operator", type=int, default=64)
     parser.add_argument("--max-new-tokens", type=int, default=256)
     parser.add_argument("--alpha", type=float, default=1.0)
+    parser.add_argument("--evaluation-seed", type=int, default=DEFAULT_EVALUATION_SEED)
     parser.add_argument("--device", default="auto")
     parser.add_argument("--out")
     args = parser.parse_args(list(argv) if argv is not None else None)
@@ -325,6 +332,7 @@ def main(argv: Iterable[str] | None = None) -> int:
         max_new_tokens=args.max_new_tokens,
         alpha=args.alpha,
         device_name=args.device,
+        evaluation_seed=args.evaluation_seed,
     )
     text = json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True)
     if args.out:

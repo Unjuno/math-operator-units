@@ -19,31 +19,46 @@ The pilot separates these causes before the three-seed production expense.
 | weak multitask | none | `model_design_pilot_weak_unanchored.yaml` |
 | weak multitask | retention | `model_design_pilot_weak_retention.yaml` |
 
-All four conditions use the same architecture, tokenizer, operator set, effective task batch, optimizer family, seed, training steps, evaluation splits, and checkpoint-selection rule.
+All four conditions use the same architecture, tokenizer, operator set, effective task batch, optimizer family, seed, training steps, evaluation sample count, and checkpoint-selection rule.
+
+## Paired-control requirement
+
+Retention and unanchored conditions are intended to differ only in specialist regularization. The pilot therefore uses deterministic CUDA settings:
+
+```text
+deterministic_algorithms: true
+allow_tf32: false
+CUBLAS_WORKSPACE_CONFIG=:4096:8
+flash SDPA: disabled
+memory-efficient SDPA: disabled
+math SDPA: enabled
+```
+
+The identity pair independently recomputes the same identity Base and Joint; the weak pair independently recomputes the same weak Base and Joint. At the end, `opfusion-audit-pilot-pairs` hashes the selected model state of `base.common` and `joint.all_five.exposure_matched` and requires exact equality within each pair. A mismatch is a scientific failure, exit status 67, and the watchdog does not retry it blindly.
+
+The pair audit also records specialist runtime choices and recovery state. Unequal micro-batches do not change the declared effective batch, but they change gradient-accumulation and floating-point order. OOM reductions, non-finite restarts, or learning-rate recovery differences are reported as interpretation warnings.
 
 ## Base definitions
 
 ### Identity control
 
-The identity base learns the shared surface protocol but not arithmetic transitions:
+The identity Base learns the shared surface protocol but not arithmetic transitions:
 
 ```text
 <OP_*> expression <RESPONSE>
 = expression <EOS>
 ```
 
-This remains a useful control because it maximizes the amount of task behavior that must be represented in each specialist field.
-
 ### Weak multitask candidate
 
-The weak base receives verified arithmetic traces for all five operators, but only on a restricted domain:
+The weak Base receives verified arithmetic traces for all five operators, but only on a restricted domain:
 
 ```text
 operand magnitude <= 8
 term count <= 4
 ```
 
-It therefore learns shared reduction/equality/EOS behavior without receiving the full specialist domain. The full-domain specialist is expected to add capability rather than repeatedly cancel an identity policy.
+It learns shared reduction, equality, and EOS behavior without receiving the full specialist domain.
 
 ## Retention-anchored specialists
 
@@ -55,13 +70,15 @@ L = L_task
   + lambda_param * mean((theta_specialist - theta_base)^2)
 ```
 
-The base model is frozen. KL is evaluated only on response-supervised positions. Task examples still determine the specialist's active capability; retention constrains its behavior on the other four operator families.
+The Base is frozen. KL is evaluated only on response-supervised positions.
 
-This is not a router and not a fusion corrector. It changes how the specialist is trained so that its bias field is more localized.
+Retention prompts are sampled from the **full inactive-operator domain**, not the weak Base training domain. Arithmetic labels in those batches are used only to define the teacher-forcing path and response mask for KL; inactive task cross-entropy is not added.
+
+This is not a router and not a fusion-time corrector. It constrains how the specialist field is learned.
 
 ## Validation-selected endpoints
 
-Each job retains `final.pt`, but the dependency graph and final subset manifests use `selected.pt`:
+Each job retains `final.pt`, but dependency branches and final subset manifests use `selected.pt`:
 
 ```text
 selected.pt = positive-step permanent checkpoint with minimum validation token NLL
@@ -70,10 +87,38 @@ selected.pt = positive-step permanent checkpoint with minimum validation token N
 Selection rules:
 
 - specialist: its own operator validation NLL;
-- joint: mean validation NLL across operators;
-- base: base validation NLL.
+- Joint: mean validation NLL across operators;
+- Base: Base validation NLL.
 
-Test metrics are never used for checkpoint selection.
+## Evaluation policy
+
+The pilot evaluates **validation only**.
+
+```text
+pilot selection split: validation
+reserved final splits: iid_test, operand_ood, length_ood
+```
+
+The reserved splits are not generated or inspected while selecting the model construction. This avoids using OOD examples as development feedback and then reporting the same finite domains as final evidence.
+
+The canonical evaluator records a synthetic-data seed in every report. Pilot model-design configs use seed `701000`; normal final evaluation defaults to `700000`. The separate namespace is provenance protection, but split reservation—not seed separation alone—is what prevents leakage for finite OOD domains.
+
+Each condition writes:
+
+```text
+<condition>_validation.json
+<condition>_validation_units.json
+```
+
+The fusion report compares Base, Relevant Specialist, raw sum, bias mean, and matched Joint. The unit report measures every specialist relative to the Base on the same validation examples:
+
+- Base-to-unit Jensen–Shannon divergence;
+- Base-to-unit KL;
+- argmax agreement;
+- centered bias RMS and maximum absolute magnitude;
+- aggregate inactive-unit means and maxima.
+
+The gap between Relevant Specialist and all-five fusion measures total inactive interference. Per-unit diagnostics identify which inactive fields contribute to it.
 
 ## Experiment fingerprints
 
@@ -83,75 +128,53 @@ Every output root receives `experiment_contract.json`. The fingerprint includes:
 - model-design controls;
 - model and tokenizer configuration hashes;
 - vocabulary hash;
-- relevant training/evaluation source hashes;
+- relevant training, hardened retention, seeded evaluation, diagnostics, and evaluation source hashes;
 - Git commit when available.
 
-A mismatched output directory is rejected before checkpoint reuse. Changing learning rate, base mode, retention weights, data ranges, trainer code, or tokenizer requires a new output directory.
+A mismatched output directory is rejected before checkpoint reuse. Changing learning rate, Base mode, retention weights, data ranges, trainer code, tokenizer, evaluation namespace, or diagnostics requires a new output directory.
 
-## One-command unattended execution
-
-Run the entire 2×2 pilot, including all seven models per condition and validation/test fusion evaluation, with one detached command:
+## Execution
 
 ```bash
 bash scripts/run_model_design_pilot.sh detach
 ```
 
-The detached process is a watchdog. It:
-
-- runs the four conditions sequentially in the declared order;
-- holds a global `flock` lock so two pilots cannot write the same outputs;
-- uses `systemd-inhibit` when available;
-- resumes incomplete model jobs from `last.pt`;
-- skips a condition only after validating its completion marker, reports, config hash, and Git commit;
-- retries unexpected worker failures up to `MAX_RESTARTS=20` by default;
-- does not retry permanent preflight failures such as missing CUDA, missing executables, insufficient disk, or duplicate launch;
-- writes phase and retry state to `runs/model_design_pilot/pilot_state.json`.
-
-The default free-disk gate is 15 GiB. Override only after estimating the complete checkpoint footprint:
-
-```bash
-MIN_FREE_GB=20 MAX_RESTARTS=30 \
-  bash scripts/run_model_design_pilot.sh detach
-```
-
-Check progress without parsing the full log:
+Status:
 
 ```bash
 bash scripts/status_model_design_pilot.sh
 ```
-
-Follow the current log:
-
-```bash
-latest_log="$(ls -1t logs/model_design_pilot_*.log | head -1)"
-tail -f "$latest_log"
-```
-
-Re-running the detached command after a process interruption is safe. Completed jobs and verified completed conditions are reused. A machine reboot cannot be recovered by `nohup`; after reboot, verify the GPU and run the same detached command again.
 
 Outputs:
 
 ```text
 runs/model_design_pilot/<condition>/
 audits/model_design_pilot/<condition>.json
+audits/model_design_pilot/pair_consistency.json
 evaluations/model_design_pilot/<condition>_validation.json
-evaluations/model_design_pilot/<condition>_test.json
+evaluations/model_design_pilot/<condition>_validation_units.json
 evaluations/model_design_pilot/index.json
 ```
 
+A machine reboot stops the process. Run the same detached command again with the same checkout and configuration to resume from verified checkpoints.
+
+Artifacts created before the current experiment-contract ABI must not be adopted. Move old `runs/model_design_pilot`, `audits/model_design_pilot`, and `evaluations/model_design_pilot` trees aside before starting this corrected pilot.
+
 ## Decision rule
 
-Do not select a condition from training loss alone. Compare, in this order:
+Select the production construction from validation only. Compare, in this order:
 
-1. relevant-specialist validation and test accuracy;
-2. raw-sum and bias-mean trace validity;
-3. EOS stopping accuracy;
-4. inactive interference on each operator;
-5. Jensen-Shannon divergence and argmax agreement to the matched all-five joint;
-6. selected checkpoint step versus final step;
-7. parameter displacement and retention logs.
+1. Relevant Specialist validation accuracy;
+2. raw-sum and bias-mean validation trace validity;
+3. validation EOS stopping accuracy;
+4. total all-five validation interference relative to Relevant Specialist;
+5. per-unit inactive JSD, KL, argmax agreement, and centered-bias magnitude;
+6. divergence and argmax agreement to the matched all-five Joint;
+7. selected checkpoint step versus final step;
+8. parameter displacement and retention logs;
+9. pair-consistency result and specialist runtime warnings.
 
-The weak-base/retention candidate should advance only if it preserves specialist accuracy while reducing inactive interference or improving fusion stability. If retention suppresses specialist capability, tune its global coefficient on validation data in a separate pilot; do not tune on test.
+The weak-Base/retention candidate should advance only if it preserves relevant-specialist capability while reducing inactive drift or improving fusion stability. Retention tuning, if required, must use validation only. Do not inspect `iid_test`, `operand_ood`, or `length_ood` until the construction is fixed.
 
 ## Production gate
 
@@ -164,4 +187,4 @@ OPFUSION_ALLOW_V4_PRODUCTION=1 \
     detach
 ```
 
-The environment variable is an operational safeguard, not evidence that the candidate has passed the pilot. Preserve the pilot reports with the final experiment record.
+The environment variable is an operational safeguard, not evidence that the candidate passed the pilot. Preserve the pilot reports, evaluation seeds, pair-consistency audit, and experiment contracts with the final record.

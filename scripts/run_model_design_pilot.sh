@@ -8,6 +8,8 @@ PYTHON="${PYTHON:-$ROOT/.venv/bin/python}"
 TRAIN_BATCH="${TRAIN_BATCH:-$ROOT/.venv/bin/opfusion-train-batch-design}"
 AUDIT_DATA="${AUDIT_DATA:-$ROOT/.venv/bin/opfusion-audit-data-design}"
 EVALUATE="${EVALUATE:-$ROOT/.venv/bin/opfusion-evaluate-fusion}"
+DIAGNOSTICS="${DIAGNOSTICS:-$ROOT/.venv/bin/opfusion-evaluate-unit-diagnostics}"
+PAIR_AUDIT="${PAIR_AUDIT:-$ROOT/.venv/bin/opfusion-audit-pilot-pairs}"
 REPO_AUDIT="${REPO_AUDIT:-$ROOT/.venv/bin/opfusion-audit}"
 WATCHER="${WATCHER:-$ROOT/scripts/watch_model_design_pilot.sh}"
 EVAL_EXAMPLES="${EVAL_EXAMPLES:-64}"
@@ -16,6 +18,7 @@ MIN_FREE_GB="${MIN_FREE_GB:-15}"
 LOCK_FILE="${LOCK_FILE:-$ROOT/runs/model_design_pilot/pilot.lock}"
 STATE_FILE="${STATE_FILE:-$ROOT/runs/model_design_pilot/pilot_state.json}"
 PID_FILE="${PID_FILE:-$ROOT/runs/model_design_pilot/pilot.pid}"
+export CUBLAS_WORKSPACE_CONFIG="${CUBLAS_WORKSPACE_CONFIG:-:4096:8}"
 
 if [[ "$MODE" != "foreground" && "$MODE" != "detach" ]]; then
   echo "usage: $0 [foreground|detach]" >&2
@@ -33,7 +36,7 @@ if [[ "$MODE" == "detach" && "${OPFUSION_PILOT_CHILD:-0}" != "1" ]]; then
   fi
   stamp="$(date -u +%Y%m%dT%H%M%SZ)"
   log="logs/model_design_pilot_${stamp}.log"
-  command=(env OPFUSION_PILOT_CHILD=1 PILOT_LOG="$log" bash "$WATCHER")
+  command=(env OPFUSION_PILOT_CHILD=1 PILOT_LOG="$log" CUBLAS_WORKSPACE_CONFIG="$CUBLAS_WORKSPACE_CONFIG" bash "$WATCHER")
   if command -v systemd-inhibit >/dev/null 2>&1; then
     command=(systemd-inhibit --what=sleep:shutdown --why="bias fusion model-design pilot" --mode=block "${command[@]}")
   fi
@@ -45,7 +48,7 @@ if [[ "$MODE" == "detach" && "${OPFUSION_PILOT_CHILD:-0}" != "1" ]]; then
   exit 0
 fi
 
-for executable in "$PYTHON" "$TRAIN_BATCH" "$AUDIT_DATA" "$EVALUATE" "$REPO_AUDIT"; do
+for executable in "$PYTHON" "$TRAIN_BATCH" "$AUDIT_DATA" "$EVALUATE" "$DIAGNOSTICS" "$PAIR_AUDIT" "$REPO_AUDIT"; do
   if [[ ! -x "$executable" ]]; then
     echo "missing executable: $executable; run bash scripts/bootstrap_arch_linux.sh" >&2
     exit 64
@@ -118,31 +121,39 @@ condition_complete() {
   local config="$2"
   local output="runs/model_design_pilot/${condition}"
   local marker="$output/pilot_condition_complete.json"
-  local validation="evaluations/model_design_pilot/${condition}_validation.json"
-  local test="evaluations/model_design_pilot/${condition}_test.json"
   local manifest="$output/seed_0/fusion_subsets/subset_31.json"
 
   # Never reuse a completion marker from a locally modified checkout.
   if [[ -n "$(git status --porcelain --untracked-files=no 2>/dev/null || true)" ]]; then
     return 1
   fi
-  "$PYTHON" - "$marker" "$validation" "$test" "$manifest" "$config" "$output" <<'PY'
+  "$PYTHON" - "$marker" "$manifest" "$config" "$output" <<'PY'
 import hashlib
 import json
 import subprocess
 import sys
 from pathlib import Path
 
-marker, validation, test, manifest, config, output = map(Path, sys.argv[1:])
-for path in (marker, validation, test, manifest, config, output / "experiment_contract.json"):
+marker, manifest, config, output = map(Path, sys.argv[1:])
+condition = output.name
+splits = ("validation",)
+reports = [
+    Path("evaluations/model_design_pilot") / f"{condition}_{split}.json"
+    for split in splits
+]
+diagnostics = [
+    Path("evaluations/model_design_pilot") / f"{condition}_{split}_units.json"
+    for split in splits
+]
+for path in (marker, manifest, config, output / "experiment_contract.json", *reports, *diagnostics):
     if not path.is_file():
         raise SystemExit(1)
 try:
     completion = json.loads(marker.read_text(encoding="utf-8"))
-    json.loads(validation.read_text(encoding="utf-8"))
-    json.loads(test.read_text(encoding="utf-8"))
     manifest_payload = json.loads(manifest.read_text(encoding="utf-8"))
     contract = json.loads((output / "experiment_contract.json").read_text(encoding="utf-8"))
+    for path in (*reports, *diagnostics):
+        json.loads(path.read_text(encoding="utf-8"))
 except Exception:
     raise SystemExit(1)
 try:
@@ -157,6 +168,7 @@ if not (
     and completion.get("config_sha256") == config_sha
     and completion.get("experiment_fingerprint") == fingerprint
     and manifest_payload.get("experiment_fingerprint") == fingerprint
+    and tuple(completion.get("evaluation_splits", ())) == splits
 ):
     raise SystemExit(1)
 
@@ -207,6 +219,7 @@ config = Path(sys.argv[2])
 output = Path(sys.argv[3])
 contract = json.loads((output / "experiment_contract.json").read_text(encoding="utf-8"))
 commit = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+splits = ["validation"]
 payload = {
     "condition": condition,
     "status": "completed",
@@ -214,8 +227,15 @@ payload = {
     "git_commit": commit,
     "config_sha256": hashlib.sha256(config.read_bytes()).hexdigest(),
     "experiment_fingerprint": contract["fingerprint"],
-    "validation_report": f"evaluations/model_design_pilot/{condition}_validation.json",
-    "test_report": f"evaluations/model_design_pilot/{condition}_test.json",
+    "evaluation_splits": splits,
+    "reports": {
+        split: f"evaluations/model_design_pilot/{condition}_{split}.json"
+        for split in splits
+    },
+    "unit_diagnostics": {
+        split: f"evaluations/model_design_pilot/{condition}_{split}_units.json"
+        for split in splits
+    },
     "completed_unix": time.time(),
 }
 path = output / "pilot_condition_complete.json"
@@ -225,16 +245,18 @@ os.replace(tmp, path)
 PY
 }
 
-write_state running "" preflight "checking GPU, disk, tests, and repository contract"
+write_state running "" preflight "checking GPU, disk, tests, repository contract, and deterministic CUDA settings"
 check_disk
 nvidia-smi --query-gpu=name,memory.total,memory.free,temperature.gpu --format=csv,noheader
 "$PYTHON" - <<'PY'
+import os
 import torch
 if not torch.cuda.is_available():
     raise SystemExit("CUDA is required for the model-design pilot")
 props = torch.cuda.get_device_properties(0)
 print(f"CUDA device: {props.name}; VRAM={props.total_memory / 1024**3:.1f} GiB")
 print(f"PyTorch: {torch.__version__}; BF16={torch.cuda.is_bf16_supported()}")
+print(f"CUBLAS_WORKSPACE_CONFIG={os.environ.get('CUBLAS_WORKSPACE_CONFIG')}")
 PY
 "$PYTHON" -m pytest -q
 "$REPO_AUDIT" . --data-samples-per-operator 32
@@ -245,13 +267,14 @@ conditions=(
   weak_unanchored
   weak_retention
 )
+evaluation_splits=(validation)
 
 for condition in "${conditions[@]}"; do
   config="configs/experiments/model_design_pilot_${condition}.yaml"
   output="runs/model_design_pilot/${condition}"
   if condition_complete "$condition" "$config"; then
     echo "=== MODEL DESIGN PILOT: ${condition} already complete; skipping ==="
-    write_state running "$condition" skipped "verified completion marker, reports, contracts, and checkpoints"
+    write_state running "$condition" skipped "verified reports, unit diagnostics, contracts, and checkpoints"
     continue
   fi
 
@@ -270,7 +293,7 @@ for condition in "${conditions[@]}"; do
   "$TRAIN_BATCH" --config "$config"
 
   manifest="$output/seed_0/fusion_subsets/subset_31.json"
-  for split in validation test; do
+  for split in "${evaluation_splits[@]}"; do
     write_state running "$condition" "evaluation_${split}" "evaluating all-five fusion manifest"
     "$EVALUATE" \
       --config "$config" \
@@ -278,20 +301,35 @@ for condition in "${conditions[@]}"; do
       --split "$split" \
       --examples-per-operator "$EVAL_EXAMPLES" \
       --out "evaluations/model_design_pilot/${condition}_${split}.json"
+
+    write_state running "$condition" "unit_diagnostics_${split}" "measuring relevant and inactive unit drift"
+    "$DIAGNOSTICS" \
+      --config "$config" \
+      --manifest "$manifest" \
+      --split "$split" \
+      --examples-per-operator "$EVAL_EXAMPLES" \
+      --out "evaluations/model_design_pilot/${condition}_${split}_units.json"
   done
   mark_condition_complete "$condition" "$config"
   if ! condition_complete "$condition" "$config"; then
     echo "condition completion verification failed: $condition" >&2
     exit 1
   fi
-  write_state running "$condition" completed "condition training and evaluation completed"
+  write_state running "$condition" completed "condition training and diagnostics completed"
 done
+
+write_state running "" pair_audit "verifying exact shared base/joint endpoints across paired conditions"
+if ! "$PAIR_AUDIT" --repo-root . --out audits/model_design_pilot/pair_consistency.json; then
+  write_state failed "" pair_audit "paired conditions did not share exact base and joint model states"
+  exit 67
+fi
 
 write_state running "" summarizing "building the cross-condition endpoint index"
 "$PYTHON" - <<'PY'
 import json
 from pathlib import Path
 conditions = ["identity_unanchored", "identity_retention", "weak_unanchored", "weak_retention"]
+splits = ["validation"]
 records = []
 for condition in conditions:
     root = Path("runs/model_design_pilot") / condition / "seed_0"
@@ -307,23 +345,42 @@ for condition in conditions:
     records.append({
         "condition": condition,
         "selected_endpoints": selected,
-        "validation_report": f"evaluations/model_design_pilot/{condition}_validation.json",
-        "test_report": f"evaluations/model_design_pilot/{condition}_test.json",
+        "reports": {
+            split: f"evaluations/model_design_pilot/{condition}_{split}.json"
+            for split in splits
+        },
+        "unit_diagnostics": {
+            split: f"evaluations/model_design_pilot/{condition}_{split}_units.json"
+            for split in splits
+        },
     })
 path = Path("evaluations/model_design_pilot/index.json")
-path.write_text(json.dumps({"conditions": records}, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+path.write_text(
+    json.dumps(
+        {
+            "conditions": records,
+            "pair_consistency": "audits/model_design_pilot/pair_consistency.json",
+            "reserved_final_splits": ["iid_test", "operand_ood", "length_ood"],
+        },
+        indent=2,
+        sort_keys=True,
+    ) + "\n",
+    encoding="utf-8",
+)
 print(path)
 PY
-write_state completed "" completed "all four conditions and both evaluation splits completed"
+write_state completed "" completed "all four validation diagnostics and pair-consistency audit completed"
 
 cat <<'EOF'
 Model-design pilot completed.
-Do not choose a production condition from training loss alone. Compare:
-  1. relevant-specialist validation/test accuracy;
+Select the production design from validation only.
+IID test, operand OOD, and length OOD are intentionally reserved for final evaluation.
+Compare:
+  1. relevant-specialist validation accuracy;
   2. raw-sum and bias-mean trace validity and EOS accuracy;
-  3. divergence/agreement to the matched joint;
-  4. selected checkpoint steps versus final steps;
-  5. retention regularization logs for inactive-operator drift.
-The guarded production candidate is weak_multitask + retention. Enable it only
-after these reports support that choice.
+  3. total all-five interference versus the relevant specialist;
+  4. per-unit inactive JSD, KL, argmax agreement, and centered-bias RMS;
+  5. divergence/agreement to the matched joint;
+  6. selected checkpoint steps versus final steps;
+  7. retention regularization logs and pair-consistency audit warnings.
 EOF

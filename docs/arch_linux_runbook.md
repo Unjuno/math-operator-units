@@ -10,17 +10,17 @@ git
 nvidia-smi
 bash
 flock
+ps
+setsid
 ```
 
-`flock` and `setsid` are provided by `util-linux`. `systemd-inhibit` is optional but normally available on systemd-based Arch systems.
-
-Minimal user-space packages:
+`flock` and `setsid` are provided by `util-linux`; `ps` is provided by `procps-ng`. `systemd-inhibit` is optional but normally available on systemd-based Arch systems.
 
 ```bash
-sudo pacman -S --needed python python-pip git base-devel
+sudo pacman -S --needed python python-pip git base-devel util-linux procps-ng
 ```
 
-Install the NVIDIA driver appropriate to the GPU and kernel. The project intentionally does not automate selection among `nvidia`, `nvidia-open`, DKMS variants, or custom kernels. Reboot when required, then verify:
+Install the NVIDIA driver appropriate to the GPU and kernel. The project does not automate selection among `nvidia`, `nvidia-open`, DKMS variants, or custom kernels. Reboot when required, then verify:
 
 ```bash
 nvidia-smi
@@ -39,52 +39,93 @@ TORCH_INDEX_URL=https://download.pytorch.org/whl/cu128 \
   bash scripts/bootstrap_arch_linux.sh
 ```
 
-The driver must support the CUDA runtime bundled by that wheel. The local CUDA toolkit package is not required merely to run a PyTorch wheel.
+The driver must support the CUDA runtime bundled by that wheel. A local CUDA toolkit package is not required merely to run a PyTorch wheel.
 
 ## Model-design staging
 
-The repository no longer treats the identity-base, unanchored specialist construction as a safe default. Before the three-seed production run, execute the four-condition pilot:
+Before the three-seed production run, execute the four-condition pilot:
 
 ```text
-identity base + unanchored specialists
-identity base + retention-anchored specialists
-weak multitask base + unanchored specialists
-weak multitask base + retention-anchored specialists
+identity Base + unanchored Specialists
+identity Base + retention-anchored Specialists
+weak multitask Base + unanchored Specialists
+weak multitask Base + retention-anchored Specialists
 ```
 
-Start all four conditions with one detached command:
+Start the entire queue with one command:
 
 ```bash
 bash scripts/run_model_design_pilot.sh detach
 ```
 
-The launcher starts a restartable watchdog under `nohup`, uses `systemd-inhibit` when available, runs the conditions sequentially, resumes incomplete jobs from `last.pt`, and retries unexpected worker failures. A verified completion marker lets later retries skip conditions that already completed training and both evaluation splits.
+The detached path starts a watchdog under `nohup`, acquires a global `flock`, blocks sleep/shutdown with `systemd-inhibit` when available, retries unexpected failures, and resumes incomplete jobs from `last.pt`.
 
-Monitor without reading the full log:
+Monitor:
 
 ```bash
 bash scripts/status_model_design_pilot.sh
 nvidia-smi
 ```
 
-Follow the log when needed:
+Follow the current log:
 
 ```bash
 latest_log="$(ls -1t logs/model_design_pilot_*.log | head -1)"
 tail -f "$latest_log"
 ```
 
-Operational state is written to:
+The pilot trains one seed for 3,000 optimizer steps per model. Each condition contains one Base, five Specialists, and one all-five Joint. Conditions execute sequentially on one GPU.
+
+### Deterministic pair controls
+
+The pilot configs use:
 
 ```text
-runs/model_design_pilot/pilot.pid
-runs/model_design_pilot/pilot_state.json
-runs/model_design_pilot/pilot.lock
+deterministic_algorithms: true
+allow_tf32: false
+CUBLAS_WORKSPACE_CONFIG=:4096:8
+flash/memory-efficient SDPA disabled
+math SDPA enabled
 ```
 
-The pilot trains one seed for 3,000 optimizer steps per model and evaluates validation and test outputs under `evaluations/model_design_pilot/`. It is a design-selection experiment, not a final result. Compare relevant-specialist accuracy, all-five raw/mean fusion, trace validity, EOS accuracy, matched-joint divergence, and selected-versus-final checkpoint steps.
+The retention and unanchored member of each Base type independently recompute their Base and Joint. At completion, `audits/model_design_pilot/pair_consistency.json` requires exact selected model-state equality for those shared endpoints. Exit status 67 indicates a scientific pair mismatch and is not retried by the watchdog.
 
-The watchdog survives terminal closure and logout. It cannot survive a machine reboot or power loss. After a reboot, verify `nvidia-smi` and run the same detached command again; the experiment contract and checkpoints make that a resume operation.
+The same audit records Specialist micro-batch, learning-rate scale, OOM reductions, and non-finite restarts. A mismatch is an interpretation warning even when the declared effective batch is unchanged.
+
+### Pilot evaluation policy
+
+The pilot evaluates only:
+
+```text
+validation
+```
+
+The following are reserved for final evaluation after the construction has been fixed:
+
+```text
+iid_test
+operand_ood
+length_ood
+```
+
+Each condition receives one validation fusion report and one per-unit inactive-drift report. The evaluator records its synthetic-data seed; model-design runs use seed `701000`, while final/default evaluation uses `700000`.
+
+### Full-domain retention
+
+For weak-multitask Base conditions, inactive retention prompts are sampled from the full Specialist domain rather than the Base's restricted ±8/four-term domain. The inactive arithmetic response is used only as a teacher-forcing path and response mask for KL; no inactive task cross-entropy is added.
+
+## Corrected-pilot artifact rule
+
+Pilot artifacts created before the current experiment-contract ABI must not be resumed into the corrected design. Before starting, move existing pilot trees aside:
+
+```bash
+stamp="$(date -u +%Y%m%dT%H%M%SZ)"
+mv runs/model_design_pilot "runs/model_design_pilot.pre_reaudit_$stamp" 2>/dev/null || true
+mv audits/model_design_pilot "audits/model_design_pilot.pre_reaudit_$stamp" 2>/dev/null || true
+mv evaluations/model_design_pilot "evaluations/model_design_pilot.pre_reaudit_$stamp" 2>/dev/null || true
+```
+
+Do this only when no pilot process is running.
 
 ## Guarded surface-v4 production candidate
 
@@ -97,14 +138,14 @@ output:   runs/gpt_bias_fusion_factory_surface_v4/
 runner:   opfusion-train-batch-design
 ```
 
-Its model construction is:
+Its construction is:
 
 - weak multitask `base.common` on operands within ±8 and at most four terms;
-- five full-domain specialists branching from the validation-selected base checkpoint;
-- inactive-operator retention KL against the frozen selected base;
-- a small parameter anchor to the selected base;
-- validation-selected specialist and joint endpoints;
-- strict experiment fingerprints that reject mixed configuration/code revisions.
+- five full-domain Specialists branching from the validation-selected Base;
+- full-domain inactive-operator retention KL against the frozen selected Base;
+- a small parameter anchor to the selected Base;
+- validation-selected Specialist and Joint endpoints;
+- strict experiment fingerprints.
 
 Production is intentionally gated. After the pilot supports this design:
 
@@ -117,7 +158,7 @@ OPFUSION_ALLOW_V4_PRODUCTION=1 \
 
 ## Manual preflight
 
-The launcher repeats these checks automatically:
+The launchers repeat these checks automatically:
 
 ```bash
 .venv/bin/python -c 'import torch; print(torch.__version__, torch.cuda.is_available())'
@@ -136,25 +177,19 @@ Do not bypass a nonzero result.
 
 ## Checkpoint selection
 
-Every job still keeps `final.pt`, but dependency branches and final fusion manifests use `selected.pt`, chosen by validation token NLL from positive-step permanent checkpoints.
+Every job keeps `final.pt`, but dependency branches and final fusion manifests use `selected.pt`, chosen by validation token NLL from positive-step permanent checkpoints.
 
 ```text
 base.common selected.pt
-        ├── specialist selected.pt files
-        └── joint selected.pt
+        ├── Specialist selected.pt files
+        └── Joint selected.pt
 ```
 
-This prevents a fixed 50,000-step endpoint from silently becoming the scientific result when an earlier checkpoint validates better. Checkpoint-grid manifests remain available for step-matched trajectory analysis.
+Checkpoint-grid manifests remain available for step-matched trajectory analysis.
 
 ## Experiment fingerprints
 
-Each output root contains:
-
-```text
-experiment_contract.json
-```
-
-The fingerprint includes normalized run configuration, model-design controls, model/tokenizer files, vocabulary hash, relevant training/evaluation source hashes, and the Git revision when available. Re-running with different code or configuration in the same output directory fails before checkpoint reuse.
+Each output root contains `experiment_contract.json`. The fingerprint includes normalized run configuration, model-design controls, model/tokenizer files, vocabulary hash, hardened training, seeded evaluation, diagnostics, and the Git revision when available.
 
 Do not delete the contract to force adoption of old artifacts. Move the old run aside or choose a new `output_dir`.
 
@@ -162,11 +197,18 @@ Do not delete the contract to force adoption of old artifacts. Move the old run 
 
 Run the same command with the same checkout and configuration. The queue loads `last.pt` for incomplete jobs and returns the existing validation-selected endpoint for completed jobs.
 
-Do not delete `experiment_contract.json`, `runtime_state.json`, `last.pt`, `complete.json`, `checkpoint_index.jsonl`, `pilot_condition_complete.json`, or `batch_state.json` while a run is active.
+A logout or terminal close does not stop a detached run. A reboot, kernel panic, driver reset requiring reboot, power loss, or forced shutdown does. After a reboot:
+
+```bash
+nvidia-smi
+bash scripts/run_model_design_pilot.sh detach
+```
+
+Do not delete `experiment_contract.json`, `runtime_state.json`, `last.pt`, `complete.json`, `checkpoint_index.jsonl`, `batch_state.json`, or condition completion markers while a run is active. Do not run `git pull` or edit configs during a run.
 
 ## Legacy conditions
 
-Surface v3 is the identity-base/unanchored legacy condition:
+Surface v3 identity-Base/unanchored control:
 
 ```bash
 OPFUSION_ALLOW_LEGACY_SURFACE_V3=1 \
@@ -175,7 +217,7 @@ OPFUSION_ALLOW_LEGACY_SURFACE_V3=1 \
     detach
 ```
 
-Typed v2 remains a diagnostic output-token ablation:
+Typed v2 output-token ablation:
 
 ```bash
 OPFUSION_ALLOW_TYPED_V2=1 \
@@ -197,27 +239,25 @@ nvidia-smi
 .venv/bin/python -c 'import torch; print(torch.cuda.is_available(), torch.version.cuda)'
 ```
 
-If Python minor version or the repository revision changed, recreate `.venv`. A changed repository revision will also change the experiment fingerprint, so resume only from the exact run checkout.
+A changed Python minor version or repository revision requires recreating `.venv`; a changed revision also changes the experiment fingerprint.
 
 ## Storage
 
-The pilot requires at least 15 GiB free by default. Surface v4 production requires at least 20 GiB free because it retains trajectory checkpoints, optimizer state, and selected endpoints. Override only after measuring actual checkpoint size:
+The pilot requires at least 15 GiB free by default. Surface v4 production requires at least 20 GiB by default.
 
 ```bash
-MIN_FREE_GB=25 bash scripts/run_model_design_pilot.sh detach
-
-MIN_FREE_GB=30 OPFUSION_ALLOW_V4_PRODUCTION=1 \
-  bash scripts/run_bias_fusion_factory_surface_v4.sh ...
+MIN_FREE_GB=30 bash scripts/run_model_design_pilot.sh detach
 ```
 
 ## Failure diagnosis
 
 - `torch.cuda.is_available() == false`: driver/module/PyTorch wheel mismatch.
-- pilot state reports `restarting`: inspect the latest log; the watchdog will resume automatically up to its retry limit.
-- pilot state reports a permanent preflight failure: fix CUDA, executable, disk, or duplicate-lock issue, then run the same command again.
-- OOM recovery reaches micro-batch 4: inspect whether retention inference is active and reduce the declared minimum only after a smoke test.
-- fingerprint mismatch: do not overwrite; use a new output directory or restore the original checkout/config.
-- no selectable checkpoint: inspect `checkpoint_index.jsonl`; at least one positive-step checkpoint with finite validation NLL is required.
+- deterministic CUDA error: preserve the log; do not disable deterministic settings merely to make the paired pilot pass.
+- exit 67: paired Base/Joint states differ; inspect `audits/model_design_pilot/pair_consistency.json`.
+- OOM recovery reaches micro-batch 4: inspect retention memory use before changing the minimum.
+- fingerprint mismatch: use a new output directory or restore the original checkout/config.
+- no selectable checkpoint: inspect `checkpoint_index.jsonl`.
 - non-finite restart limit reached: inspect `recovery.jsonl`, `metrics.jsonl`, and `regularization.jsonl`.
-- duplicate factory error: inspect the PID and lock holder before removing a lock file.
+- duplicate-run error: inspect the PID and lock holder before removing a lock file.
 - data audit failure: preserve the JSON report and inspect the first failing invariant.
+- pair runtime warning: include the differing micro-batch/recovery state in interpretation.

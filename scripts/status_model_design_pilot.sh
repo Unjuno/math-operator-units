@@ -58,15 +58,37 @@ import json
 from pathlib import Path
 
 conditions = ["identity_unanchored", "identity_retention", "weak_unanchored", "weak_retention"]
+splits = ["validation"]
 print("progress:")
 for condition in conditions:
     root = Path("runs/model_design_pilot") / condition
     marker = root / "pilot_condition_complete.json"
     jobs = list((root / "seed_0").glob("*/complete.json")) if (root / "seed_0").exists() else []
+    reports = sum(
+        (Path("evaluations/model_design_pilot") / f"{condition}_{split}.json").is_file()
+        for split in splits
+    )
+    diagnostics = sum(
+        (Path("evaluations/model_design_pilot") / f"{condition}_{split}_units.json").is_file()
+        for split in splits
+    )
     status = "complete" if marker.is_file() else "incomplete"
-    print(f"  {condition}: {status}; completed_models={len(jobs)}/7")
+    print(
+        f"  {condition}: {status}; completed_models={len(jobs)}/7; "
+        f"fusion_reports={reports}/1; unit_reports={diagnostics}/1"
+    )
 index = Path("evaluations/model_design_pilot/index.json")
+pair = Path("audits/model_design_pilot/pair_consistency.json")
 print(f"summary_index: {'present' if index.is_file() else 'not present'}")
+if pair.is_file():
+    try:
+        payload = json.loads(pair.read_text(encoding="utf-8"))
+        print(f"pair_consistency: {payload.get('status')}; warnings={len(payload.get('warnings', []))}")
+    except Exception:
+        print("pair_consistency: unreadable")
+else:
+    print("pair_consistency: not present")
+print("final_splits: iid_test, operand_ood, length_ood reserved/not run by pilot")
 PY
 fi
 

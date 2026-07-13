@@ -9,9 +9,9 @@ experiment:
   seeds: [0]
   require_cuda: true
   precision: auto
-  allow_tf32: true
+  allow_tf32: false
   max_parameters: 1000000
-  deterministic_algorithms: false
+  deterministic_algorithms: true
   continue_on_error: false
 
   model_design:

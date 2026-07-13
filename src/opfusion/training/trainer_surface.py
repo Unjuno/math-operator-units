@@ -115,7 +115,9 @@ def _evaluate_generation_verified(
     if config.generation_eval_examples <= 0 or "<RESPONSE>" not in tokenizer.token_to_id:
         return {}
     model.eval()
-    splits = ("validation", "operand_ood", "length_ood")
+    # Training-time generation metrics are development signals. Final IID and
+    # OOD domains are evaluated only after the model construction is fixed.
+    splits = ("validation",)
     targets: tuple[str | None, ...] = (None,) if job_id == "base.common" else tuple(EXPERIMENT_OPERATORS)
     output: dict[str, Any] = {}
     for split in splits:

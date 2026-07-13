@@ -36,7 +36,19 @@ jobs:
           scripts/watch_model_design_pilot.sh
           scripts/status_model_design_pilot.sh
       - name: Audit canonical repository contract
-        run: opfusion-audit . --data-samples-per-operator 32
+        run: |
+          set +e
+          opfusion-audit . --data-samples-per-operator 32 > repository-audit.json 2>&1
+          status=$?
+          cat repository-audit.json
+          exit $status
+      - name: Upload repository audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: repository-audit-${{ matrix.python-version }}
+          path: repository-audit.json
+          if-no-files-found: error
       - name: Audit canonical generated data
         run: >-
           opfusion-audit-data-design

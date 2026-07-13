@@ -9,7 +9,7 @@ from . import batch as core_batch
 from .design_config import load_design_run_config, model_design
 from .experiment_contract import ensure_experiment_contract
 from .trainer import _find_repo_root, _json_dump, _resolve_repo_path
-from .trainer_design import train_job
+from .trainer_design_hardened import train_job
 
 
 _ORIGINAL_SUBSET_RECORD = core_batch._subset_record

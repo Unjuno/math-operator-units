@@ -13,6 +13,7 @@ LOCK_FILE="${LOCK_FILE:-$ROOT/runs/model_design_pilot/pilot.lock}"
 STATE_FILE="${STATE_FILE:-$ROOT/runs/model_design_pilot/pilot_state.json}"
 PID_FILE="${PID_FILE:-$ROOT/runs/model_design_pilot/pilot.pid}"
 PILOT_LOG="${PILOT_LOG:-}"
+export CUBLAS_WORKSPACE_CONFIG="${CUBLAS_WORKSPACE_CONFIG:-:4096:8}"
 
 mkdir -p runs/model_design_pilot logs
 exec 9>"$LOCK_FILE"
@@ -120,11 +121,11 @@ while true; do
   write_watch_state running "$attempt" "starting or resuming the four-condition pilot"
 
   if command -v setsid >/dev/null 2>&1; then
-    setsid env OPFUSION_PILOT_CHILD=1 OPFUSION_PILOT_WATCHED=1 \
+    setsid env OPFUSION_PILOT_CHILD=1 OPFUSION_PILOT_WATCHED=1 CUBLAS_WORKSPACE_CONFIG="$CUBLAS_WORKSPACE_CONFIG" \
       bash "$WORKER" foreground &
     child_is_process_group=1
   else
-    env OPFUSION_PILOT_CHILD=1 OPFUSION_PILOT_WATCHED=1 \
+    env OPFUSION_PILOT_CHILD=1 OPFUSION_PILOT_WATCHED=1 CUBLAS_WORKSPACE_CONFIG="$CUBLAS_WORKSPACE_CONFIG" \
       bash "$WORKER" foreground &
     child_is_process_group=0
   fi
@@ -159,14 +160,14 @@ while true; do
 
   if [[ $status -eq 0 ]]; then
     echo "[$(date -u +%Y-%m-%dT%H:%M:%SZ)] model-design pilot completed"
-    write_watch_state completed "$attempt" "all conditions and evaluations completed"
+    write_watch_state completed "$attempt" "all conditions, diagnostics, and pair audit completed"
     exit 0
   fi
 
   case "$status" in
-    64|65|66|73)
-      echo "pilot stopped with permanent preflight status=${status}; not retrying" >&2
-      write_watch_state failed "$attempt" "permanent preflight failure status=${status}"
+    64|65|66|67|73)
+      echo "pilot stopped with permanent preflight/scientific status=${status}; not retrying" >&2
+      write_watch_state failed "$attempt" "permanent failure status=${status}"
       exit "$status"
       ;;
   esac
