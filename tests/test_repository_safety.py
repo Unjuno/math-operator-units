@@ -57,3 +57,24 @@ def test_arch_bootstrap_advertises_pilot_and_guarded_v4() -> None:
     assert "run_bias_fusion_factory_surface_v4.sh" in bootstrap
     assert "gpt_bias_fusion_factory_surface_v4.yaml" in bootstrap
     assert "OPFUSION_ALLOW_V4_PRODUCTION" in bootstrap
+
+
+def test_detached_pilot_runs_all_conditions_through_a_restartable_watchdog() -> None:
+    launcher = (ROOT / "scripts/run_model_design_pilot.sh").read_text(encoding="utf-8")
+    watcher = (ROOT / "scripts/watch_model_design_pilot.sh").read_text(encoding="utf-8")
+    status = (ROOT / "scripts/status_model_design_pilot.sh").read_text(encoding="utf-8")
+    for condition in (
+        "identity_unanchored",
+        "identity_retention",
+        "weak_unanchored",
+        "weak_retention",
+    ):
+        assert condition in launcher
+    assert "watch_model_design_pilot.sh" in launcher
+    assert "nohup" in launcher
+    assert "systemd-inhibit" in launcher
+    assert "condition_complete" in launcher
+    assert "MAX_RESTARTS" in watcher
+    assert "OPFUSION_PILOT_WATCHED" in watcher
+    assert "pilot_state.json" in watcher
+    assert "completed_models" in status
