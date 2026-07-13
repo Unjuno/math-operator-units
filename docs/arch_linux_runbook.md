@@ -12,7 +12,7 @@ bash
 flock
 ```
 
-`flock` is provided by `util-linux`. `systemd-inhibit` is optional but normally available on systemd-based Arch systems.
+`flock` and `setsid` are provided by `util-linux`. `systemd-inhibit` is optional but normally available on systemd-based Arch systems.
 
 Minimal user-space packages:
 
@@ -52,21 +52,39 @@ weak multitask base + unanchored specialists
 weak multitask base + retention-anchored specialists
 ```
 
-Start it with:
+Start all four conditions with one detached command:
 
 ```bash
 bash scripts/run_model_design_pilot.sh detach
 ```
 
-Monitor:
+The launcher starts a restartable watchdog under `nohup`, uses `systemd-inhibit` when available, runs the conditions sequentially, resumes incomplete jobs from `last.pt`, and retries unexpected worker failures. A verified completion marker lets later retries skip conditions that already completed training and both evaluation splits.
+
+Monitor without reading the full log:
 
 ```bash
-cat runs/model_design_pilot/pilot.pid
-ls -1t logs/model_design_pilot_*.log | head -1 | xargs tail -f
+bash scripts/status_model_design_pilot.sh
 nvidia-smi
 ```
 
+Follow the log when needed:
+
+```bash
+latest_log="$(ls -1t logs/model_design_pilot_*.log | head -1)"
+tail -f "$latest_log"
+```
+
+Operational state is written to:
+
+```text
+runs/model_design_pilot/pilot.pid
+runs/model_design_pilot/pilot_state.json
+runs/model_design_pilot/pilot.lock
+```
+
 The pilot trains one seed for 3,000 optimizer steps per model and evaluates validation and test outputs under `evaluations/model_design_pilot/`. It is a design-selection experiment, not a final result. Compare relevant-specialist accuracy, all-five raw/mean fusion, trace validity, EOS accuracy, matched-joint divergence, and selected-versus-final checkpoint steps.
+
+The watchdog survives terminal closure and logout. It cannot survive a machine reboot or power loss. After a reboot, verify `nvidia-smi` and run the same detached command again; the experiment contract and checkpoints make that a resume operation.
 
 ## Guarded surface-v4 production candidate
 
@@ -144,7 +162,7 @@ Do not delete the contract to force adoption of old artifacts. Move the old run 
 
 Run the same command with the same checkout and configuration. The queue loads `last.pt` for incomplete jobs and returns the existing validation-selected endpoint for completed jobs.
 
-Do not delete `experiment_contract.json`, `runtime_state.json`, `last.pt`, `complete.json`, `checkpoint_index.jsonl`, or `batch_state.json` while a run is active.
+Do not delete `experiment_contract.json`, `runtime_state.json`, `last.pt`, `complete.json`, `checkpoint_index.jsonl`, `pilot_condition_complete.json`, or `batch_state.json` while a run is active.
 
 ## Legacy conditions
 
@@ -183,9 +201,11 @@ If Python minor version or the repository revision changed, recreate `.venv`. A 
 
 ## Storage
 
-Surface v4 requires at least 20 GiB free by default because it retains trajectory checkpoints, optimizer state, selected endpoints, and four pilot conditions. Override only after measuring actual checkpoint size:
+The pilot requires at least 15 GiB free by default. Surface v4 production requires at least 20 GiB free because it retains trajectory checkpoints, optimizer state, and selected endpoints. Override only after measuring actual checkpoint size:
 
 ```bash
+MIN_FREE_GB=25 bash scripts/run_model_design_pilot.sh detach
+
 MIN_FREE_GB=30 OPFUSION_ALLOW_V4_PRODUCTION=1 \
   bash scripts/run_bias_fusion_factory_surface_v4.sh ...
 ```
@@ -193,6 +213,8 @@ MIN_FREE_GB=30 OPFUSION_ALLOW_V4_PRODUCTION=1 \
 ## Failure diagnosis
 
 - `torch.cuda.is_available() == false`: driver/module/PyTorch wheel mismatch.
+- pilot state reports `restarting`: inspect the latest log; the watchdog will resume automatically up to its retry limit.
+- pilot state reports a permanent preflight failure: fix CUDA, executable, disk, or duplicate-lock issue, then run the same command again.
 - OOM recovery reaches micro-batch 4: inspect whether retention inference is active and reduce the declared minimum only after a smoke test.
 - fingerprint mismatch: do not overwrite; use a new output directory or restore the original checkout/config.
 - no selectable checkpoint: inspect `checkpoint_index.jsonl`; at least one positive-step checkpoint with finite validation NLL is required.
