@@ -29,6 +29,7 @@ _CODE_PATHS = (
     "src/opfusion/training/batch_design.py",
     "src/opfusion/training/audit_pilot_pairs.py",
     "src/opfusion/fusion_eval.py",
+    "src/opfusion/fusion_eval_seeded.py",
     "src/opfusion/fusion_diagnostics.py",
 )
 
