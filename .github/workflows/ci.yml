@@ -32,6 +32,7 @@ jobs:
           scripts/watch_bias_fusion_factory_surface_v3.sh
           scripts/run_bias_fusion_factory_surface_v4.sh
           scripts/watch_bias_fusion_factory_surface_v4.sh
+          scripts/run_surface_v4_cuda_smoke.sh
           scripts/run_model_design_pilot.sh
           scripts/watch_model_design_pilot.sh
           scripts/status_model_design_pilot.sh
@@ -54,10 +55,20 @@ jobs:
           opfusion-audit-data-design
           --config configs/experiments/gpt_bias_fusion_factory_surface_v4.yaml
           --samples-per-operator 64
+      - name: Audit CUDA smoke generated data
+        run: >-
+          opfusion-audit-data-design
+          --config configs/experiments/gpt_bias_fusion_factory_surface_v4_smoke.yaml
+          --samples-per-operator 32
       - name: Validate guarded production plan
         run: >-
           opfusion-train-batch-design
           --config configs/experiments/gpt_bias_fusion_factory_surface_v4.yaml
+          --plan-only
+      - name: Validate CUDA smoke plan
+        run: >-
+          opfusion-train-batch-design
+          --config configs/experiments/gpt_bias_fusion_factory_surface_v4_smoke.yaml
           --plan-only
       - name: Run tests
         run: pytest -q --junitxml=pytest-report.xml

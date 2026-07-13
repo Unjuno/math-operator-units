@@ -1,8 +1,24 @@
 # Experiment Configurations
 
+## Real-hardware CUDA smoke
+
+Before any unattended pilot or production run, execute:
+
+```bash
+bash scripts/run_surface_v4_cuda_smoke.sh
+```
+
+The smoke configuration is:
+
+```text
+gpt_bias_fusion_factory_surface_v4_smoke.yaml
+```
+
+It requires an actual CUDA device and exercises the seven-model dependency graph, automatic micro-batch probing, production effective batch size, deterministic CUDA settings, weak Base training, full-domain inactive retention, validation-selected checkpoints, all-five fusion evaluation, and per-unit diagnostics. It runs only two optimizer steps and writes a verified completion marker under its dedicated smoke output tree. Smoke artifacts are operational evidence only, not scientific results.
+
 ## Required model-design pilot
 
-Run the four one-seed conditions before the full production candidate:
+Run the four one-seed conditions after the CUDA smoke passes:
 
 ```text
 model_design_pilot_identity_unanchored.yaml
@@ -34,13 +50,7 @@ OPFUSION_ALLOW_V4_PRODUCTION=1 \
     detach
 ```
 
-## Surface-v4 smoke test
-
-```text
-gpt_bias_fusion_factory_surface_v4_smoke.yaml
-```
-
-The production launcher runs this automatically. Smoke checkpoints are operational artifacts, not scientific results.
+The production launcher revalidates the standalone smoke marker for the current Git revision and reruns the smoke when necessary unless `SKIP_SMOKE=1` is explicitly supplied.
 
 ## Legacy surface-v3 condition
 

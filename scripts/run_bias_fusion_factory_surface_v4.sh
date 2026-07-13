@@ -10,6 +10,7 @@ PYTHON="${PYTHON:-$ROOT/.venv/bin/python}"
 TRAIN_BATCH="${TRAIN_BATCH:-$ROOT/.venv/bin/opfusion-train-batch-design}"
 REPO_AUDIT="${REPO_AUDIT:-$ROOT/.venv/bin/opfusion-audit}"
 AUDIT_DATA="${AUDIT_DATA:-$ROOT/.venv/bin/opfusion-audit-data-design}"
+CUDA_SMOKE="${CUDA_SMOKE:-$ROOT/scripts/run_surface_v4_cuda_smoke.sh}"
 MIN_FREE_GB="${MIN_FREE_GB:-20}"
 AUDIT_SAMPLES="${AUDIT_SAMPLES:-512}"
 PILOT_INDEX="${PILOT_INDEX:-evaluations/model_design_pilot/index.json}"
@@ -19,7 +20,8 @@ export CUBLAS_WORKSPACE_CONFIG="${CUBLAS_WORKSPACE_CONFIG:-:4096:8}"
 if [[ "${OPFUSION_ALLOW_V4_PRODUCTION:-0}" != "1" ]]; then
   cat >&2 <<'EOF'
 surface-v4 production is intentionally gated.
-Run the four-condition model-design pilot first and inspect its validation reports:
+Run the real-hardware smoke and four-condition model-design pilot first:
+  bash scripts/run_surface_v4_cuda_smoke.sh
   bash scripts/run_model_design_pilot.sh detach
 The pilot reserves iid_test, operand_ood, and length_ood for final evaluation.
 After selecting the weak-Base/retention design, re-run with:
@@ -28,13 +30,17 @@ EOF
   exit 64
 fi
 
-if [[ ! -x "$PYTHON" || ! -x "$TRAIN_BATCH" || ! -x "$REPO_AUDIT" || ! -x "$AUDIT_DATA" ]]; then
-  echo "virtual environment is missing or stale; run: bash scripts/bootstrap_arch_linux.sh" >&2
+if [[ ! -x "$PYTHON" || ! -x "$TRAIN_BATCH" || ! -x "$REPO_AUDIT" || ! -x "$AUDIT_DATA" || ! -f "$CUDA_SMOKE" ]]; then
+  echo "virtual environment or launcher is missing/stale; run: bash scripts/bootstrap_arch_linux.sh" >&2
   exit 1
 fi
 if ! command -v nvidia-smi >/dev/null 2>&1; then
   echo "nvidia-smi is unavailable. On Arch Linux, verify the NVIDIA driver and running kernel module." >&2
   exit 1
+fi
+if [[ -n "$(git status --porcelain --untracked-files=no 2>/dev/null || true)" ]]; then
+  echo "tracked files are modified; production requires a clean checkout" >&2
+  exit 68
 fi
 
 # The environment variable records human approval. These checks additionally
@@ -102,11 +108,8 @@ mkdir -p audits logs runs/gpt_bias_fusion_factory_surface_v4
 "$TRAIN_BATCH" --config "$CONFIG" --plan-only
 
 if [[ "${SKIP_SMOKE:-0}" != "1" ]]; then
-  echo "Running surface-v4 CUDA smoke batch..."
-  if [[ "${KEEP_SMOKE:-0}" != "1" ]]; then
-    rm -rf runs/gpt_bias_fusion_factory_surface_v4_smoke
-  fi
-  "$TRAIN_BATCH" --config "$SMOKE_CONFIG"
+  echo "Running verified surface-v4 CUDA smoke batch..."
+  SKIP_STATIC_PREFLIGHT=1 bash "$CUDA_SMOKE" "$SMOKE_CONFIG"
 fi
 
 WATCH=(bash scripts/watch_bias_fusion_factory_surface_v4.sh "$CONFIG")

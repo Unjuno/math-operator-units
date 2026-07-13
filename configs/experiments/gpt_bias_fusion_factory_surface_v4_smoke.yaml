@@ -17,33 +17,33 @@ experiment:
   seeds: [0]
   require_cuda: true
   precision: auto
-  allow_tf32: true
+  allow_tf32: false
   max_parameters: 1000000
-  deterministic_algorithms: false
+  deterministic_algorithms: true
   continue_on_error: false
 
   model_design:
     base_target_mode: weak_multitask
-    base_weak_operand_abs_max: 4
+    base_weak_operand_abs_max: 8
     base_weak_max_terms: 4
     selection_metric: validation_nll
     strict_experiment_fingerprint: true
     specialist_regularization:
       retention_kl_weight: 0.10
-      retention_examples_per_inactive_operator: 2
+      retention_examples_per_inactive_operator: 16
       parameter_anchor_weight: 0.000001
 
   data:
-    operand_min: -16
-    operand_max: 16
+    operand_min: -64
+    operand_max: 64
     min_terms: 3
-    max_terms: 5
+    max_terms: 8
     numeric_token_min: -1024
     numeric_token_max: 1024
-    operand_ood_abs_min: 17
-    operand_ood_abs_max: 20
-    length_ood_min_terms: 6
-    length_ood_max_terms: 7
+    operand_ood_abs_min: 65
+    operand_ood_abs_max: 80
+    length_ood_min_terms: 9
+    length_ood_max_terms: 10
     partition_modulus: 100
     train_bucket_end: 70
     validation_bucket_end: 85
@@ -55,20 +55,20 @@ experiment:
 
   train:
     response_only_loss: true
-    effective_batch_size: 8
+    effective_batch_size: 128
     micro_batch_size: 0
-    micro_batch_candidates: [8, 4]
-    max_steps: 3
+    micro_batch_candidates: [128, 64, 32, 16, 8, 4]
+    max_steps: 2
     eval_every: 1
     eval_batches: 1
-    eval_examples: 8
+    eval_examples: 32
     generation_eval_every: 1
     generation_eval_examples: 2
-    generation_max_new_tokens: 64
+    generation_max_new_tokens: 256
     log_every: 1
     resume_every: 1
     checkpoint_every: 1
-    checkpoint_steps: [0, 1, 2, 3]
+    checkpoint_steps: [0, 1, 2]
     checkpoint_fractions: []
     optimizer:
       learning_rate: 0.0003
