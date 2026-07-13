@@ -66,8 +66,8 @@ class RunConfig:
     model_config: str
     tokenizer_config: str
     operators: tuple[str, ...] = EXPERIMENT_OPERATORS
-    # v1 compatibility: when base_model_id is None, every job branches directly
-    # from shared_initial.pt. v2 sets base_model_id="base.common".
+    # V1 compatibility: when base_model_id is None, jobs branch directly from
+    # shared_initial.pt. Active production configs train base.common first.
     base_model_id: str | None = None
     joint_model_ids: tuple[str, ...] = ("joint.all_five",)
     seeds: tuple[int, ...] = (0, 1, 2)
@@ -84,9 +84,13 @@ class RunConfig:
     micro_batch_candidates: tuple[int, ...] = (128, 64, 32, 16, 8, 4)
     max_steps: int = 200_000
     eval_every: int = 1_000
+    # Legacy setting retained for old configs. Active configs use eval_examples
+    # so metric sample count does not depend on the selected micro-batch.
     eval_batches: int = 8
+    eval_examples: int = 256
     generation_eval_every: int = 5_000
     generation_eval_examples: int = 8
+    generation_max_new_tokens: int = 256
     checkpoint_every: int = 10_000
     checkpoint_steps: tuple[int, ...] = DEFAULT_CHECKPOINT_STEPS
     checkpoint_fractions: tuple[float, ...] = ()
@@ -111,12 +115,12 @@ class RunConfig:
 
     @property
     def joint_model_id(self) -> str:
-        """Compatibility alias for v1 callers that support one joint model."""
+        """Compatibility alias for V1 callers that support one joint model."""
         return self.primary_joint_model_id
 
     @property
     def batch_size(self) -> int:
-        """Compatibility alias for v1 callers before gradient accumulation."""
+        """Compatibility alias for V1 callers before gradient accumulation."""
         return self.effective_batch_size
 
     @property
@@ -153,7 +157,9 @@ class RunConfig:
             raise ValueError("micro_batch_candidates must contain positive integers")
         if self.eval_every <= 0 or self.checkpoint_every <= 0 or self.log_every <= 0 or self.resume_every <= 0:
             raise ValueError("eval/checkpoint/log/resume intervals must be positive")
-        if self.generation_eval_every <= 0 or self.generation_eval_examples < 0:
+        if self.eval_batches <= 0 or self.eval_examples <= 0:
+            raise ValueError("evaluation settings must be positive")
+        if self.generation_eval_every <= 0 or self.generation_eval_examples < 0 or self.generation_max_new_tokens <= 0:
             raise ValueError("generation evaluation settings are invalid")
         if not self.seeds:
             raise ValueError("at least one seed is required")
@@ -201,16 +207,22 @@ def load_run_config(path: str | Path) -> RunConfig:
         max_terms=int(data_raw.get("max_terms", 8)),
         numeric_token_min=int(data_raw.get("numeric_token_min", -1024)),
         numeric_token_max=int(data_raw.get("numeric_token_max", 1024)),
-        value_ood_abs_min=int(data_raw.get("value_ood_abs_min", 65)),
-        value_ood_abs_max=int(data_raw.get("value_ood_abs_max", 80)),
+        value_ood_abs_min=int(data_raw.get("value_ood_abs_min", data_raw.get("operand_ood_abs_min", 65))),
+        value_ood_abs_max=int(data_raw.get("value_ood_abs_max", data_raw.get("operand_ood_abs_max", 80))),
         length_ood_min_terms=int(data_raw.get("length_ood_min_terms", 9)),
         length_ood_max_terms=int(data_raw.get("length_ood_max_terms", 10)),
+        partition_modulus=int(data_raw.get("partition_modulus", 100)),
+        train_bucket_end=int(data_raw.get("train_bucket_end", 70)),
+        validation_bucket_end=int(data_raw.get("validation_bucket_end", 85)),
+        full_trace_weight=int(data_raw.get("full_trace_weight", 60)),
+        continuation_weight=int(data_raw.get("continuation_weight", 25)),
+        terminal_weight=int(data_raw.get("terminal_weight", 15)),
+        max_partition_attempts=int(data_raw.get("max_partition_attempts", 20_000)),
+        randomized_train_reduction=bool(data_raw.get("randomized_train_reduction", True)),
     )
     legacy_joint = str(experiment.get("joint_model_id", "joint.all_five"))
     joint_ids = tuple(str(value) for value in _tuple(experiment.get("joint_model_ids"), (legacy_joint,)))
-    checkpoint_fractions = tuple(
-        float(value) for value in _tuple(train.get("checkpoint_fractions"), ())
-    )
+    checkpoint_fractions = tuple(float(value) for value in _tuple(train.get("checkpoint_fractions"), ()))
     config = RunConfig(
         experiment_id=str(experiment["id"]),
         output_dir=str(experiment["output_dir"]),
@@ -229,14 +241,14 @@ def load_run_config(path: str | Path) -> RunConfig:
         response_only_loss=bool(train.get("response_only_loss", False)),
         effective_batch_size=int(train.get("effective_batch_size", train.get("batch_size", 128))),
         micro_batch_size=int(train.get("micro_batch_size", train.get("batch_size", 128))),
-        micro_batch_candidates=tuple(
-            int(value) for value in _tuple(train.get("micro_batch_candidates"), (128, 64, 32, 16, 8, 4))
-        ),
+        micro_batch_candidates=tuple(int(value) for value in _tuple(train.get("micro_batch_candidates"), (128, 64, 32, 16, 8, 4))),
         max_steps=int(train.get("max_steps", 200_000)),
         eval_every=int(train.get("eval_every", 1_000)),
         eval_batches=int(train.get("eval_batches", 8)),
+        eval_examples=int(train.get("eval_examples", train.get("eval_batches", 8) * train.get("batch_size", 128))),
         generation_eval_every=int(train.get("generation_eval_every", 5_000)),
         generation_eval_examples=int(train.get("generation_eval_examples", 8)),
+        generation_max_new_tokens=int(train.get("generation_max_new_tokens", 256)),
         checkpoint_every=int(train.get("checkpoint_every", 10_000)),
         checkpoint_steps=tuple(int(step) for step in _tuple(train.get("checkpoint_steps"), DEFAULT_CHECKPOINT_STEPS)),
         checkpoint_fractions=checkpoint_fractions,
