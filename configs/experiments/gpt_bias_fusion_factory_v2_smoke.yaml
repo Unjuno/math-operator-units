@@ -1,0 +1,66 @@
+experiment:
+  id: gpt_bias_fusion_factory_v2_smoke
+  output_dir: runs/gpt_bias_fusion_factory_v2_smoke
+  model_config: configs/model/gpt_operator_1m_v2.yaml
+  tokenizer_config: configs/tokenizer/operator_experiment_v2.yaml
+
+  base_model_id: base.common
+  operators:
+    - scalar.add
+    - aggregation.sum
+    - scalar.neg
+    - scalar.min
+    - scalar.max
+  joint_model_ids:
+    - joint.all_five.exposure_matched
+
+  seeds: [0]
+  require_cuda: false
+  precision: fp32
+  allow_tf32: false
+  max_parameters: 1000000
+  deterministic_algorithms: false
+  continue_on_error: false
+
+  data:
+    operand_min: -8
+    operand_max: 8
+    min_terms: 3
+    max_terms: 4
+    numeric_token_min: -1024
+    numeric_token_max: 1024
+    value_ood_abs_min: 9
+    value_ood_abs_max: 12
+    length_ood_min_terms: 5
+    length_ood_max_terms: 6
+
+  train:
+    response_only_loss: true
+    effective_batch_size: 4
+    micro_batch_size: 2
+    micro_batch_candidates: [2, 1]
+    max_steps: 2
+    eval_every: 1
+    eval_batches: 1
+    generation_eval_every: 2
+    generation_eval_examples: 0
+    log_every: 1
+    resume_every: 1
+    checkpoint_every: 2
+    checkpoint_steps: []
+    checkpoint_fractions: [0.0, 1.0]
+    optimizer:
+      learning_rate: 0.0003
+      min_learning_rate: 0.00003
+      warmup_steps: 1
+      weight_decay: 0.1
+      beta1: 0.9
+      beta2: 0.95
+      grad_clip_norm: 1.0
+
+  recovery:
+    max_retries_per_job: 1
+    minimum_micro_batch_size: 1
+    non_finite_lr_factor: 0.5
+    max_lr_reductions: 1
+    restart_delay_seconds: 0
