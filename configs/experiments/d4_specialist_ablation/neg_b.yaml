@@ -23,7 +23,7 @@ experiment:
     specialist_regularization:
       retention_kl_weight: 0.0
       retention_examples_per_inactive_operator: 0
-      parameter_anchor_weight: 0.000001
+      parameter_anchor_weight: 1.0
 
   data:
     operand_min: -64
