@@ -19,6 +19,7 @@ def test_experiment_plan_v2_matches_configs() -> None:
     assert plan["id"] == "bias_fusion_surface_v4_v2"
     assert plan["supersedes"] == v1["id"]
     assert plan["status"] == "prospective_before_target_gpu_pilot"
+    assert (ROOT / plan["document"]).is_file()
 
     smoke = load_design_run_config(ROOT / plan["smoke"]["config"])
     assert smoke.require_cuda and smoke.seeds == (0,)
