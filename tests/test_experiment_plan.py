@@ -49,6 +49,8 @@ def test_experiment_plan_v2_matches_configs() -> None:
     final = plan["final"]
     assert final["evaluation_seed"] == 700000
     assert final["splits"] == ["iid_test", "operand_ood", "length_ood"]
+    assert final["examples_per_operator"] == 64
+    assert final["primary_subset"] == 31
     assert final["primary_condition"] == "raw_sum"
     assert final["primary_alpha"] == 1.0
     for key in (
@@ -61,8 +63,16 @@ def test_experiment_plan_v2_matches_configs() -> None:
     assert final["selected_rescue_is_secondary"] is True
     assert plan["reserved_until_frozen"] == final["splits"]
 
+    reporting = plan["reporting"]
+    assert reporting["replication_unit"] == "training_seed"
+    assert reporting["formal_p_values"] is False
+    assert reporting["report_every_seed"] is True
+    assert reporting["report_every_operator"] is True
+    assert reporting["aggregate_seed_weighting"] == "equal"
+    assert reporting["missing_seed_policy"] == "no_imputation"
 
-def test_plan_precommits_fallback_mixing_ladder() -> None:
+
+def test_plan_precommits_reproducible_fallback_ladder() -> None:
     plan = load_plan(PLAN_V2)
     fallback = plan["contingency"]
 
@@ -70,12 +80,18 @@ def test_plan_precommits_fallback_mixing_ladder() -> None:
     assert fallback["calibration_evaluation_seed"] == 703000
     assert fallback["calibration_examples_per_operator"] == 128
     assert fallback["activation"]["final_data_may_trigger_tuning"] is False
-    assert fallback["validation"] == {
-        "method": "leave_one_training_seed_out",
-        "folds": 3,
-        "tune_per_seed": False,
-        "tune_per_operator": False,
-    }
+
+    validation = fallback["validation"]
+    assert validation["method"] == "leave_one_training_seed_out"
+    assert validation["folds"] == 3
+    assert validation["fitting_seeds_per_fold"] == 2
+    assert validation["held_out_seeds_per_fold"] == 1
+    assert validation["tune_per_seed"] is False
+    assert validation["tune_per_operator"] is False
+    assert validation["fit_statistics_on_fitting_seeds_only"] is True
+    assert validation["held_out_seed_excluded_from_all_fit_statistics"] is True
+    assert validation["paired_problem_set_across_seeds"] is True
+
     assert fallback["fixed_baselines"] == ["raw_sum", "bias_mean"]
     assert fallback["stage_order"] == [
         "global_shrinkage",
@@ -84,10 +100,41 @@ def test_plan_precommits_fallback_mixing_ladder() -> None:
         "consensus_tempered",
     ]
     assert fallback["global_shrinkage"]["alpha_grid"] == [0.10, 0.20, 0.25, 0.50, 0.75, 1.00]
+
+    norm = fallback["norm_controlled"]
+    assert norm["center_each_position_over_vocabulary"] is True
+    assert norm["equalization_target"] == "median_unit_rms"
+    assert norm["epsilon"] == 1e-8
+    assert norm["operator_specific_scales"] is False
+
+    static = fallback["static_weighted_mean"]
+    assert static["fitting_objective"] == "mean_gold_token_nll_plus_uniform_weight_l2"
+    assert static["regularization_grid"] == [0.0, 0.01, 0.10, 1.0]
+    assert static["optimizer"] == "deterministic_lbfgs"
+    assert static["initialization"] == "uniform_weights"
+
+    consensus = fallback["consensus_tempered"]
+    assert consensus["weight_normalization"] == "sum_to_number_of_active_units"
+    assert consensus["beta_zero_limit"] == "raw_sum_before_global_alpha"
+
     for family in ("norm_controlled", "static_weighted_mean", "consensus_tempered"):
         assert fallback[family]["alpha_grid_from"] == "global_shrinkage"
-    assert fallback["selection"]["choose_first_eligible_family"] is True
-    assert fallback["selection"]["freeze_mixer_contract"] is True
+
+    selection = fallback["selection"]
+    assert selection["choose_first_eligible_family"] is True
+    assert selection["refit_selected_family_on_all_validation"] is True
+    assert selection["refit_unselected_families"] is False
+    assert selection["freeze_mixer_contract"] is True
+
+    authorization = fallback["final_authorization"]
+    assert authorization["path"] == "evaluations/fusion_calibration/final_authorization.json"
+    assert authorization["abi_version"] == 1
+    assert authorization["required_before_final_splits"] is True
+    assert authorization["require_current_plan_hash"] is True
+    assert authorization["require_current_git_commit"] is True
+    assert authorization["require_experiment_fingerprint"] is True
+    assert authorization["require_all_production_seeds"] is True
+
     assert fallback["learned_router_followup"]["part_of_confirmatory_final"] is False
     assert fallback["learned_router_followup"]["requires_new_plan_and_output_roots"] is True
     assert plan["reporting"]["preserve_raw_result_as_confirmatory"] is True

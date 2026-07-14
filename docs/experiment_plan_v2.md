@@ -1,113 +1,33 @@
 # Preregistered Experiment Plan v2
 
-This plan prospectively extends v1 before the target-GPU pilot and before any final IID/OOD result is inspected. The raw all-five sum remains the confirmatory test; fallback mixers are secondary rescue analyses and cannot convert a failed raw-sum result into a successful primary result.
+This plan extends v1 before the target-GPU pilot and before final IID/OOD inspection. Raw all-five sum at `alpha=1.0` remains confirmatory; every fallback is secondary.
 
-## Unchanged primary experiment
+## Fixed sequence
 
-For `B_k(x)=z_k(x)-z_base(x)`, the primary condition is:
+After the four-condition pilot selects model construction, train production seeds 0, 1, and 2. Freeze every `selected.pt`. Before final data, run fusion calibration on `validation` with evaluation seed `703000` and 128 examples per operator. Final evaluation remains seed `700000`, 64 examples per operator, `subset_31`, and splits `iid_test`, `operand_ood`, and `length_ood`.
 
-```text
-z_raw(x) = z_base(x) + sum_k B_k(x)
-alpha = 1.0
-```
+Calibration activates when raw-minus-Relevant-Specialist mean trace gap is below `-0.02`, worst-operator trace gap is below `-0.05`, or mean EOS gap is below `-0.02`. Final results cannot trigger tuning.
 
-The comparator is the Relevant Specialist and the endpoint is exact trace validity. Seeds 0, 1, and 2 are the replication units. The final splits remain `iid_test`, `operand_ood`, and `length_ood`, with evaluation seed `700000`, 64 examples per operator, and `subset_31`.
+## Leakage control
 
-## Added stage: fusion calibration
-
-After model construction and every production `selected.pt` are frozen, but before final splits are opened, evaluate the mixing ladder on production validation. Escalate beyond fixed `bias_mean` when any validation condition holds:
-
-```text
-mean raw-minus-relevant trace gap < -0.02
-worst-operator trace gap < -0.05
-mean raw-minus-relevant EOS gap < -0.02
-```
-
-A failure first observed on final data cannot trigger tuning.
+Use three leave-one-training-seed-out folds. Fit on two seeds and score on the third. The held-out seed contributes no fitted weight, RMS, median, clipping threshold, or other statistic. Problems are paired across seeds. Never tune per seed or operator.
 
 ## Mixing ladder
 
-Use the first family that satisfies the rescue rule. Parameters must be shared across seeds and operators.
+F0 is `raw_sum` and fixed `bias_mean`.
 
-### F0 — fixed baselines
+F1 uses `z=z_base+alpha*sum(B_k)` with `alpha` in `{0.10,0.20,0.25,0.50,0.75,1.00}`, shared everywhere.
 
-```text
-raw_sum:   z = z_base + sum_k B_k
-bias_mean: z = z_base + (1/K) sum_k B_k
-```
+F2 centers each field over vocabulary. RMS equalization computes one unit RMS over fitting seeds, operators, examples, response positions, and vocabulary, rescales to the median unit RMS, then averages fields. RMS clipping pools per-position centered-field RMS over fitting data and clips at quantile `0.90`, `0.95`, or `0.99`. Use epsilon `1e-8`; no operator-specific scale.
 
-### F1 — global shrinkage
+F3 uses `z=z_base+alpha*sum(pi_k*B_k)`, `pi=softmax(a)`. Fit constant weights from uniform initialization by deterministic L-BFGS for at most 500 iterations, gradient tolerance `1e-9`, minimizing mean gold-token NLL plus `lambda*sum((pi_k-1/K)^2)`, with `lambda` in `{0,0.01,0.10,1.0}`.
 
-```text
-z = z_base + alpha * sum_k B_k
-alpha in {0.10, 0.20, 0.25, 0.50, 0.75, 1.00}
-```
+F4 computes `d_k=JSD(p_k,p_bar)`, `u=softmax(-beta*d)`, and `w=K*u`, then uses `z=z_base+alpha*sum(w_k*B_k)`, with `beta` in `{0.5,1.0,2.0}`. Since weights sum to `K`, `beta -> 0` recovers raw sum before alpha. This is consensus-tempered decoding, not raw composition.
 
-One alpha is used for every seed, operator, position, and final split. The same alpha grid is reused by F2–F4 after their family-specific field transformation so amplitude control is comparable across families.
+Use the first eligible family in order F1, F2, F3, F4. Eligibility requires mean trace-gap improvement over raw of at least `0.02`, EOS and final-value gaps to Relevant Specialist at least `-0.02`, worst-operator trace gap at least `-0.05`, and improvement on at least two held-out seeds. Refit only the selected family on all validation data. If none qualifies, stop the non-router search. Learned routers or correctors require a new plan and calibration partition.
 
-### F2 — norm-controlled fields
+## Final lock
 
-First center each field over vocabulary:
+Before generating any final split, calibration must create `evaluations/fusion_calibration/final_authorization.json`. The evaluator verifies authorization ABI 1, active-plan hash, current Git commit, experiment fingerprint, all three production seeds and folds, calibration settings, and final settings. Allowed states are `raw_preserved_no_rescue`, `rescue_selected`, and `no_eligible_nonrouter_rescue`; a selected rescue also records its family and mixer-contract SHA-256. Missing or mismatched authorization fails closed.
 
-```text
-C_k = B_k - mean_vocab(B_k)
-```
-
-Evaluate:
-
-- **RMS-equalized mean:** inverse-scale each field by its production-validation RMS, restore the median RMS, then average;
-- **RMS-clipped sum:** cap response-position RMS at validation quantile `q in {0.90, 0.95, 0.99}` before summing.
-
-Apply one alpha from the F1 grid after normalization or clipping. No operator-specific scale is permitted.
-
-### F3 — static nonnegative weighted mean
-
-```text
-z = z_base + alpha * sum_k pi_k B_k
-pi_k = softmax(a_k)
-```
-
-The five weights and alpha are constant across prompts, operators, seeds, and token positions. Alpha uses the F1 grid. Fit the weights with regularization toward uniform values. This tests systematic scale imbalance without introducing routing.
-
-### F4 — deterministic consensus-tempered decoding
-
-At each token position let `p_k=softmax(z_base+B_k)`, let `p_bar` be their uniform probability mean, and set:
-
-```text
-d_k = JSD(p_k, p_bar)
-w_k proportional to exp(-beta*d_k)
-beta in {0.5, 1.0, 2.0}
-z = z_base + alpha * sum_k w_k B_k
-```
-
-Alpha uses the F1 grid. This method is input-dependent but has no trained router. It must be labeled consensus-tempered decoding, not raw composition. Because the relevant unit can legitimately disagree with inactive units, improvement is not assumed.
-
-### F5 — learned router or corrector
-
-Prompt-dependent gating, a learned router, or a residual logit corrector changes the scientific question and is excluded from the present confirmatory final evaluation. If F0–F4 fail, begin a new versioned study with a dedicated fusion-calibration partition, new output roots, a linear mixer before nonlinear correction, and the known operator-tag router only as an oracle upper bound.
-
-## Validation protocol
-
-Assess F1–F4 with three-fold leave-one-training-seed-out validation. Tune on two production seeds and score on the held-out seed. Never tune per seed or per operator.
-
-A family is eligible only if held-out results satisfy:
-
-```text
-mean trace-gap improvement over raw_sum >= 0.02
-mean EOS gap to Relevant Specialist >= -0.02
-mean final-value gap to Relevant Specialist >= -0.02
-worst-operator trace gap >= -0.05
-improvement on at least 2 of 3 held-out seeds
-```
-
-Select the earliest eligible family in order F1, F2, F3, F4. Within a family, maximize held-out trace validity, then final-value accuracy, then EOS accuracy, then prefer the simpler or more strongly shrunk setting. Refit only the selected family's permitted statistics on all production validation data, write a machine-readable mixer contract, and freeze it before final evaluation.
-
-If no family qualifies, stop searching. The conclusion is that the fields are not recoverably composable under the preregistered non-router families.
-
-## Final reporting
-
-The primary table always contains Relevant Specialist, raw sum, bias mean, and matched Joint. A prospectively frozen rescue mixer is reported as a labeled secondary condition on every final split.
-
-Report every seed and operator, equal-weight seed mean and standard deviation, worst-operator gap, rescue improvement over raw sum, absolute gap to Relevant Specialist, EOS/final-value guardrails, validation folds, hyperparameters, and mixer-contract hash.
-
-A rescue may be practically useful if it meets the preserved-composition thresholds on final data, but the raw-sum result remains the confirmatory answer. Any method chosen after final data are viewed is post hoc.
+Final reporting always preserves Relevant Specialist, raw sum, bias mean, and matched Joint as the primary table. A frozen rescue is labeled secondary. Any method selected after final data are viewed is post hoc.
