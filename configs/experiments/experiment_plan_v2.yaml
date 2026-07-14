@@ -44,25 +44,46 @@ plan:
     validation:
       method: leave_one_training_seed_out
       folds: 3
+      fitting_seeds_per_fold: 2
+      held_out_seeds_per_fold: 1
       tune_per_seed: false
       tune_per_operator: false
+      fit_statistics_on_fitting_seeds_only: true
+      held_out_seed_excluded_from_all_fit_statistics: true
+      paired_problem_set_across_seeds: true
     fixed_baselines: [raw_sum, bias_mean]
     stage_order: [global_shrinkage, norm_controlled, static_weighted_mean, consensus_tempered]
     global_shrinkage:
       alpha_grid: [0.10, 0.20, 0.25, 0.50, 0.75, 1.00]
+      one_alpha_for_all_seeds_operators_positions_splits: true
     norm_controlled:
+      center_each_position_over_vocabulary: true
       variants: [rms_equalized_mean, rms_clipped_sum]
+      rms_axes: [fitting_seeds, operators, examples, response_positions, vocabulary]
+      equalization_target: median_unit_rms
+      equalized_combination: mean
+      clipping_statistic: per_position_centered_field_rms
       clip_quantiles: [0.90, 0.95, 0.99]
+      clip_threshold_pool: fitting_seeds_all_units_operators_examples_response_positions
+      epsilon: 0.00000001
       operator_specific_scales: false
       alpha_grid_from: global_shrinkage
     static_weighted_mean:
       parameterization: alpha_times_softmax_unit_weights
       input_dependent: false
+      fitting_objective: mean_gold_token_nll_plus_uniform_weight_l2
+      regularization_grid: [0.0, 0.01, 0.10, 1.0]
+      optimizer: deterministic_lbfgs
+      initialization: uniform_weights
+      max_iterations: 500
+      gradient_tolerance: 0.000000001
       regularize_toward_uniform: true
       alpha_grid_from: global_shrinkage
     consensus_tempered:
       distance: jsd_to_uniform_probability_consensus
       beta_grid: [0.5, 1.0, 2.0]
+      weight_normalization: sum_to_number_of_active_units
+      beta_zero_limit: raw_sum_before_global_alpha
       trained_router: false
       alpha_grid_from: global_shrinkage
     eligibility:
@@ -73,9 +94,23 @@ plan:
       minimum_improved_held_out_seeds: 2
     selection:
       choose_first_eligible_family: true
-      refit_on_all_validation: true
+      within_family_order: [held_out_trace_validity, held_out_final_value_accuracy, held_out_eos_accuracy, simpler_or_more_shrunk]
+      refit_selected_family_on_all_validation: true
+      refit_unselected_families: false
       freeze_mixer_contract: true
       no_eligible_action: stop_nonrouter_search
+    final_authorization:
+      path: evaluations/fusion_calibration/final_authorization.json
+      abi_version: 1
+      required_before_final_splits: true
+      require_current_plan_hash: true
+      require_current_git_commit: true
+      require_experiment_fingerprint: true
+      require_all_production_seeds: true
+      allowed_calibration_statuses:
+        - raw_preserved_no_rescue
+        - rescue_selected
+        - no_eligible_nonrouter_rescue
     learned_router_followup:
       part_of_confirmatory_final: false
       requires_new_plan_and_output_roots: true
@@ -99,5 +134,9 @@ plan:
   reporting:
     replication_unit: training_seed
     formal_p_values: false
+    report_every_seed: true
+    report_every_operator: true
+    aggregate_seed_weighting: equal
+    missing_seed_policy: no_imputation
     preserve_raw_result_as_confirmatory: true
   reserved_until_frozen: [iid_test, operand_ood, length_ood]
