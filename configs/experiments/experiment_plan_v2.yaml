@@ -40,14 +40,17 @@ plan:
       variants: [rms_equalized_mean, rms_clipped_sum]
       clip_quantiles: [0.90, 0.95, 0.99]
       operator_specific_scales: false
+      alpha_grid_from: global_shrinkage
     static_weighted_mean:
       parameterization: alpha_times_softmax_unit_weights
       input_dependent: false
       regularize_toward_uniform: true
+      alpha_grid_from: global_shrinkage
     consensus_tempered:
       distance: jsd_to_uniform_probability_consensus
       beta_grid: [0.5, 1.0, 2.0]
       trained_router: false
+      alpha_grid_from: global_shrinkage
     eligibility:
       mean_trace_improvement_over_raw: 0.02
       minimum_eos_gap_to_relevant: -0.02
