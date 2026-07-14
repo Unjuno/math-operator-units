@@ -1,16 +1,13 @@
 experiment:
-  id: bias_factory_small
-  output_dir: runs/bias_factory/small
-  model_config: configs/model/gpt_operator_small_surface_v3.yaml
+  id: bias_factory_spec_1m_add
+  output_dir: runs/bias_factory/spec_1m_add
   tokenizer_config: configs/tokenizer/operator_experiment_surface_v3.yaml
   base_model_id: base.common
-  operators: [scalar.add, aggregation.sum, scalar.neg, scalar.min, scalar.max]
   joint_model_ids: [joint.all_five.exposure_matched]
   seeds: [0]
   require_cuda: true
   precision: auto
   allow_tf32: false
-  max_parameters: 400000
   deterministic_algorithms: true
   continue_on_error: false
 
@@ -53,7 +50,7 @@ experiment:
     log_every: 200
     resume_every: 500
     checkpoint_every: 500
-    checkpoint_steps: [39, 156, 635, 2559, 9800]
+    checkpoint_steps: [39,156,635,2559,9800]
     optimizer:
       learning_rate: 0.0003
       min_learning_rate: 0.00003
@@ -69,3 +66,6 @@ experiment:
     non_finite_lr_factor: 0.5
     max_lr_reductions: 2
     restart_delay_seconds: 10
+  model_config: configs/model/gpt_operator_1m_surface_v3.yaml
+  max_parameters: 1100000
+  operators: [scalar.add]
