@@ -1,6 +1,8 @@
 # Preregistered Experiment Plan v1
 
-This plan is frozen before the target-GPU pilot and before final IID/OOD results are inspected.
+> **Superseded prospectively:** the active plan is [`experiment_plan_v2.md`](experiment_plan_v2.md). This v1 text is retained as the historical record; no target-GPU or final IID/OOD result was used to define v2.
+
+This plan was frozen before the target-GPU pilot and before final IID/OOD results were inspected.
 
 ## Question and scope
 
