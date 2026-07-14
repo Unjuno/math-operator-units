@@ -14,6 +14,17 @@ plan:
       - configs/experiments/model_design_pilot_weak_retention.yaml
     seeds: [0]
     splits: [validation]
+    primary_metric: trace_validity
+    primary_quantity: raw_sum_minus_relevant_specialist
+    eligibility:
+      pair_audit_must_pass: true
+      minimum_mean_relevant_trace_validity: 0.80
+      maximum_guardrail_deficit_from_best: 0.02
+    clear_winner_gap: 0.02
+    near_tie_tolerance: 0.01
+    near_tie_inactive_drift_reduction: 0.20
+    retention_minimum_drift_reduction: 0.10
+    retention_maximum_relevant_regression: 0.02
     ambiguous_action: repeat_all_four_conditions_on_one_additional_seed
     no_eligible_action: stop_and_version_new_model_construction_plan
   production:
@@ -23,6 +34,8 @@ plan:
     endpoint_policy: validation_selected
   contingency:
     calibration_split: validation
+    calibration_evaluation_seed: 703000
+    calibration_examples_per_operator: 128
     activation:
       mean_trace_gap_below: -0.02
       worst_operator_trace_gap_below: -0.05
@@ -77,6 +90,10 @@ plan:
     primary_alpha: 1.0
     comparator: relevant_specialist
     primary_metric: trace_validity
+    preserved_mean_gap: -0.02
+    preserved_worst_operator_gap: -0.05
+    material_failure_mean_gap: -0.10
+    material_failure_eos_gap: -0.05
     fixed_secondary_condition: bias_mean
     selected_rescue_is_secondary: true
   reporting:
