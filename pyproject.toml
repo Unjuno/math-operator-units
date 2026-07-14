@@ -34,6 +34,7 @@ opfusion-train-batch-surface = "opfusion.training.batch_surface:main"
 opfusion-train-batch-design = "opfusion.training.batch_design:main"
 opfusion-evaluate-fusion = "opfusion.fusion_eval_seeded:main"
 opfusion-evaluate-unit-diagnostics = "opfusion.fusion_diagnostics:main"
+opfusion-diagnose-specialist-failures = "opfusion.specialist_failure_diagnostics:main"
 opfusion-checkpoint-trajectory = "opfusion.training.analyze:main"
 opfusion-export-bundle = "opfusion.training.export:main"
 
