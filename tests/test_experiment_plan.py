@@ -32,6 +32,15 @@ def test_experiment_plan_v2_matches_configs() -> None:
     assert all(run.deterministic_algorithms and not run.allow_tf32 for run in pilots)
     assert len({run.max_steps for run in pilots}) == 1
     assert plan["pilot"]["splits"] == ["validation"]
+    assert plan["pilot"]["eligibility"] == v1["pilot"]["eligibility"]
+    for key in (
+        "clear_winner_gap",
+        "near_tie_tolerance",
+        "near_tie_inactive_drift_reduction",
+        "retention_minimum_drift_reduction",
+        "retention_maximum_relevant_regression",
+    ):
+        assert plan["pilot"][key] == v1["pilot"][key]
 
     production = load_design_run_config(ROOT / plan["production"]["config"])
     assert list(production.seeds) == plan["production"]["seeds"] == [0, 1, 2]
@@ -42,6 +51,13 @@ def test_experiment_plan_v2_matches_configs() -> None:
     assert final["splits"] == ["iid_test", "operand_ood", "length_ood"]
     assert final["primary_condition"] == "raw_sum"
     assert final["primary_alpha"] == 1.0
+    for key in (
+        "preserved_mean_gap",
+        "preserved_worst_operator_gap",
+        "material_failure_mean_gap",
+        "material_failure_eos_gap",
+    ):
+        assert final[key] == v1["final"][key]
     assert final["selected_rescue_is_secondary"] is True
     assert plan["reserved_until_frozen"] == final["splits"]
 
@@ -50,6 +66,9 @@ def test_plan_precommits_fallback_mixing_ladder() -> None:
     plan = load_plan(PLAN_V2)
     fallback = plan["contingency"]
 
+    assert fallback["calibration_split"] == "validation"
+    assert fallback["calibration_evaluation_seed"] == 703000
+    assert fallback["calibration_examples_per_operator"] == 128
     assert fallback["activation"]["final_data_may_trigger_tuning"] is False
     assert fallback["validation"] == {
         "method": "leave_one_training_seed_out",
