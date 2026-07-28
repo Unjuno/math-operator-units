@@ -1,0 +1,73 @@
+{
+  "completed_step": 9800,
+  "completed_unix": 1784612460.26003,
+  "cumulative_examples": 5017600,
+  "experiment_fingerprint": "9c1beda6c9f2e1b40c336a35eb533033efeac3bae096d4dcd0e8a45e7bf28a46",
+  "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/bias_factory/spec_1m_neg/seed_0/scalar_neg/checkpoints/final.pt",
+  "final_checkpoint_is_selected": false,
+  "generation_metrics": {
+    "validation": {
+      "aggregation.sum": {
+        "final_value_accuracy": 0.0,
+        "mean_generated_tokens": 192.75,
+        "response_exact_accuracy": 0.0,
+        "response_token_accuracy": 0.004889975550122249,
+        "stop_accuracy": 0.25,
+        "trace_validity_accuracy": 0.0
+      },
+      "scalar.add": {
+        "final_value_accuracy": 0.0,
+        "mean_generated_tokens": 1.0,
+        "response_exact_accuracy": 0.0,
+        "response_token_accuracy": 0.0,
+        "stop_accuracy": 1.0,
+        "trace_validity_accuracy": 0.0
+      },
+      "scalar.max": {
+        "final_value_accuracy": 0.0,
+        "mean_generated_tokens": 82.0625,
+        "response_exact_accuracy": 0.0,
+        "response_token_accuracy": 0.009846153846153846,
+        "stop_accuracy": 0.6875,
+        "trace_validity_accuracy": 0.0
+      },
+      "scalar.min": {
+        "final_value_accuracy": 0.0,
+        "mean_generated_tokens": 54.0625,
+        "response_exact_accuracy": 0.0,
+        "response_token_accuracy": 0.011878247958426132,
+        "stop_accuracy": 0.8125,
+        "trace_validity_accuracy": 0.0
+      },
+      "scalar.neg": {
+        "final_value_accuracy": 0.0,
+        "mean_generated_tokens": 3.0,
+        "response_exact_accuracy": 0.0,
+        "response_token_accuracy": 0.6666666666666666,
+        "stop_accuracy": 1.0,
+        "trace_validity_accuracy": 0.0
+      }
+    }
+  },
+  "job_id": "scalar.neg",
+  "per_operator_examples": {
+    "aggregation.sum": 0,
+    "scalar.add": 0,
+    "scalar.max": 0,
+    "scalar.min": 0,
+    "scalar.neg": 5017600
+  },
+  "seed": 0,
+  "selected_checkpoint": "/home/unjuno/repo/math-operator-units/runs/bias_factory/spec_1m_neg/seed_0/scalar_neg/selected.pt",
+  "selected_step": 500,
+  "selection_metric": "validation_nll",
+  "selection_score": 2.698191006978353,
+  "validation_loss": {
+    "aggregation.sum": 17.041773039586484,
+    "mean": 13.749199735258808,
+    "scalar.add": 14.973551432291666,
+    "scalar.max": 16.529725650212313,
+    "scalar.min": 16.586609361495245,
+    "scalar.neg": 3.6143391927083335
+  }
+}

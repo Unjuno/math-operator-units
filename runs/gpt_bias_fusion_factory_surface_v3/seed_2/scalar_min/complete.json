@@ -1,0 +1,67 @@
+{
+  "completed_step": 50000,
+  "completed_unix": 1784645709.1325908,
+  "cumulative_examples": 6400000,
+  "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_2/scalar_min/checkpoints/final.pt",
+  "generation_metrics": {
+    "validation": {
+      "aggregation.sum": {
+        "final_value_accuracy": 0.0,
+        "mean_generated_tokens": 20.875,
+        "response_exact_accuracy": 0.0,
+        "response_token_accuracy": 0.12311557788944724,
+        "stop_accuracy": 1.0,
+        "trace_validity_accuracy": 0.0
+      },
+      "scalar.add": {
+        "final_value_accuracy": 0.0,
+        "mean_generated_tokens": 3.0,
+        "response_exact_accuracy": 0.0,
+        "response_token_accuracy": 0.6666666666666666,
+        "stop_accuracy": 1.0,
+        "trace_validity_accuracy": 0.0
+      },
+      "scalar.max": {
+        "final_value_accuracy": 0.0,
+        "mean_generated_tokens": 31.625,
+        "response_exact_accuracy": 0.0,
+        "response_token_accuracy": 0.7272727272727273,
+        "stop_accuracy": 1.0,
+        "trace_validity_accuracy": 0.0
+      },
+      "scalar.min": {
+        "final_value_accuracy": 1.0,
+        "mean_generated_tokens": 29.875,
+        "response_exact_accuracy": 0.0625,
+        "response_token_accuracy": 0.7887029288702929,
+        "stop_accuracy": 1.0,
+        "trace_validity_accuracy": 1.0
+      },
+      "scalar.neg": {
+        "final_value_accuracy": 0.0,
+        "mean_generated_tokens": 1.0,
+        "response_exact_accuracy": 0.0,
+        "response_token_accuracy": 0.0,
+        "stop_accuracy": 1.0,
+        "trace_validity_accuracy": 0.0
+      }
+    }
+  },
+  "job_id": "scalar.min",
+  "per_operator_examples": {
+    "aggregation.sum": 0,
+    "scalar.add": 0,
+    "scalar.max": 0,
+    "scalar.min": 6400000,
+    "scalar.neg": 0
+  },
+  "seed": 2,
+  "validation_loss": {
+    "aggregation.sum": 14.048585997476543,
+    "mean": 5.590833253651114,
+    "scalar.add": 4.335018475850423,
+    "scalar.max": 1.2242383322232493,
+    "scalar.min": 0.10149555641466618,
+    "scalar.neg": 8.24482790629069
+  }
+}

@@ -1,0 +1,67 @@
+{
+  "completed_step": 50000,
+  "completed_unix": 1784636058.1581314,
+  "cumulative_examples": 6400000,
+  "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_1/scalar_max/checkpoints/final.pt",
+  "generation_metrics": {
+    "validation": {
+      "aggregation.sum": {
+        "final_value_accuracy": 0.0,
+        "mean_generated_tokens": 2.9375,
+        "response_exact_accuracy": 0.0,
+        "response_token_accuracy": 0.0311284046692607,
+        "stop_accuracy": 1.0,
+        "trace_validity_accuracy": 0.0
+      },
+      "scalar.add": {
+        "final_value_accuracy": 0.0,
+        "mean_generated_tokens": 1.3125,
+        "response_exact_accuracy": 0.0,
+        "response_token_accuracy": 0.10416666666666667,
+        "stop_accuracy": 1.0,
+        "trace_validity_accuracy": 0.0
+      },
+      "scalar.max": {
+        "final_value_accuracy": 1.0,
+        "mean_generated_tokens": 34.75,
+        "response_exact_accuracy": 0.125,
+        "response_token_accuracy": 0.7661870503597122,
+        "stop_accuracy": 1.0,
+        "trace_validity_accuracy": 1.0
+      },
+      "scalar.min": {
+        "final_value_accuracy": 0.0,
+        "mean_generated_tokens": 31.875,
+        "response_exact_accuracy": 0.0,
+        "response_token_accuracy": 0.7235294117647059,
+        "stop_accuracy": 1.0,
+        "trace_validity_accuracy": 0.0
+      },
+      "scalar.neg": {
+        "final_value_accuracy": 0.0,
+        "mean_generated_tokens": 1.0,
+        "response_exact_accuracy": 0.0,
+        "response_token_accuracy": 0.0,
+        "stop_accuracy": 1.0,
+        "trace_validity_accuracy": 0.0
+      }
+    }
+  },
+  "job_id": "scalar.max",
+  "per_operator_examples": {
+    "aggregation.sum": 0,
+    "scalar.add": 0,
+    "scalar.max": 6400000,
+    "scalar.min": 0,
+    "scalar.neg": 0
+  },
+  "seed": 1,
+  "validation_loss": {
+    "aggregation.sum": 22.440731318621786,
+    "mean": 10.505303805708417,
+    "scalar.add": 9.17027727762858,
+    "scalar.max": 0.1038136873361744,
+    "scalar.min": 1.1164064973562564,
+    "scalar.neg": 19.695290247599285
+  }
+}

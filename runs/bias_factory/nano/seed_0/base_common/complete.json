@@ -1,0 +1,37 @@
+{
+  "completed_step": 9800,
+  "completed_unix": 1784598958.3699996,
+  "cumulative_examples": 5017600,
+  "experiment_fingerprint": "ba7e285380bb4c0da98fec2f34cb6297c96ff3a0e447c4ab9113f8d586940ebb",
+  "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/bias_factory/nano/seed_0/base_common/checkpoints/final.pt",
+  "final_checkpoint_is_selected": true,
+  "generation_metrics": {
+    "validation": {
+      "base.common": {
+        "final_value_accuracy": null,
+        "mean_generated_tokens": 8.875,
+        "response_exact_accuracy": 1.0,
+        "response_token_accuracy": 1.0,
+        "stop_accuracy": 1.0,
+        "trace_validity_accuracy": 1.0
+      }
+    }
+  },
+  "job_id": "base.common",
+  "per_operator_examples": {
+    "aggregation.sum": 1004216,
+    "scalar.add": 1001645,
+    "scalar.max": 1003506,
+    "scalar.min": 1004928,
+    "scalar.neg": 1003305
+  },
+  "seed": 0,
+  "selected_checkpoint": "/home/unjuno/repo/math-operator-units/runs/bias_factory/nano/seed_0/base_common/selected.pt",
+  "selected_step": 9800,
+  "selection_metric": "validation_nll",
+  "selection_score": 0.004067078636955827,
+  "validation_loss": {
+    "base.common": 0.004067078636955827,
+    "mean": 0.004067078636955827
+  }
+}

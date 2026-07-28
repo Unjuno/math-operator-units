@@ -1,0 +1,31 @@
+{
+  "completed_step": 50000,
+  "completed_unix": 1784641842.096238,
+  "cumulative_examples": 6400000,
+  "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_2/base_common/checkpoints/final.pt",
+  "generation_metrics": {
+    "validation": {
+      "base.common": {
+        "final_value_accuracy": null,
+        "mean_generated_tokens": 8.875,
+        "response_exact_accuracy": 1.0,
+        "response_token_accuracy": 1.0,
+        "stop_accuracy": 1.0,
+        "trace_validity_accuracy": 1.0
+      }
+    }
+  },
+  "job_id": "base.common",
+  "per_operator_examples": {
+    "aggregation.sum": 1281835,
+    "scalar.add": 1278079,
+    "scalar.max": 1279824,
+    "scalar.min": 1279792,
+    "scalar.neg": 1280470
+  },
+  "seed": 2,
+  "validation_loss": {
+    "base.common": 9.356812515080115e-06,
+    "mean": 9.356812515080115e-06
+  }
+}

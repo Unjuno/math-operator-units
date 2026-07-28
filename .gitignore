@@ -2,11 +2,14 @@ __pycache__/
 *.pyc
 .pytest_cache/
 .venv/
-runs/
 checkpoints/
 logs/
 audits/
 evaluations/
 exports/
-*.pt
-*.pth
+runs/**/checkpoints/
+runs/**/recovery.jsonl
+runs/**/runtime_state.json
+runs/**/checkpoint_index.jsonl
+runs/**/metrics.jsonl
+runs/**/run_manifest.json

@@ -1,0 +1,54 @@
+{
+  "checkpoint_steps": [
+    0,
+    50,
+    150,
+    500,
+    1500,
+    2500,
+    5000,
+    10000,
+    15000,
+    20000,
+    25000,
+    30000,
+    35000,
+    40000,
+    45000,
+    50000
+  ],
+  "claim_boundary": "only the all-five subset has a matched joint reference; intermediate subsets are diagnostic unless a joint.S model is trained",
+  "effective_batch_size": 128,
+  "equivalent_specialist_steps": 1650000,
+  "experiment_id": "gpt_bias_fusion_factory_surface_v3",
+  "exposure_multiplier_by_job": {
+    "aggregation.sum": 1,
+    "base.common": 1,
+    "joint.all_five.exposure_matched": 5,
+    "scalar.add": 1,
+    "scalar.max": 1,
+    "scalar.min": 1,
+    "scalar.neg": 1
+  },
+  "jobs_in_dependency_order": [
+    "base.common",
+    "scalar.add",
+    "aggregation.sum",
+    "scalar.neg",
+    "scalar.min",
+    "scalar.max",
+    "joint.all_five.exposure_matched"
+  ],
+  "logical_checkpoints_per_model": 16,
+  "matched_joint_subsets_per_seed": 1,
+  "max_steps_per_model": 50000,
+  "note": "wall-clock duration is measured on the target GPU during smoke/probe; it is not guaranteed by this static plan",
+  "runtime_subsets_per_seed": 32,
+  "seeds": [
+    0,
+    1,
+    2
+  ],
+  "total_trained_models": 21,
+  "trained_models_per_seed": 7
+}

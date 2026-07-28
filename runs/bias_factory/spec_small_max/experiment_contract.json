@@ -1,0 +1,134 @@
+{
+  "fingerprint": "43c00f0f7649d2e444e89d24e3bd376e3c7dbdd552f12e7e704b98df9ec7b662",
+  "payload": {
+    "code_sha256": {
+      "src/opfusion/final_eval_guard.py": "82d0de9c181105860af6596e02ebdff88bfc9fcfd8a9cf314d15f328b1644ad9",
+      "src/opfusion/final_eval_policy.py": "d0b7974c2ae331a04b811cdc4445bec829ecaf9c98fc56f3ef3f81510c870472",
+      "src/opfusion/fusion_diagnostics.py": "711ca8ad3844657ef20969dfe1e60beaeedc20d4bacd99b65a007b9128f3c25d",
+      "src/opfusion/fusion_eval.py": "f27912e022e7bd8e47378de53a2700eb7dbe6d7c3c1fd96d3c2a0ccec90f3a80",
+      "src/opfusion/fusion_eval_seeded.py": "6b917dcdb01f9e67577e20fda5f86a68244bb6ccc284f232c42cd6f0f3c50b8c",
+      "src/opfusion/model/gpt.py": "4a5f683b16739a2c99c30c102e4510e345c3c806791019fbbd3ce81abd8d6131",
+      "src/opfusion/training/audit_pilot_pairs.py": "ed1c77885aa1a71d690ac5eb6ae7bff30145fb6dc9f6bdd4812ee299e29cc645",
+      "src/opfusion/training/batch.py": "d175ae2198607b3b62a87a754f59e1da239223a4da71c1e59285a5fa85201e40",
+      "src/opfusion/training/batch_design.py": "92abe006e4dd8a080ffcc7233eb51bc513b1a051e30c7dfe43adade48a65e8a1",
+      "src/opfusion/training/data.py": "30cbad6dce49f9a077a5e72e23db658ac2b094b031ba74f7924b4632ed10998a",
+      "src/opfusion/training/design_controls.py": "0deb2cd293a5bdd8227cbee6da72ec33b9cb7ec32cd42fbf87cb37063da89533",
+      "src/opfusion/training/strict_verifier.py": "3d44fbd7b1c125dd3e369f1b6d1fc77a247e464011b61a35780fd5488484557a",
+      "src/opfusion/training/trainer.py": "afe4ae9bd1474828dbebb280c31e9c5220fee3da8453cb4f2a9f3d1145aac72f",
+      "src/opfusion/training/trainer_design.py": "893662064db8ca65c0476af35e50624de562a1716f176cca8f08478d4b40f502",
+      "src/opfusion/training/trainer_design_hardened.py": "b4bd9abc49ca11ddbf1cd520c609d1153e1682fd368bf3e866eb1722e68a0e40",
+      "src/opfusion/training/trainer_surface.py": "5e0d9f079e60004cbd328bb0eb70c5bf8928db8b138d8925170d9147d6861fc0"
+    },
+    "contract_abi_version": 2,
+    "experiment_id": "bias_factory_spec_small_max",
+    "git": {
+      "commit": "bb14b1addfcb60fed0fe26801a5b0068db87164c"
+    },
+    "model_config_path": "configs/model/gpt_operator_small_surface_v3.yaml",
+    "model_config_sha256": "c8305ab3c9fcba41742bb6692f6b9b83e7d72f09f79f8e7a4ce55a9e186cde9a",
+    "model_design": {
+      "base_target_mode": "identity",
+      "base_weak_max_terms": 4,
+      "base_weak_operand_abs_max": 8,
+      "selection_metric": "validation_nll",
+      "specialist_parameter_anchor_weight": 0.0,
+      "specialist_retention_examples_per_operator": 0,
+      "specialist_retention_kl_weight": 0.0,
+      "strict_experiment_fingerprint": false
+    },
+    "run_config": {
+      "allow_tf32": false,
+      "base_model_id": null,
+      "checkpoint_every": 500,
+      "checkpoint_fractions": [],
+      "checkpoint_steps": [
+        39,
+        156,
+        635,
+        2559,
+        9800
+      ],
+      "continue_on_error": false,
+      "data": {
+        "continuation_weight": 0,
+        "full_trace_weight": 100,
+        "length_ood_max_terms": 10,
+        "length_ood_min_terms": 9,
+        "max_partition_attempts": 20000,
+        "max_terms": 8,
+        "min_terms": 3,
+        "numeric_token_max": 1024,
+        "numeric_token_min": -1024,
+        "operand_max": 64,
+        "operand_min": -64,
+        "partition_modulus": 100,
+        "randomized_train_reduction": false,
+        "terminal_weight": 0,
+        "train_bucket_end": 70,
+        "validation_bucket_end": 85,
+        "value_ood_abs_max": 80,
+        "value_ood_abs_min": 65
+      },
+      "deterministic_algorithms": true,
+      "effective_batch_size": 512,
+      "eval_batches": 1,
+      "eval_every": 1000,
+      "eval_examples": 128,
+      "experiment_id": "bias_factory_spec_small_max",
+      "generation_eval_every": 2000,
+      "generation_eval_examples": 16,
+      "generation_max_new_tokens": 256,
+      "joint_model_ids": [
+        "joint.all_five.exposure_matched"
+      ],
+      "log_every": 200,
+      "max_parameters": 400000,
+      "max_steps": 9800,
+      "micro_batch_candidates": [
+        512,
+        256,
+        128,
+        64,
+        32,
+        16,
+        8,
+        4
+      ],
+      "micro_batch_size": 0,
+      "model_config": "configs/model/gpt_operator_small_surface_v3.yaml",
+      "operators": [
+        "scalar.max"
+      ],
+      "optimizer": {
+        "beta1": 0.9,
+        "beta2": 0.95,
+        "grad_clip_norm": 1.0,
+        "learning_rate": 0.0003,
+        "min_learning_rate": 3e-05,
+        "warmup_steps": 250,
+        "weight_decay": 0.1
+      },
+      "output_dir": "runs/bias_factory/spec_small_max",
+      "precision": "auto",
+      "recovery": {
+        "max_lr_reductions": 2,
+        "max_retries_per_job": 5,
+        "minimum_micro_batch_size": 4,
+        "non_finite_lr_factor": 0.5,
+        "restart_delay_seconds": 10
+      },
+      "require_cuda": true,
+      "response_only_loss": true,
+      "resume_every": 500,
+      "seeds": [
+        0
+      ],
+      "tokenizer_config": "configs/tokenizer/operator_experiment_surface_v3.yaml"
+    },
+    "tokenizer_config_path": "configs/tokenizer/operator_experiment_surface_v3.yaml",
+    "tokenizer_config_sha256": "c221fd2109538bc1c86822e50c2535e24c0ce5b08fb424f99fbfefc058154864",
+    "tokenizer_profile": "operator_experiment_surface_v3",
+    "vocab_hash": "7e11eec5f9099ac09cb8eee5eb7639a2f0371984283fdc22d5f56160870213c9",
+    "vocab_size": 2065
+  }
+}

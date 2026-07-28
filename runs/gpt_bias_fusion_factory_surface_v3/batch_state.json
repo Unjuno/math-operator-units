@@ -1,0 +1,158 @@
+{
+  "completed": [
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_0/base_common/checkpoints/final.pt",
+      "job_id": "base.common",
+      "seed": 0
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_0/scalar_add/checkpoints/final.pt",
+      "job_id": "scalar.add",
+      "seed": 0
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_0/aggregation_sum/checkpoints/final.pt",
+      "job_id": "aggregation.sum",
+      "seed": 0
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_0/scalar_neg/checkpoints/final.pt",
+      "job_id": "scalar.neg",
+      "seed": 0
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_0/scalar_min/checkpoints/final.pt",
+      "job_id": "scalar.min",
+      "seed": 0
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_0/scalar_max/checkpoints/final.pt",
+      "job_id": "scalar.max",
+      "seed": 0
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_0/joint_all_five_exposure_matched/checkpoints/final.pt",
+      "job_id": "joint.all_five.exposure_matched",
+      "seed": 0
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_1/base_common/checkpoints/final.pt",
+      "job_id": "base.common",
+      "seed": 1
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_1/scalar_add/checkpoints/final.pt",
+      "job_id": "scalar.add",
+      "seed": 1
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_1/aggregation_sum/checkpoints/final.pt",
+      "job_id": "aggregation.sum",
+      "seed": 1
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_1/scalar_neg/checkpoints/final.pt",
+      "job_id": "scalar.neg",
+      "seed": 1
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_1/scalar_min/checkpoints/final.pt",
+      "job_id": "scalar.min",
+      "seed": 1
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_1/scalar_max/checkpoints/final.pt",
+      "job_id": "scalar.max",
+      "seed": 1
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_1/joint_all_five_exposure_matched/checkpoints/final.pt",
+      "job_id": "joint.all_five.exposure_matched",
+      "seed": 1
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_2/base_common/checkpoints/final.pt",
+      "job_id": "base.common",
+      "seed": 2
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_2/scalar_add/checkpoints/final.pt",
+      "job_id": "scalar.add",
+      "seed": 2
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_2/aggregation_sum/checkpoints/final.pt",
+      "job_id": "aggregation.sum",
+      "seed": 2
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_2/scalar_neg/checkpoints/final.pt",
+      "job_id": "scalar.neg",
+      "seed": 2
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_2/scalar_min/checkpoints/final.pt",
+      "job_id": "scalar.min",
+      "seed": 2
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_2/scalar_max/checkpoints/final.pt",
+      "job_id": "scalar.max",
+      "seed": 2
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_2/joint_all_five_exposure_matched/checkpoints/final.pt",
+      "job_id": "joint.all_five.exposure_matched",
+      "seed": 2
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_0/fusion_subsets/index.json",
+      "job_id": "fusion_manifests",
+      "seed": 0
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_0/fusion_checkpoint_grid/index.json",
+      "job_id": "fusion_manifests",
+      "seed": 0
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_0/model_inventory.json",
+      "job_id": "fusion_manifests",
+      "seed": 0
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_1/fusion_subsets/index.json",
+      "job_id": "fusion_manifests",
+      "seed": 1
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_1/fusion_checkpoint_grid/index.json",
+      "job_id": "fusion_manifests",
+      "seed": 1
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_1/model_inventory.json",
+      "job_id": "fusion_manifests",
+      "seed": 1
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_2/fusion_subsets/index.json",
+      "job_id": "fusion_manifests",
+      "seed": 2
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_2/fusion_checkpoint_grid/index.json",
+      "job_id": "fusion_manifests",
+      "seed": 2
+    },
+    {
+      "final_checkpoint": "/home/unjuno/repo/math-operator-units/runs/gpt_bias_fusion_factory_surface_v3/seed_2/model_inventory.json",
+      "job_id": "fusion_manifests",
+      "seed": 2
+    }
+  ],
+  "experiment_id": "gpt_bias_fusion_factory_surface_v3",
+  "failures": [],
+  "status": "completed",
+  "updated_unix": 1784651799.5593178
+}
