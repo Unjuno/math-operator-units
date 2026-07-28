@@ -49,7 +49,7 @@ jobs:
         run: |
           set +e
           opfusion-verify-fusion-combinations \
-            --examples-per-operator 8 \
+            --examples-per-operator 32 \
             --evaluation-seed 704000 \
             --max-new-tokens 64 \
             --device cpu \
