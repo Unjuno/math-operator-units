@@ -1,9 +1,7 @@
 name: fusion-combination-search
 
 on:
-  push:
-    branches:
-      - feature/exhaustive-bias-combination-search
+  pull_request:
     paths:
       - .github/workflows/fusion-combination-search.yml
       - src/opfusion/fusion_search.py
