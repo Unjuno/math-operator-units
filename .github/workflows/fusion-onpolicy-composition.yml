@@ -1,0 +1,83 @@
+name: fusion-onpolicy-composition
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-onpolicy-composition.yml
+      - src/opfusion/fusion_onpolicy.py
+      - src/opfusion/fusion_compose.py
+      - tests/test_fusion_onpolicy.py
+      - pyproject.toml
+      - runs/gpt_bias_fusion_factory_surface_v3/**
+  workflow_dispatch:
+
+jobs:
+  compose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test on-policy compositor
+        run: pytest -q tests/test_fusion_compose.py tests/test_fusion_onpolicy.py
+      - name: Train and verify on-policy composition
+        id: compose
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          opfusion-train-onpolicy-compositor \
+            --calibration-examples-per-operator 8 \
+            --rollout-examples-per-operator 5 \
+            --verification-examples-per-operator 16 \
+            --max-positions-per-cohort 1024 \
+            --warmup-steps 140 \
+            --round-steps 60 \
+            --rollout-probabilities 0.25,0.5,0.75,1.0 \
+            --batch-positions 96 \
+            --learning-rate 0.02 \
+            --l2-weight 0.001 \
+            --entropy-penalty 0.02 \
+            --entropy-target-ratio 0.70 \
+            --hidden-size 8 \
+            --weight-floor 0.03 \
+            --calibration-seed 707000 \
+            --verification-seed 708000 \
+            --max-new-tokens 64 \
+            --device cpu \
+            --out evaluations/fusion_onpolicy_composition/summary.json \
+            > fusion-onpolicy.log 2>&1
+          status=$?
+          echo "$status" > fusion-onpolicy.status
+          cat fusion-onpolicy.log
+          exit "$status"
+      - name: Print on-policy result
+        if: steps.compose.outcome == 'success'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          report = json.loads(Path('evaluations/fusion_onpolicy_composition/summary.json').read_text())
+          print(json.dumps(report.get('recommended_validation_composition'), indent=2, sort_keys=True))
+          print('passing_methods=')
+          print(json.dumps(report.get('passing_methods'), indent=2, sort_keys=True))
+          print('round_reports=')
+          print(json.dumps(report.get('round_reports'), indent=2, sort_keys=True))
+          PY
+      - name: Upload on-policy result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-onpolicy-composition
+          path: |
+            fusion-onpolicy.log
+            fusion-onpolicy.status
+            evaluations/fusion_onpolicy_composition/summary.json
+          if-no-files-found: warn
+      - name: Enforce experiment success
+        if: always()
+        run: test "$(cat fusion-onpolicy.status)" = "0"
