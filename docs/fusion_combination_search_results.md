@@ -1,75 +1,131 @@
-# Fusion combination search results
+# Fusion composition search results
 
 ## Scope
 
-The search used only the validation partition. The final `iid_test`, `operand_ood`, and `length_ood` splits were not opened.
+All experiments used only the validation partition. The final `iid_test`, `operand_ood`, and `length_ood` splits were not opened.
 
-Two stages were run over the three completed Fusion Factory seeds.
+The objective is composition, not task routing. A prompt-conditioned dispatcher would bypass the research question, so it is explicitly outside the supported conclusion.
 
-1. Broad teacher-forced search:
-   - all 31 non-empty specialist subsets;
-   - raw base-relative addition and RMS-equalized addition;
-   - alpha grid `0.125, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0`;
-   - 32 validation examples per operator;
-   - 1,488 cohort/candidate rows.
-2. Independent autoregressive verification:
-   - evaluation seed `704000`, distinct from the broad-search seed;
-   - 32 validation examples per operator per model seed, or 96 examples per operator in aggregate;
-   - maximum 64 generated tokens;
-   - causal RMS normalization computed independently at each generated position.
+## Stage 1: fixed algebraic subset search
 
-## Autoregressive results
+The first search evaluated the three completed Fusion Factory seeds using:
 
-No multi-specialist candidate passed the validation gate.
+- all 31 non-empty specialist subsets;
+- raw Base-relative addition and RMS-equalized addition;
+- alpha grid `0.125, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 2.0`;
+- 32 validation examples per operator;
+- 1,488 teacher-forced cohort/candidate rows;
+- independent autoregressive verification with seed `704000` and 32 examples per operator per model seed.
+
+No multi-specialist fixed subset passed autoregressive verification.
 
 | Candidate | Active operators | Final-value macro | Worst active operator | Trace-validity macro |
 |---|---|---:|---:|---:|
-| `add_raw_1.00` | add | 0.9896 | 0.9896 | 0.9896 |
-| `sum_raw_1.25` | sum | 0.8854 | 0.8854 | 0.8854 |
-| `min_raw_1.25` | min | 0.8438 | 0.8438 | 0.8438 |
-| `max_raw_1.25` | max | 0.8125 | 0.8125 | 0.8125 |
 | `add_max_causal_rms_0.75` | add, max | 0.3333 | 0.1979 | 0.3333 |
 | `add_min_causal_rms_0.75` | add, min | 0.3073 | 0.2188 | 0.3073 |
 | `min_max_raw_0.75` | min, max | 0.1875 | 0.1667 | 0.1875 |
 | `add_min_max_causal_rms_0.50` | add, min, max | 0.1250 | 0.0208 | 0.1250 |
 | `all_five_causal_rms_0.125` | all five | 0.0083 | 0.0000 | 0.0083 |
 | `all_five_raw_0.125` | all five | 0.0021 | 0.0000 | 0.0021 |
-| `neg_raw_0.50` | neg | 0.0000 | 0.0000 | 0.0000 |
 
-The strongest multi-specialist candidate was `add_max_causal_rms_0.75`, but it retained only 0.1979 final-value accuracy on its weaker active operator. It is not viable.
+This establishes only that raw and RMS-equalized static addition fail. It does not justify routing.
 
-## Reference models
+## Stage 2: learned all-five algebraic composition
 
-The matched all-five Joint model obtained the following final-value accuracies on the same independent validation run:
+A second experiment removed subset selection entirely. All five specialists were evaluated at every response position. The compositor received no operator id, task label, subset mask, or dispatch signal.
 
-| Operator | Joint final-value accuracy |
-|---|---:|
-| add | 1.0000 |
-| sum | 0.8542 |
-| neg | 0.1667 |
-| min | 0.8438 |
-| max | 0.8646 |
+The learned composition families were:
 
-The relevant singleton specialist was competitive for add, sum, min, and max. The neg specialist remained unusable.
+1. `global_linear`
+   - five global specialist coefficients;
+2. `token_class_linear`
+   - separate five-coefficient vectors for numeric, special, and syntax vocabulary classes;
+3. `pairwise_polynomial`
+   - normalized first-order coefficients plus all ten pairwise bias-interaction terms.
+
+The parameters were calibrated jointly on model seeds 0 and 1 using validation seed `705000`. Model seed 2 was not used for fitting. Autoregressive verification used independent validation seed `706000`, 24 examples per operator per model seed, and all five specialists remained active throughout generation.
+
+### Learned parameters
+
+The global linear coefficients, in operator order `add, sum, neg, min, max`, were:
+
+```text
+[-0.0024, 0.5098, -0.3007, 0.2912, 0.3166]
+```
+
+The token-class linear coefficients were:
+
+```text
+numeric: [-0.1911, 0.7824, -0.1731, 0.2209, 0.3237]
+special: [ 0.1816, 0.3014,  0.0852, 0.0729, 0.2341]
+syntax:  [-0.3380, 0.5839, -0.2570, 0.3495, 0.3027]
+```
+
+The negative `neg` coefficient and near-zero or negative `add` coefficients show that the optimizer mainly learned cancellation of destructive fields rather than a reusable superposition rule.
+
+### Teacher-forced calibration
+
+| Method | Calibration token accuracy | Calibration NLL |
+|---|---:|---:|
+| `token_class_linear` | 0.7646 | 1.4165 |
+| `global_linear` | 0.6400 | 2.3247 |
+| `pairwise_polynomial` | 0.5732 | 2.9252 |
+
+### Independent autoregressive verification
+
+| Method | Final-value macro | Worst operator | Trace-validity macro |
+|---|---:|---:|---:|
+| `bias_mean` | 0.1056 | 0.0000 | 0.1056 |
+| `rms_mean` | 0.0694 | 0.0000 | 0.0694 |
+| `global_linear` | 0.0611 | 0.0000 | 0.0611 |
+| `token_class_linear` | 0.0611 | 0.0000 | 0.0611 |
+| `pairwise_polynomial` | 0.0028 | 0.0000 | 0.0028 |
+| `raw_sum` | 0.0000 | 0.0000 | 0.0000 |
+
+No learned static all-five composition law passed.
+
+The best learned method, `token_class_linear`, had strong teacher-forced token accuracy but collapsed after self-generated errors. Its mean final-value accuracies were approximately:
+
+```text
+add  0.2361
+sum  0.0139
+neg  0.0000
+min  0.0139
+max  0.0417
+```
 
 ## Interpretation
 
-The broad teacher-forced search produced apparently strong pair and triple candidates, but those gains did not survive autoregressive generation. The discrepancy is exposure instability: once a fused field selects an incorrect token, later specialist fields are evaluated on a context outside the teacher-forced path and rapidly interfere.
+The negative result is narrower and more useful than a routing conclusion:
 
-Static always-on addition also failed to preserve inactive Base behavior. Every non-full candidate had zero exact agreement with Base on inactive operator prompts in the autoregressive check. This is direct evidence that a fixed global subset is the wrong runtime policy for the current checkpoints.
+- raw addition fails;
+- RMS normalization fails;
+- globally learned linear coefficients fail;
+- vocabulary-class-specific coefficients fail;
+- second-order static pairwise correction fails;
+- teacher-forced fit is not predictive of autoregressive composition quality.
 
-## Current decision
+The common failure is not merely incorrect scalar strength. It is trajectory dependence. After the first fused-token error, every specialist is evaluated on a prefix outside its trained trajectory, and a memoryless composition law cannot recover.
 
-There is no production-eligible static bias combination.
+## Next composition class
 
-The supported validation policy is prompt-conditioned dispatch:
+The next experiment must remain a compositor and must not use task dispatch. It should:
 
-| Routed operator | Unit | Alpha |
-|---|---|---:|
-| add | `scalar.add` | 1.00 |
-| sum | `aggregation.sum` | 1.25 |
-| min | `scalar.min` | 1.25 |
-| max | `scalar.max` | 1.25 |
-| neg | none | n/a |
+- evaluate all five specialists at every position;
+- receive no operator id or external router output;
+- derive continuous weights and conflict corrections only from the simultaneous bias fields;
+- train on prefixes generated by the compositor itself, not only gold prefixes;
+- retain a small, auditable parameterization.
 
-This is a routing result, not evidence that raw multi-bias superposition works. Negation remains blocked. Final splits remain reserved.
+The concrete next candidate is an on-policy conflict-aware consensus compositor:
+
+```text
+center and RMS-normalize all five bias fields
+-> estimate continuous agreement/conflict statistics
+-> compute shared soft weights from bias geometry
+-> shrink vocabulary coordinates with high inter-specialist disagreement
+-> train by iterative self-prefix collection (DAgger-style)
+-> verify autoregressively on a distinct validation seed and held-out model seed
+```
+
+This is composition rather than routing: all units are always evaluated, no discrete unit is selected, and the same learned algebra is applied to every prompt. Final splits remain reserved.
