@@ -40,6 +40,7 @@ jobs:
           scripts/d4_launch_specialist_ablation.sh
           scripts/d4_eval_trajectory.sh
           scripts/d4_summary_trajectory.sh
+          scripts/run_fusion_combination_search.sh
       - name: Audit canonical repository contract
         run: |
           set +e
