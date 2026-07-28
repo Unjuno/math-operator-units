@@ -5,6 +5,9 @@ on:
     paths:
       - .github/workflows/fusion-combination-search.yml
       - src/opfusion/fusion_search.py
+      - src/opfusion/fusion_verify.py
+      - tests/test_fusion_search.py
+      - tests/test_fusion_verify.py
       - pyproject.toml
       - runs/gpt_bias_fusion_factory_surface_v3/**
   workflow_dispatch:
@@ -19,7 +22,9 @@ jobs:
         with:
           python-version: '3.11'
       - name: Install package
-        run: python -m pip install -e .
+        run: python -m pip install -e '.[dev]'
+      - name: Test fusion search and verification helpers
+        run: pytest -q tests/test_fusion_search.py tests/test_fusion_verify.py
       - name: Search validation combinations
         id: search
         continue-on-error: true
@@ -37,16 +42,37 @@ jobs:
           echo "$status" > fusion-search.status
           cat fusion-search.log
           exit "$status"
-      - name: Print recommended candidate
-        if: steps.search.outcome == 'success'
+      - name: Verify selected candidates autoregressively
+        id: verify
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          opfusion-verify-fusion-combinations \
+            --examples-per-operator 8 \
+            --evaluation-seed 704000 \
+            --max-new-tokens 64 \
+            --device cpu \
+            --out evaluations/fusion_combination_search/autoregressive_verification.json \
+            > fusion-verify.log 2>&1
+          status=$?
+          echo "$status" > fusion-verify.status
+          cat fusion-verify.log
+          exit "$status"
+      - name: Print recommendations
+        if: steps.search.outcome == 'success' && steps.verify.outcome == 'success'
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          report = json.loads(Path('evaluations/fusion_combination_search/summary.json').read_text())
-          print(json.dumps(report.get('recommended_all_five_validation_candidate'), indent=2, sort_keys=True))
-          print('cohorts=', len(report.get('cohorts', [])))
-          print('rows=', len(report.get('rows', [])))
+          broad = json.loads(Path('evaluations/fusion_combination_search/summary.json').read_text())
+          verify = json.loads(Path('evaluations/fusion_combination_search/autoregressive_verification.json').read_text())
+          print('broad_all_five=')
+          print(json.dumps(broad.get('recommended_all_five_validation_candidate'), indent=2, sort_keys=True))
+          print('autoregressive_recommended=')
+          print(json.dumps(verify.get('recommended_candidate'), indent=2, sort_keys=True))
+          print('passing_candidates=')
+          print(json.dumps(verify.get('passing_candidates'), indent=2, sort_keys=True))
           PY
       - name: Upload search diagnostics
         if: always()
@@ -56,8 +82,13 @@ jobs:
           path: |
             fusion-search.log
             fusion-search.status
+            fusion-verify.log
+            fusion-verify.status
             evaluations/fusion_combination_search/summary.json
+            evaluations/fusion_combination_search/autoregressive_verification.json
           if-no-files-found: warn
       - name: Enforce search success
         if: always()
-        run: test "$(cat fusion-search.status)" = "0"
+        run: |
+          test "$(cat fusion-search.status)" = "0"
+          test "$(cat fusion-verify.status)" = "0"
