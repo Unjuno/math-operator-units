@@ -1,0 +1,89 @@
+name: model-quality-evaluation
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/model-quality-evaluation.yml
+      - src/opfusion/model_eval.py
+      - tests/test_model_eval.py
+      - pyproject.toml
+      - runs/bias_factory/**
+      - runs/gpt_bias_fusion_factory_surface_v3/**
+  workflow_dispatch:
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - scope: fusion-factory
+            examples: 24
+            length_examples: 12
+            evaluation_seed: 709000
+          - scope: bias-factory
+            examples: 8
+            length_examples: 4
+            evaluation_seed: 710000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test model evaluator
+        run: pytest -q tests/test_model_eval.py
+      - name: Evaluate standalone models
+        id: evaluate
+        continue-on-error: true
+        shell: bash
+        run: |
+          set +e
+          output="evaluations/model_quality/${{ matrix.scope }}.json"
+          opfusion-evaluate-models \
+            --scope '${{ matrix.scope }}' \
+            --examples-per-operator '${{ matrix.examples }}' \
+            --length-examples '${{ matrix.length_examples }}' \
+            --evaluation-seed '${{ matrix.evaluation_seed }}' \
+            --max-new-tokens 96 \
+            --device cpu \
+            --out "$output" \
+            > "model-eval-${{ matrix.scope }}.log" 2>&1
+          status=$?
+          echo "$status" > "model-eval-${{ matrix.scope }}.status"
+          cat "model-eval-${{ matrix.scope }}.log"
+          exit "$status"
+      - name: Print compact evaluation summary
+        if: steps.evaluate.outcome == 'success'
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          scope = '${{ matrix.scope }}'
+          report = json.loads(Path(f'evaluations/model_quality/{scope}.json').read_text())
+          print('scope=', scope)
+          print('target_count=', report['target_count'])
+          if scope == 'fusion-factory':
+              print(json.dumps(report['cross_seed_summary'], indent=2, sort_keys=True))
+              print('fusion_eligible_specialists=')
+              print(json.dumps(report['fusion_eligible_specialists'], indent=2, sort_keys=True))
+          else:
+              print('minimum_passing_snapshots=')
+              print(json.dumps(report['minimum_passing_snapshots'], indent=2, sort_keys=True))
+          PY
+      - name: Upload model evaluation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-quality-${{ matrix.scope }}
+          path: |
+            model-eval-${{ matrix.scope }}.log
+            model-eval-${{ matrix.scope }}.status
+            evaluations/model_quality/${{ matrix.scope }}.json
+          if-no-files-found: warn
+      - name: Enforce evaluation success
+        if: always()
+        run: test "$(cat model-eval-${{ matrix.scope }}.status)" = "0"
