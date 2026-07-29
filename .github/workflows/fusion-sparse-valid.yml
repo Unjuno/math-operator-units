@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/fusion-sparse-valid.yml
       - src/opfusion/fusion_sparse_valid.py
+      - src/opfusion/fusion_sparse_valid_runtime.py
       - tests/test_fusion_sparse_valid.py
       - src/opfusion/training/data.py
       - runs/gpt_bias_fusion_factory_surface_v3/**
@@ -29,7 +30,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          python -m opfusion.fusion_sparse_valid \
+          python -m opfusion.fusion_sparse_valid_runtime \
             --calibration-examples-per-operator 3 \
             --max-prefixes-per-example 24 \
             --max-positions-per-cohort 512 \
