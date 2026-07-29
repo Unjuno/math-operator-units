@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from types import SimpleNamespace
-
 import torch
 
 from opfusion.fusion_sparse_valid import (
@@ -34,8 +32,7 @@ def _tokenizer() -> FixedVocabTokenizer:
         "<TASK_COPY>",
         *[f"<N_{value}>" for value in range(-16, 17)],
     ]
-    config = SimpleNamespace(tokens=tokens, aliases={})
-    return FixedVocabTokenizer.from_config(config)
+    return FixedVocabTokenizer(tokens)
 
 
 def _factory() -> tuple[FixedVocabTokenizer, SyntheticTraceFactory]:
@@ -119,9 +116,9 @@ def test_sparse_compositor_has_no_positive_confidence_floor() -> None:
     fused, confidence, active, threshold = model.compose(base, units)
     assert fused.shape == base.shape
     assert confidence.shape == (2, 5)
-    assert float(confidence.max()) < 1e-6
+    assert float(confidence.detach().max()) < 1e-6
     assert active.shape == (2, 5)
-    assert float(threshold) >= 0.0
+    assert float(threshold.detach()) >= 0.0
     assert torch.isfinite(fused).all()
 
 
