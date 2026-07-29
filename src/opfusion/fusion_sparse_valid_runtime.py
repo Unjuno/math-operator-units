@@ -15,7 +15,7 @@ def _corrected_evidence_features(
     normalized = centered / rms.unsqueeze(-1).to(centered.dtype)
     consensus = normalized.mean(dim=-2, keepdim=True)
     consensus_rms = consensus.float().pow(2).mean(dim=-1).sqrt().clamp_min(1e-6)
-    cosine = (normalized * consensus).float().mean(dim=-1) / consensus_rms.squeeze(-1)
+    cosine = (normalized * consensus).float().mean(dim=-1) / consensus_rms
 
     base_prob = torch.softmax(base_logits.float(), dim=-1)
     unit_prob = torch.softmax(unit_logits.float(), dim=-1)
