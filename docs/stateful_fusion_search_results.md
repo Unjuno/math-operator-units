@@ -135,3 +135,13 @@ should preserve arithmetic-source evidence across numeric transitions without
 forcing the same source mixture onto equality, separators, and EOS. After that
 single-operator retention test, the same law should be evaluated on held-out
 compound computation graphs.
+
+## Artifacts
+
+The completed runs are archived by GitHub Actions as:
+
+- `fusion-validity-mixture-scaled`;
+- `fusion-coordinate-gate-scaled`;
+- `fusion-token-evidence`;
+- `fusion-stateful-mixture`;
+- `fusion-stateful-mixture-fine`.
