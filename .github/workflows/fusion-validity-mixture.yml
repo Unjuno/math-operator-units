@@ -29,13 +29,15 @@ jobs:
         run: |
           set +e
           python -m opfusion.fusion_validity_mixture \
-            --calibration-examples-per-operator 4 \
+            --calibration-examples-per-operator 12 \
             --max-prefixes-per-example 32 \
-            --max-positions-per-cohort 768 \
-            --verification-examples-per-operator 8 \
-            --fit-steps 240 \
-            --fit-batch-positions 96 \
-            --learning-rate 0.02 \
+            --max-positions-per-cohort 2048 \
+            --verification-examples-per-operator 12 \
+            --fit-steps 800 \
+            --fit-batch-positions 128 \
+            --learning-rate 0.01 \
+            --hidden-size 16 \
+            --sketch-size 8 \
             --device cpu \
             --out evaluations/fusion_validity_mixture/summary.json \
             > fusion-validity-mixture.log 2>&1
