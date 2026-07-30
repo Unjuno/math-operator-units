@@ -18,7 +18,7 @@ experiment:
   require_cuda: true
   precision: auto
   allow_tf32: false
-  max_parameters: 1000000
+  max_parameters: 1100000
   deterministic_algorithms: true
   continue_on_error: false
 
@@ -58,46 +58,3 @@ experiment:
     effective_batch_size: 128
     micro_batch_size: 0
     micro_batch_candidates: [128, 64, 32, 16, 8, 4]
-    max_steps: 50000
-    eval_every: 1000
-    eval_batches: 2
-    eval_examples: 256
-    generation_eval_every: 5000
-    generation_eval_examples: 16
-    generation_max_new_tokens: 256
-    log_every: 100
-    resume_every: 500
-    checkpoint_every: 2500
-    checkpoint_steps: []
-    checkpoint_fractions:
-      - 0.0
-      - 0.001
-      - 0.003
-      - 0.01
-      - 0.03
-      - 0.05
-      - 0.10
-      - 0.20
-      - 0.30
-      - 0.40
-      - 0.50
-      - 0.60
-      - 0.70
-      - 0.80
-      - 0.90
-      - 1.0
-    optimizer:
-      learning_rate: 0.0003
-      min_learning_rate: 0.00003
-      warmup_steps: 1000
-      weight_decay: 0.1
-      beta1: 0.9
-      beta2: 0.95
-      grad_clip_norm: 1.0
-
-  recovery:
-    max_retries_per_job: 5
-    minimum_micro_batch_size: 4
-    non_finite_lr_factor: 0.5
-    max_lr_reductions: 2
-    restart_delay_seconds: 30
