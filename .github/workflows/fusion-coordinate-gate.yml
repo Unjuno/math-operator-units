@@ -29,14 +29,14 @@ jobs:
         run: |
           set +e
           python -m opfusion.fusion_coordinate_gate \
-            --calibration-examples-per-operator 2 \
-            --max-prefixes-per-example 12 \
-            --max-positions-per-cohort 192 \
-            --verification-examples-per-operator 4 \
-            --fit-steps 60 \
-            --fit-batch-positions 8 \
+            --calibration-examples-per-operator 4 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 512 \
+            --verification-examples-per-operator 8 \
+            --fit-steps 240 \
+            --fit-batch-positions 16 \
             --learning-rate 0.01 \
-            --hidden-size 12 \
+            --hidden-size 24 \
             --device cpu \
             --out evaluations/fusion_coordinate_gate/summary.json \
             > fusion-coordinate-gate.log 2>&1
