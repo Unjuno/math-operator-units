@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/fusion-stateful-mixture.yml
       - src/opfusion/fusion_stateful_mixture.py
+      - src/opfusion/fusion_stateful_mixture_fine.py
       - src/opfusion/fusion_validity_mixture.py
       - src/opfusion/fusion_sparse_valid.py
       - src/opfusion/fusion_verify.py
@@ -29,18 +30,21 @@ jobs:
         shell: bash
         run: |
           set +e
-          python -m opfusion.fusion_stateful_mixture \
-            --calibration-examples-per-operator 4 \
-            --max-prefixes-per-example 20 \
-            --max-positions-per-cohort 768 \
-            --fit-steps 240 \
-            --fit-batch-positions 64 \
-            --state-search-examples-per-operator 2 \
-            --verification-examples-per-operator 6 \
-            --maximum-verification-candidates 3 \
+          python -m opfusion.fusion_stateful_mixture_fine \
+            --calibration-examples-per-operator 10 \
+            --max-prefixes-per-example 32 \
+            --max-positions-per-cohort 2048 \
+            --fit-steps 700 \
+            --fit-batch-positions 128 \
+            --state-search-examples-per-operator 4 \
+            --verification-examples-per-operator 12 \
+            --maximum-verification-candidates 5 \
             --hidden-size 16 \
             --sketch-size 8 \
             --learning-rate 0.01 \
+            --calibration-seed 723000 \
+            --state-search-seed 723500 \
+            --verification-seed 724000 \
             --device cpu \
             --out evaluations/fusion_stateful_mixture/summary.json \
             > fusion-stateful-mixture.log 2>&1
