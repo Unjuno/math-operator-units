@@ -81,7 +81,6 @@ def _generate_stateful_sparse_bias(
     output: list[int] = []
     state: torch.Tensor | None = None
     entropy_sum = 0.0
-    active_sum = 0.0
     max_weight_sum = 0.0
     positions = 0
     with torch.no_grad():
@@ -106,7 +105,6 @@ def _generate_stateful_sparse_bias(
                 token_support = torch.log_softmax(sources.float(), dim=-1)[:, next_id]
                 state = state + float(candidate.feedback) * (token_support - token_support.mean())
             entropy_sum += float((-(sparse * sparse.clamp_min(1e-9).log()).sum()).cpu())
-            active_sum += float((sparse > 0).float().sum().cpu())
             max_weight_sum += float(sparse.max().cpu())
             positions += 1
             ids = torch.cat([ids, torch.tensor([[next_id]], dtype=torch.long, device=device)], dim=1)
@@ -116,7 +114,6 @@ def _generate_stateful_sparse_bias(
         "mean_weight_entropy": entropy_sum / max(1, positions),
         "mean_base_weight": 0.0,
         "mean_max_weight": max_weight_sum / max(1, positions),
-        "mean_active_specialists": active_sum / max(1, positions),
     }
 
 
