@@ -1,5 +1,6 @@
 name: fusion-stateful-geometric
 
+# Isolated experiment PR: avoids re-running unrelated cumulative PR workflows.
 on:
   pull_request:
     paths:
