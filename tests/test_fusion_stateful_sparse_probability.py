@@ -23,5 +23,5 @@ def test_zero_threshold_power_one_preserves_weights_up_to_floor() -> None:
 
 def test_candidate_grid_is_unique() -> None:
     candidates = candidate_grid()
-    assert len(candidates) == 96
+    assert len(candidates) == 48
     assert len({candidate.candidate_id for candidate in candidates}) == len(candidates)
