@@ -22,10 +22,10 @@ class SparseProbabilityCandidate:
 
 def candidate_grid() -> tuple[SparseProbabilityCandidate, ...]:
     rows: list[SparseProbabilityCandidate] = []
-    for memory in (0.90, 0.95, 0.98):
+    for memory in (0.90, 0.95):
         for feedback in (0.15, 0.35):
             for temperature in (0.75, 1.00):
-                for threshold in (0.00, 0.02, 0.05, 0.10):
+                for threshold in (0.00, 0.05, 0.10):
                     for power in (1.0, 2.0):
                         rows.append(
                             SparseProbabilityCandidate(
