@@ -1,0 +1,79 @@
+name: fusion-stateful-sparse-probability
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-stateful-sparse-probability.yml
+      - src/opfusion/fusion_stateful_sparse_probability.py
+      - src/opfusion/fusion_stateful_mixture.py
+      - src/opfusion/fusion_validity_mixture.py
+      - src/opfusion/fusion_sparse_valid.py
+      - src/opfusion/fusion_verify.py
+      - tests/test_fusion_stateful_sparse_probability.py
+      - runs/gpt_bias_fusion_factory_surface_v3/**
+  workflow_dispatch:
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test sparse stateful probability fusion
+        run: pytest -q tests/test_fusion_stateful_sparse_probability.py
+      - name: Search sparse persistent probability mixtures
+        shell: bash
+        run: |
+          set +e
+          python -m opfusion.fusion_stateful_sparse_probability \
+            --calibration-examples-per-operator 6 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1024 \
+            --fit-steps 400 \
+            --fit-batch-positions 96 \
+            --state-search-examples-per-operator 2 \
+            --verification-examples-per-operator 12 \
+            --maximum-verification-candidates 4 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --device cpu \
+            --out evaluations/fusion_stateful_sparse_probability/summary.json \
+            > fusion-stateful-sparse-probability.log 2>&1
+          status=$?
+          echo "$status" > fusion-stateful-sparse-probability.status
+          cat fusion-stateful-sparse-probability.log
+          exit "$status"
+      - name: Print compact result
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('evaluations/fusion_stateful_sparse_probability/summary.json')
+          if path.is_file():
+              report = json.loads(path.read_text())
+              print(json.dumps({
+                  'selected_candidates': report.get('selected_candidates'),
+                  'recommended': report.get('recommended_validation_composition'),
+                  'passing_methods': report.get('passing_methods'),
+              }, indent=2, sort_keys=True))
+          PY
+      - name: Upload sparse stateful probability result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-stateful-sparse-probability
+          path: |
+            fusion-stateful-sparse-probability.log
+            fusion-stateful-sparse-probability.status
+            evaluations/fusion_stateful_sparse_probability/summary.json
+          if-no-files-found: warn
+      - name: Enforce search success
+        if: always()
+        run: test "$(cat fusion-stateful-sparse-probability.status)" = "0"
