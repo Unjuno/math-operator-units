@@ -1,5 +1,9 @@
 name: fusion-stateful-sparse-probability
 
+concurrency:
+  group: fusion-stateful-sparse-probability-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 on:
   pull_request:
     paths:
@@ -36,7 +40,7 @@ jobs:
             --max-positions-per-cohort 1024 \
             --fit-steps 400 \
             --fit-batch-positions 96 \
-            --state-search-examples-per-operator 2 \
+            --state-search-examples-per-operator 1 \
             --verification-examples-per-operator 12 \
             --maximum-verification-candidates 4 \
             --hidden-size 16 \
