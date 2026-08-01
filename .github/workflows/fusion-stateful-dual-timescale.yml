@@ -1,0 +1,83 @@
+name: fusion-stateful-dual-timescale
+
+concurrency:
+  group: fusion-stateful-dual-timescale-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-stateful-dual-timescale.yml
+      - src/opfusion/fusion_stateful_dual_timescale.py
+      - src/opfusion/fusion_stateful_mixture.py
+      - src/opfusion/fusion_validity_mixture.py
+      - src/opfusion/fusion_sparse_valid.py
+      - src/opfusion/fusion_verify.py
+      - tests/test_fusion_stateful_dual_timescale.py
+      - runs/gpt_bias_fusion_factory_surface_v3/**
+  workflow_dispatch:
+
+jobs:
+  search:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test dual-timescale fusion
+        run: pytest -q tests/test_fusion_stateful_dual_timescale.py
+      - name: Search dual-timescale persistent probability mixtures
+        shell: bash
+        run: |
+          set +e
+          python -m opfusion.fusion_stateful_dual_timescale \
+            --calibration-examples-per-operator 6 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1024 \
+            --fit-steps 400 \
+            --fit-batch-positions 96 \
+            --state-search-examples-per-operator 1 \
+            --verification-examples-per-operator 12 \
+            --maximum-verification-candidates 4 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --device cpu \
+            --out evaluations/fusion_stateful_dual_timescale/summary.json \
+            > fusion-stateful-dual-timescale.log 2>&1
+          status=$?
+          echo "$status" > fusion-stateful-dual-timescale.status
+          cat fusion-stateful-dual-timescale.log
+          exit "$status"
+      - name: Print compact result
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('evaluations/fusion_stateful_dual_timescale/summary.json')
+          if path.is_file():
+              report = json.loads(path.read_text())
+              print(json.dumps({
+                  'selected_candidates': report.get('selected_candidates'),
+                  'recommended': report.get('recommended_validation_composition'),
+                  'passing_methods': report.get('passing_methods'),
+              }, indent=2, sort_keys=True))
+          PY
+      - name: Upload dual-timescale result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-stateful-dual-timescale
+          path: |
+            fusion-stateful-dual-timescale.log
+            fusion-stateful-dual-timescale.status
+            evaluations/fusion_stateful_dual_timescale/summary.json
+          if-no-files-found: warn
+      - name: Enforce search success
+        if: always()
+        run: test "$(cat fusion-stateful-dual-timescale.status)" = "0"
