@@ -1,0 +1,156 @@
+name: fusion-stateful-dual-timescale-confirmatory
+
+concurrency:
+  group: fusion-stateful-dual-timescale-confirmatory-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-stateful-dual-timescale-confirmatory.yml
+      - src/opfusion/fusion_stateful_dual_timescale.py
+      - src/opfusion/fusion_stateful_dual_timescale_confirmatory.py
+      - src/opfusion/fusion_stateful_dual_timescale_confirmatory_neg_neutral.py
+      - src/opfusion/fusion_stateful_dual_timescale_neg_neutral.py
+      - src/opfusion/fusion_stateful_mixture.py
+      - src/opfusion/fusion_validity_mixture.py
+      - src/opfusion/fusion_sparse_valid.py
+      - src/opfusion/fusion_verify.py
+      - tests/test_fusion_stateful_dual_timescale.py
+      - tests/test_fusion_stateful_dual_timescale_confirmatory.py
+      - tests/test_fusion_stateful_dual_timescale_neg_neutral.py
+      - runs/gpt_bias_fusion_factory_surface_v3/**
+  workflow_dispatch:
+
+jobs:
+  confirm-all-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test confirmatory implementation
+        run: pytest -q tests/test_fusion_stateful_dual_timescale.py tests/test_fusion_stateful_dual_timescale_confirmatory.py tests/test_fusion_stateful_dual_timescale_neg_neutral.py
+      - name: Confirm fixed candidates with all sources
+        shell: bash
+        run: |
+          set +e
+          python -m opfusion.fusion_stateful_dual_timescale_confirmatory \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --state-search-examples-per-operator 1 \
+            --verification-examples-per-operator 24 \
+            --maximum-verification-candidates 3 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --state-search-seed 731500 \
+            --verification-seed 732000 \
+            --device cpu \
+            --out evaluations/fusion_stateful_dual_timescale_confirmatory/all_sources.json \
+            > confirm-all.log 2>&1
+          status=$?
+          echo "$status" > confirm-all.status
+          cat confirm-all.log
+          exit "$status"
+      - name: Print fixed all-source result
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('evaluations/fusion_stateful_dual_timescale_confirmatory/all_sources.json')
+          if path.is_file():
+              report = json.loads(path.read_text())
+              print(json.dumps({
+                  'ranked_methods': report.get('ranked_methods'),
+                  'recommended': report.get('recommended_validation_composition'),
+              }, indent=2, sort_keys=True))
+          PY
+      - name: Upload fixed all-source result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-stateful-dual-timescale-confirmatory-all-sources
+          path: |
+            confirm-all.log
+            confirm-all.status
+            evaluations/fusion_stateful_dual_timescale_confirmatory/all_sources.json
+          if-no-files-found: warn
+      - name: Enforce fixed all-source success
+        if: always()
+        run: test "$(cat confirm-all.status)" = "0"
+
+  confirm-neg-neutral:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test confirmatory NEG-neutral implementation
+        run: pytest -q tests/test_fusion_stateful_dual_timescale.py tests/test_fusion_stateful_dual_timescale_confirmatory.py tests/test_fusion_stateful_dual_timescale_neg_neutral.py
+      - name: Confirm fixed candidates with NEG neutralized
+        shell: bash
+        run: |
+          set +e
+          python -m opfusion.fusion_stateful_dual_timescale_confirmatory_neg_neutral \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --state-search-examples-per-operator 1 \
+            --verification-examples-per-operator 24 \
+            --maximum-verification-candidates 3 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --state-search-seed 731500 \
+            --verification-seed 732000 \
+            --device cpu \
+            --out evaluations/fusion_stateful_dual_timescale_confirmatory/neg_neutral.json \
+            > confirm-neg.log 2>&1
+          status=$?
+          echo "$status" > confirm-neg.status
+          cat confirm-neg.log
+          exit "$status"
+      - name: Print fixed NEG-neutralized result
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('evaluations/fusion_stateful_dual_timescale_confirmatory/neg_neutral.json')
+          if path.is_file():
+              report = json.loads(path.read_text())
+              print(json.dumps({
+                  'ranked_methods': report.get('ranked_methods'),
+                  'recommended': report.get('recommended_validation_composition'),
+              }, indent=2, sort_keys=True))
+          PY
+      - name: Upload fixed NEG-neutralized result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-stateful-dual-timescale-confirmatory-neg-neutral
+          path: |
+            confirm-neg.log
+            confirm-neg.status
+            evaluations/fusion_stateful_dual_timescale_confirmatory/neg_neutral.json
+          if-no-files-found: warn
+      - name: Enforce fixed NEG-neutralized success
+        if: always()
+        run: test "$(cat confirm-neg.status)" = "0"
