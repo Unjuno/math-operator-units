@@ -12,11 +12,13 @@ _original_fit_mixer = implementation.fit_mixer
 
 
 def fit_mixer_deterministic(**kwargs: Any):
-    """Run the existing mixer fit with deterministic parameter initialization.
+    """Run the existing mixer fit with deterministic initialization and reductions.
 
     The original fit function uses its seed for minibatch permutations but creates
-    the neural mixer before seeding PyTorch's global RNG. Forking the RNG here makes
-    model initialization reproducible without perturbing caller RNG state.
+    the neural mixer before seeding PyTorch's global RNG. CPU parallel reductions
+    can also produce small cross-run floating-point differences. This wrapper forks
+    RNG state, seeds initialization, enables deterministic algorithms, and performs
+    calibration with one CPU thread before restoring caller settings.
     """
     seed = int(kwargs["seed"])
     batch = kwargs["batch"]
@@ -24,11 +26,20 @@ def fit_mixer_deterministic(**kwargs: Any):
     if batch.base_logits.is_cuda:
         device_index = batch.base_logits.device.index
         cuda_devices = [0 if device_index is None else int(device_index)]
-    with torch.random.fork_rng(devices=cuda_devices):
-        torch.manual_seed(seed)
-        if cuda_devices:
-            torch.cuda.manual_seed_all(seed)
-        return _original_fit_mixer(**kwargs)
+
+    previous_threads = torch.get_num_threads()
+    previous_deterministic = torch.are_deterministic_algorithms_enabled()
+    try:
+        torch.set_num_threads(1)
+        torch.use_deterministic_algorithms(True)
+        with torch.random.fork_rng(devices=cuda_devices):
+            torch.manual_seed(seed)
+            if cuda_devices:
+                torch.cuda.manual_seed_all(seed)
+            return _original_fit_mixer(**kwargs)
+    finally:
+        torch.use_deterministic_algorithms(previous_deterministic)
+        torch.set_num_threads(previous_threads)
 
 
 implementation.fit_mixer = fit_mixer_deterministic
