@@ -12,14 +12,7 @@ _original_fit_mixer = implementation.fit_mixer
 
 
 def fit_mixer_deterministic(**kwargs: Any):
-    """Run the existing mixer fit with deterministic initialization and reductions.
-
-    The original fit function uses its seed for minibatch permutations but creates
-    the neural mixer before seeding PyTorch's global RNG. CPU parallel reductions
-    can also produce small cross-run floating-point differences. This wrapper forks
-    RNG state, seeds initialization, enables deterministic algorithms, and performs
-    calibration with one CPU thread before restoring caller settings.
-    """
+    """Run the existing mixer fit with deterministic initialization and reductions."""
     seed = int(kwargs["seed"])
     batch = kwargs["batch"]
     cuda_devices: list[int] = []
@@ -29,15 +22,18 @@ def fit_mixer_deterministic(**kwargs: Any):
 
     previous_threads = torch.get_num_threads()
     previous_deterministic = torch.are_deterministic_algorithms_enabled()
+    previous_mkldnn = torch.backends.mkldnn.enabled
     try:
         torch.set_num_threads(1)
         torch.use_deterministic_algorithms(True)
+        torch.backends.mkldnn.enabled = False
         with torch.random.fork_rng(devices=cuda_devices):
             torch.manual_seed(seed)
             if cuda_devices:
                 torch.cuda.manual_seed_all(seed)
             return _original_fit_mixer(**kwargs)
     finally:
+        torch.backends.mkldnn.enabled = previous_mkldnn
         torch.use_deterministic_algorithms(previous_deterministic)
         torch.set_num_threads(previous_threads)
 
@@ -46,7 +42,19 @@ implementation.fit_mixer = fit_mixer_deterministic
 
 
 def main() -> int:
-    return confirmatory.main()
+    """Run data collection, calibration, and verification deterministically."""
+    previous_threads = torch.get_num_threads()
+    previous_deterministic = torch.are_deterministic_algorithms_enabled()
+    previous_mkldnn = torch.backends.mkldnn.enabled
+    try:
+        torch.set_num_threads(1)
+        torch.use_deterministic_algorithms(True)
+        torch.backends.mkldnn.enabled = False
+        return confirmatory.main()
+    finally:
+        torch.backends.mkldnn.enabled = previous_mkldnn
+        torch.use_deterministic_algorithms(previous_deterministic)
+        torch.set_num_threads(previous_threads)
 
 
 if __name__ == "__main__":
