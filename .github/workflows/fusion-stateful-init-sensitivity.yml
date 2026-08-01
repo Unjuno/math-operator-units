@@ -1,0 +1,89 @@
+name: fusion-stateful-init-sensitivity
+
+concurrency:
+  group: fusion-stateful-init-sensitivity-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-stateful-init-sensitivity.yml
+      - src/opfusion/fusion_stateful_dual_timescale_init_sensitivity.py
+      - src/opfusion/fusion_stateful_dual_timescale_confirmatory_deterministic.py
+      - tests/test_fusion_stateful_dual_timescale_init_sensitivity.py
+  workflow_dispatch:
+
+jobs:
+  init-seed:
+    strategy:
+      fail-fast: false
+      matrix:
+        init_seed: [731000, 731001, 731002, 731003, 731004]
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test initialization isolation
+        run: pytest -q tests/test_fusion_stateful_dual_timescale_init_sensitivity.py tests/test_fusion_stateful_dual_timescale_deterministic.py
+      - name: Run fixed candidates with isolated initialization seed
+        shell: bash
+        env:
+          OPFUSION_MIXER_INIT_SEED: ${{ matrix.init_seed }}
+        run: |
+          set +e
+          python -m opfusion.fusion_stateful_dual_timescale_init_sensitivity \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --state-search-examples-per-operator 1 \
+            --verification-examples-per-operator 24 \
+            --maximum-verification-candidates 3 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --state-search-seed 731500 \
+            --verification-seed 732000 \
+            --device cpu \
+            --out evaluations/fusion_stateful_init_sensitivity/init_${{ matrix.init_seed }}.json \
+            > init-${{ matrix.init_seed }}.log 2>&1
+          status=$?
+          echo "$status" > init-${{ matrix.init_seed }}.status
+          cat init-${{ matrix.init_seed }}.log
+          exit "$status"
+      - name: Print result
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          seed = '${{ matrix.init_seed }}'
+          path = Path(f'evaluations/fusion_stateful_init_sensitivity/init_{seed}.json')
+          if path.is_file():
+              report = json.loads(path.read_text())
+              print(json.dumps({
+                  'init_seed': int(seed),
+                  'ranked_methods': report.get('ranked_methods'),
+                  'recommended': report.get('recommended_validation_composition'),
+              }, indent=2, sort_keys=True))
+          PY
+      - name: Upload initialization result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-stateful-init-${{ matrix.init_seed }}
+          path: |
+            init-${{ matrix.init_seed }}.log
+            init-${{ matrix.init_seed }}.status
+            evaluations/fusion_stateful_init_sensitivity/init_${{ matrix.init_seed }}.json
+          if-no-files-found: warn
+      - name: Enforce experiment success
+        if: always()
+        run: test "$(cat init-${{ matrix.init_seed }}.status)" = "0"
