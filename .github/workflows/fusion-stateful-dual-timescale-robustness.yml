@@ -1,0 +1,155 @@
+name: fusion-stateful-dual-timescale-robustness
+
+concurrency:
+  group: fusion-stateful-dual-timescale-robustness-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-stateful-dual-timescale-robustness.yml
+      - src/opfusion/fusion_stateful_dual_timescale.py
+      - src/opfusion/fusion_stateful_dual_timescale_neg_neutral.py
+      - src/opfusion/fusion_stateful_mixture.py
+      - src/opfusion/fusion_validity_mixture.py
+      - src/opfusion/fusion_sparse_valid.py
+      - src/opfusion/fusion_verify.py
+      - tests/test_fusion_stateful_dual_timescale.py
+      - tests/test_fusion_stateful_dual_timescale_neg_neutral.py
+      - runs/gpt_bias_fusion_factory_surface_v3/**
+  workflow_dispatch:
+
+jobs:
+  robust-all-sources:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test dual-timescale implementation
+        run: pytest -q tests/test_fusion_stateful_dual_timescale.py tests/test_fusion_stateful_dual_timescale_neg_neutral.py
+      - name: Run robust all-source search
+        shell: bash
+        run: |
+          set +e
+          python -m opfusion.fusion_stateful_dual_timescale \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --state-search-examples-per-operator 4 \
+            --verification-examples-per-operator 24 \
+            --maximum-verification-candidates 8 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --state-search-seed 731500 \
+            --verification-seed 732000 \
+            --device cpu \
+            --out evaluations/fusion_stateful_dual_timescale_robust/all_sources.json \
+            > all-sources.log 2>&1
+          status=$?
+          echo "$status" > all-sources.status
+          cat all-sources.log
+          exit "$status"
+      - name: Print all-source result
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('evaluations/fusion_stateful_dual_timescale_robust/all_sources.json')
+          if path.is_file():
+              report = json.loads(path.read_text())
+              print(json.dumps({
+                  'selected_candidates': report.get('selected_candidates'),
+                  'recommended': report.get('recommended_validation_composition'),
+                  'passing_methods': report.get('passing_methods'),
+              }, indent=2, sort_keys=True))
+          PY
+      - name: Upload all-source result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-stateful-dual-timescale-robust-all-sources
+          path: |
+            all-sources.log
+            all-sources.status
+            evaluations/fusion_stateful_dual_timescale_robust/all_sources.json
+          if-no-files-found: warn
+      - name: Enforce all-source success
+        if: always()
+        run: test "$(cat all-sources.status)" = "0"
+
+  robust-neg-neutral:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test NEG-neutralization implementation
+        run: pytest -q tests/test_fusion_stateful_dual_timescale.py tests/test_fusion_stateful_dual_timescale_neg_neutral.py
+      - name: Run robust NEG-neutralized search
+        shell: bash
+        run: |
+          set +e
+          python -m opfusion.fusion_stateful_dual_timescale_neg_neutral \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --state-search-examples-per-operator 4 \
+            --verification-examples-per-operator 24 \
+            --maximum-verification-candidates 8 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --state-search-seed 731500 \
+            --verification-seed 732000 \
+            --device cpu \
+            --out evaluations/fusion_stateful_dual_timescale_robust/neg_neutral.json \
+            > neg-neutral.log 2>&1
+          status=$?
+          echo "$status" > neg-neutral.status
+          cat neg-neutral.log
+          exit "$status"
+      - name: Print NEG-neutralized result
+        if: always()
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('evaluations/fusion_stateful_dual_timescale_robust/neg_neutral.json')
+          if path.is_file():
+              report = json.loads(path.read_text())
+              print(json.dumps({
+                  'selected_candidates': report.get('selected_candidates'),
+                  'recommended': report.get('recommended_validation_composition'),
+                  'passing_methods': report.get('passing_methods'),
+              }, indent=2, sort_keys=True))
+          PY
+      - name: Upload NEG-neutralized result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-stateful-dual-timescale-robust-neg-neutral
+          path: |
+            neg-neutral.log
+            neg-neutral.status
+            evaluations/fusion_stateful_dual_timescale_robust/neg_neutral.json
+          if-no-files-found: warn
+      - name: Enforce NEG-neutralized success
+        if: always()
+        run: test "$(cat neg-neutral.status)" = "0"
