@@ -41,6 +41,7 @@ jobs:
           set +e
           tag="$(echo '${{ matrix.strength }}' | tr '.' '_')"
           python -m opfusion.fusion_oracle_sequential_composition \
+            --root "$GITHUB_WORKSPACE" \
             --examples-per-pair 4 \
             --data-seed 733000 \
             --calibration-examples-per-operator 8 \
