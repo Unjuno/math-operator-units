@@ -1,0 +1,101 @@
+name: fusion-stateful-oracle-operator
+
+concurrency:
+  group: fusion-stateful-oracle-operator-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-stateful-oracle-operator.yml
+      - src/opfusion/fusion_stateful_oracle_operator.py
+      - tests/test_fusion_stateful_oracle_operator.py
+  workflow_dispatch:
+
+jobs:
+  oracle-operator:
+    strategy:
+      fail-fast: false
+      matrix:
+        strength: ['0.0', '0.5', '1.0', '2.0', '4.0', '8.0']
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test oracle operator conditioning
+        run: >-
+          pytest -q
+          tests/test_fusion_stateful_oracle_operator.py
+          tests/test_fusion_stateful_dual_timescale_init_ensemble.py
+          tests/test_fusion_stateful_dual_timescale_deterministic.py
+      - name: Run oracle operator sweep
+        shell: bash
+        env:
+          OPFUSION_MIXER_ENSEMBLE_MODE: arithmetic
+          OPFUSION_ORACLE_OPERATOR_STRENGTH: ${{ matrix.strength }}
+        run: |
+          set +e
+          tag="$(echo '${{ matrix.strength }}' | tr '.' '_')"
+          python -m opfusion.fusion_stateful_oracle_operator \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --state-search-examples-per-operator 1 \
+            --verification-examples-per-operator 24 \
+            --maximum-verification-candidates 3 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --state-search-seed 731500 \
+            --verification-seed 732000 \
+            --device cpu \
+            --out "evaluations/fusion_stateful_oracle_operator/strength-${tag}.json" \
+            > "oracle-${tag}.log" 2>&1
+          status=$?
+          echo "$status" > "oracle-${tag}.status"
+          cat "oracle-${tag}.log"
+          exit "$status"
+      - name: Print oracle result
+        if: always()
+        shell: bash
+        run: |
+          tag="$(echo '${{ matrix.strength }}' | tr '.' '_')"
+          python - <<PY
+          import json
+          from pathlib import Path
+
+          strength = '${{ matrix.strength }}'
+          path = Path('evaluations/fusion_stateful_oracle_operator/strength-' + '${tag}' + '.json')
+          if path.is_file():
+              report = json.loads(path.read_text())
+              print(json.dumps({
+                  'strength': strength,
+                  'ranked_methods': report.get('ranked_methods'),
+                  'recommended': report.get('recommended_validation_composition'),
+                  'oracle_operator_strength': report.get('oracle_operator_strength'),
+              }, indent=2, sort_keys=True))
+          PY
+      - name: Upload oracle result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-stateful-oracle-operator-${{ matrix.strength }}
+          path: |
+            oracle-*.log
+            oracle-*.status
+            evaluations/fusion_stateful_oracle_operator/*.json
+          if-no-files-found: warn
+      - name: Enforce oracle run success
+        if: always()
+        shell: bash
+        run: |
+          tag="$(echo '${{ matrix.strength }}' | tr '.' '_')"
+          test "$(cat "oracle-${tag}.status")" = "0"
