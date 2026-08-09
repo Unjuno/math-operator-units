@@ -1,0 +1,64 @@
+name: fusion-soft-boundary-gate-threshold
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-soft-boundary-gate-threshold.yml
+  workflow_dispatch:
+
+jobs:
+  threshold:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {label: both-100, fast: '1.0', slow: '1.0'}
+          - {label: fast100-slow875, fast: '1.0', slow: '0.875'}
+          - {label: fast100-slow750, fast: '1.0', slow: '0.75'}
+          - {label: fast875-slow100, fast: '0.875', slow: '1.0'}
+          - {label: fast750-slow100, fast: '0.75', slow: '1.0'}
+          - {label: both-875, fast: '0.875', slow: '0.875'}
+          - {label: both-750, fast: '0.75', slow: '0.75'}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -e '.[dev]'
+      - run: pytest -q tests/test_fusion_timescale_specific_boundary_reset.py tests/test_fusion_controller_state_boundary_carry.py tests/test_fusion_learned_operator_controller.py
+      - name: Evaluate
+        env:
+          OPFUSION_MIXER_ENSEMBLE_MODE: arithmetic
+          OPFUSION_CONTROLLER_FEATURE_MODE: full
+          OPFUSION_CONTROLLER_OPERATOR_STRENGTH: '1.0'
+          OPFUSION_FAST_BOUNDARY_RESET: ${{ matrix.fast }}
+          OPFUSION_SLOW_BOUNDARY_RESET: ${{ matrix.slow }}
+        run: |
+          python -m opfusion.fusion_timescale_specific_boundary_reset \
+            --root "$GITHUB_WORKSPACE" \
+            --examples-per-pair 4 \
+            --data-seed 733000 \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --controller-seed 734000 \
+            --controller-examples-per-operator 64 \
+            --controller-validation-examples-per-operator 32 \
+            --controller-steps 300 \
+            --controller-learning-rate 0.02 \
+            --device cpu \
+            --out "evaluations/soft_boundary_gate_threshold/${{ matrix.label }}.json"
+      - name: Show result
+        run: cat "evaluations/soft_boundary_gate_threshold/${{ matrix.label }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fusion-soft-boundary-gate-threshold-${{ matrix.label }}
+          path: evaluations/soft_boundary_gate_threshold/${{ matrix.label }}.json
