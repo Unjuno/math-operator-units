@@ -1,0 +1,115 @@
+name: fusion-controller-state-boundary-carry
+
+concurrency:
+  group: fusion-controller-state-boundary-carry-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-controller-state-boundary-carry.yml
+      - src/opfusion/fusion_controller_state_boundary_carry.py
+      - tests/test_fusion_controller_state_boundary_carry.py
+  workflow_dispatch:
+
+jobs:
+  boundary-state-carry:
+    strategy:
+      fail-fast: false
+      matrix:
+        reset: ['1.0', '0.5', '0.0']
+        strength: ['1.0', '2.0']
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test boundary carry helpers
+        run: >-
+          pytest -q
+          tests/test_fusion_controller_state_boundary_carry.py
+          tests/test_fusion_learned_operator_controller.py
+          tests/test_fusion_oracle_sequential_composition.py
+      - name: Run boundary carry composition
+        shell: bash
+        env:
+          OPFUSION_MIXER_ENSEMBLE_MODE: arithmetic
+          OPFUSION_CONTROLLER_FEATURE_MODE: full
+          OPFUSION_CONTROLLER_OPERATOR_STRENGTH: ${{ matrix.strength }}
+        run: |
+          set +e
+          reset_tag="$(echo '${{ matrix.reset }}' | tr '.' '_')"
+          strength_tag="$(echo '${{ matrix.strength }}' | tr '.' '_')"
+          tag="reset-${reset_tag}-strength-${strength_tag}"
+          python -m opfusion.fusion_controller_state_boundary_carry \
+            --root "$GITHUB_WORKSPACE" \
+            --boundary-reset '${{ matrix.reset }}' \
+            --examples-per-pair 4 \
+            --data-seed 733000 \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --controller-seed 734000 \
+            --controller-examples-per-operator 64 \
+            --controller-validation-examples-per-operator 32 \
+            --controller-steps 300 \
+            --controller-learning-rate 0.02 \
+            --device cpu \
+            --out "evaluations/controller_state_boundary_carry/${tag}.json" \
+            > "boundary-${tag}.log" 2>&1
+          status=$?
+          echo "$status" > "boundary-${tag}.status"
+          cat "boundary-${tag}.log"
+          exit "$status"
+      - name: Print boundary carry result
+        if: always()
+        shell: bash
+        run: |
+          reset_tag="$(echo '${{ matrix.reset }}' | tr '.' '_')"
+          strength_tag="$(echo '${{ matrix.strength }}' | tr '.' '_')"
+          tag="reset-${reset_tag}-strength-${strength_tag}"
+          python - <<PY
+          import json
+          from pathlib import Path
+
+          path = Path('evaluations/controller_state_boundary_carry/${tag}.json')
+          if path.is_file():
+              report = json.loads(path.read_text())
+              print(json.dumps({
+                  'reset': report.get('boundary_reset'),
+                  'strength': report.get('controller_operator_strength'),
+                  'controller_fit_validation': report.get('controller_fit', {}).get('validation'),
+                  'controller_stage_accuracy': report.get('controller_stage_accuracy'),
+                  'mean_matching_source_weight': report.get('mean_matching_source_weight'),
+                  'mean_boundary_state_shift': report.get('mean_boundary_state_shift'),
+                  'aggregate': report.get('aggregate'),
+              }, indent=2, sort_keys=True))
+          PY
+      - name: Upload boundary carry result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-controller-state-boundary-carry-reset-${{ matrix.reset }}-strength-${{ matrix.strength }}
+          path: |
+            boundary-*.log
+            boundary-*.status
+            evaluations/controller_state_boundary_carry/*.json
+          if-no-files-found: warn
+      - name: Enforce boundary carry success
+        if: always()
+        shell: bash
+        run: |
+          reset_tag="$(echo '${{ matrix.reset }}' | tr '.' '_')"
+          strength_tag="$(echo '${{ matrix.strength }}' | tr '.' '_')"
+          tag="reset-${reset_tag}-strength-${strength_tag}"
+          test "$(cat "boundary-${tag}.status")" = "0"
