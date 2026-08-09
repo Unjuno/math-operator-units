@@ -1,0 +1,78 @@
+name: fusion-depth3-gate-hysteresis
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-depth3-gate-hysteresis.yml
+      - src/opfusion/fusion_depth3_gate_hysteresis.py
+      - tests/test_fusion_depth3_gate_hysteresis.py
+  workflow_dispatch:
+
+jobs:
+  depth3-gate-hysteresis:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {label: dynamic-rho0, mode: dynamic, rho: '0.0'}
+          - {label: dynamic-rho0875, mode: dynamic, rho: '0.875'}
+          - {label: dynamic-rho1, mode: dynamic, rho: '1.0'}
+          - {label: always-reset, mode: always_reset, rho: '0.0'}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -e '.[dev]'
+      - run: pytest -q tests/test_fusion_depth3_gate_hysteresis.py tests/test_fusion_recursive_depth3_composition.py tests/test_fusion_posterior_transition_boundary_gate.py
+      - name: Evaluate depth-3 gate law
+        env:
+          OPFUSION_MIXER_ENSEMBLE_MODE: arithmetic
+          OPFUSION_CONTROLLER_FEATURE_MODE: full
+          OPFUSION_CONTROLLER_OPERATOR_STRENGTH: '1.0'
+          OPFUSION_POSTERIOR_GATE_MODE: ${{ matrix.mode }}
+          OPFUSION_POSTERIOR_GATE_SCALE: '1.0'
+          OPFUSION_GATE_HYSTERESIS: ${{ matrix.rho }}
+        run: |
+          python -m opfusion.fusion_depth3_gate_hysteresis \
+            --root "$GITHUB_WORKSPACE" \
+            --examples-per-triple 1 \
+            --data-seed 735000 \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --controller-seed 734000 \
+            --controller-examples-per-operator 64 \
+            --controller-validation-examples-per-operator 32 \
+            --controller-steps 300 \
+            --controller-learning-rate 0.02 \
+            --device cpu \
+            --out "evaluations/depth3_gate_hysteresis/${{ matrix.label }}.json"
+      - name: Print result
+        run: |
+          python - <<PY
+          import json
+          from pathlib import Path
+          path = Path('evaluations/depth3_gate_hysteresis/${{ matrix.label }}.json')
+          report = json.loads(path.read_text())
+          print(json.dumps({
+              'label': '${{ matrix.label }}',
+              'rho': report['gate_hysteresis_rho'],
+              'aggregate': report['aggregate'],
+              'by_transition_count': report['by_transition_count'],
+              'mean_same_operator_gate': report['mean_same_operator_gate'],
+              'mean_switch_operator_gate': report['mean_switch_operator_gate'],
+          }, indent=2, sort_keys=True))
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fusion-depth3-gate-hysteresis-${{ matrix.label }}
+          path: evaluations/depth3_gate_hysteresis/${{ matrix.label }}.json
