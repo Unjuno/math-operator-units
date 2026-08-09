@@ -5,7 +5,9 @@ on:
     paths:
       - .github/workflows/fusion-nested-expression-structural-planner.yml
       - src/opfusion/fusion_nested_expression_structural_planner.py
+      - src/opfusion/fusion_nested_expression_structural_planner_bracket.py
       - tests/test_fusion_nested_expression_structural_planner.py
+      - tests/test_fusion_nested_expression_structural_planner_bracket.py
   workflow_dispatch:
 
 jobs:
@@ -18,7 +20,7 @@ jobs:
         with:
           python-version: '3.11'
       - run: python -m pip install -e '.[dev]'
-      - run: pytest -q tests/test_fusion_nested_expression_structural_planner.py tests/test_fusion_posterior_transition_boundary_gate.py tests/test_fusion_learned_operator_controller.py
+      - run: pytest -q tests/test_fusion_nested_expression_structural_planner.py tests/test_fusion_nested_expression_structural_planner_bracket.py tests/test_fusion_posterior_transition_boundary_gate.py tests/test_fusion_learned_operator_controller.py
       - name: Evaluate one-prompt nested execution
         env:
           OPFUSION_MIXER_ENSEMBLE_MODE: arithmetic
@@ -27,7 +29,7 @@ jobs:
           OPFUSION_POSTERIOR_GATE_MODE: dynamic
           OPFUSION_POSTERIOR_GATE_SCALE: '1.0'
         run: |
-          python -m opfusion.fusion_nested_expression_structural_planner \
+          python -m opfusion.fusion_nested_expression_structural_planner_bracket \
             --root "$GITHUB_WORKSPACE" \
             --examples-per-pair 4 \
             --data-seed 733000 \
