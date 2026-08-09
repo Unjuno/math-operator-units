@@ -1,0 +1,63 @@
+name: fusion-posterior-transition-boundary-gate
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-posterior-transition-boundary-gate.yml
+      - src/opfusion/fusion_posterior_transition_boundary_gate.py
+      - tests/test_fusion_posterior_transition_boundary_gate.py
+  workflow_dispatch:
+
+jobs:
+  posterior-transition-gate:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {label: dynamic-1_0, mode: dynamic, scale: '1.0'}
+          - {label: dynamic-0_875, mode: dynamic, scale: '0.875'}
+          - {label: always-reset, mode: always_reset, scale: '1.0'}
+          - {label: always-carry, mode: always_carry, scale: '1.0'}
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - run: python -m pip install -e '.[dev]'
+      - run: pytest -q tests/test_fusion_posterior_transition_boundary_gate.py tests/test_fusion_learned_operator_controller.py tests/test_fusion_controller_state_boundary_carry.py
+      - name: Evaluate posterior transition gate
+        env:
+          OPFUSION_MIXER_ENSEMBLE_MODE: arithmetic
+          OPFUSION_CONTROLLER_FEATURE_MODE: full
+          OPFUSION_CONTROLLER_OPERATOR_STRENGTH: '1.0'
+          OPFUSION_POSTERIOR_GATE_MODE: ${{ matrix.mode }}
+          OPFUSION_POSTERIOR_GATE_SCALE: ${{ matrix.scale }}
+        run: |
+          python -m opfusion.fusion_posterior_transition_boundary_gate \
+            --root "$GITHUB_WORKSPACE" \
+            --examples-per-pair 4 \
+            --data-seed 733000 \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --controller-seed 734000 \
+            --controller-examples-per-operator 64 \
+            --controller-validation-examples-per-operator 32 \
+            --controller-steps 300 \
+            --controller-learning-rate 0.02 \
+            --device cpu \
+            --out "evaluations/posterior_transition_boundary_gate/${{ matrix.label }}.json"
+      - name: Show result
+        run: cat "evaluations/posterior_transition_boundary_gate/${{ matrix.label }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: fusion-posterior-transition-boundary-gate-${{ matrix.label }}
+          path: evaluations/posterior_transition_boundary_gate/${{ matrix.label }}.json
