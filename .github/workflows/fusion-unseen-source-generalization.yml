@@ -10,13 +10,6 @@ concurrency:
   cancel-in-progress: true
 
 on:
-  push:
-    branches:
-      - experiment/unseen-source-generalization
-    paths:
-      - .github/workflows/fusion-unseen-source-generalization.yml
-      - src/opfusion/fusion_unseen_source_generalization.py
-      - tests/test_fusion_unseen_source_generalization.py
   pull_request:
     paths:
       - .github/workflows/fusion-unseen-source-generalization.yml
