@@ -1,4 +1,4 @@
-name: fusion-mixed-novel-plugin-admission
+name: fusion-hard-null-novel-plugin-admission
 
 permissions:
   contents: read
@@ -6,20 +6,20 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: fusion-mixed-novel-plugin-admission-${{ github.event.pull_request.number || github.ref }}
+  group: fusion-hard-null-novel-plugin-admission-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 on:
   pull_request:
     paths:
       - .github/workflows/fusion-unseen-source-generalization.yml
+      - src/opfusion/fusion_hard_null_plugin_admission.py
+      - tests/test_fusion_hard_null_plugin_admission.py
       - src/opfusion/fusion_mixed_novel_plugin_admission.py
-      - tests/test_fusion_mixed_novel_plugin_admission.py
-      - src/opfusion/fusion_behavioral_admission_seed_replication.py
   workflow_dispatch:
 
 jobs:
-  mixed-plugin-pilot:
+  hard-null-pilot:
     strategy:
       fail-fast: false
       matrix:
@@ -37,66 +37,68 @@ jobs:
           python-version: '3.11'
       - name: Install package
         run: python -m pip install -e '.[dev]'
-      - name: Test mixed plugin helpers
-        run: pytest -q tests/test_fusion_mixed_novel_plugin_admission.py tests/test_fusion_behavioral_admission_seed_replication.py
-      - name: Run mixed novel plugin pilot
+      - name: Test hard-null helpers
+        run: pytest -q tests/test_fusion_hard_null_plugin_admission.py tests/test_fusion_mixed_novel_plugin_admission.py
+      - name: Run seen-calibrated hard-null pilot
         shell: bash
         run: |
           set +e
           heldout='${{ matrix.heldout }}'
-          mkdir -p evaluations/mixed_novel_plugin_admission
-          python -m opfusion.fusion_mixed_novel_plugin_admission \
+          mkdir -p evaluations/hard_null_plugin_admission
+          python -m opfusion.fusion_hard_null_plugin_admission \
             --root "$GITHUB_WORKSPACE" \
             --heldout "$heldout" \
             --scorer-seed 741000 \
             --train-seed 741000 \
+            --calibration-seed 746000 \
+            --calibration-examples 6 \
             --data-seed 741500 \
             --consensus-power 2.0 \
             --examples-per-pair 2 \
             --max-new-tokens 64 \
-            --out "evaluations/mixed_novel_plugin_admission/${heldout}.json" \
-            > "mixed-${heldout}.log" 2>&1
+            --out "evaluations/hard_null_plugin_admission/${heldout}.json" \
+            > "hard-null-${heldout}.log" 2>&1
           status=$?
-          echo "$status" > "mixed-${heldout}.status"
-          cat "mixed-${heldout}.log"
+          echo "$status" > "hard-null-${heldout}.status"
+          cat "hard-null-${heldout}.log"
           exit "$status"
-      - name: Post mixed plugin summary to PR 48
+      - name: Post hard-null summary to PR 49
         if: success()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           heldout='${{ matrix.heldout }}'
-          result="evaluations/mixed_novel_plugin_admission/${heldout}.json"
+          result="evaluations/hard_null_plugin_admission/${heldout}.json"
           python - "$result" > summary.md <<'PY'
           import json, sys
           r=json.load(open(sys.argv[1], encoding='utf-8'))
-          d=r['correct_count_deltas']; h=r['heldout_operator']
-          bm=r['modes']['behavioral_mixed']['diagnostics']
-          useful=bm[h]; neg=bm[r['nuisance_source']]
-          print(f"### Mixed novel plugins: `{h}` + `scalar.neg`")
+          d=r['correct_count_deltas']; c=r['calibration']; h=r['heldout_operator']
+          hm=r['modes']['hard_mixed']['diagnostics']; useful=hm[h]; neg=hm[r['nuisance_source']]
+          print(f"### Hard-null admission: `{h}`")
           print()
-          for key in ('raw_useful_only','behavioral_useful_only','raw_mixed','behavioral_mixed'):
+          print(f"- seen-source calibrated threshold: `{c['threshold']:.6f}`; balanced accuracy `{c['balanced_accuracy']:.4f}`, TPR `{c['tpr']:.4f}`, TNR `{c['tnr']:.4f}`, rows `{c['rows']}`")
+          for key in ('continuous_useful','continuous_mixed','hard_useful','hard_mixed'):
               row=d[key]
-              print(f"- `{key}` insertion: involved `{row['heldout_involved']:+d}/42`, neither `{row['heldout_neither']:+d}/54`, net `{row['net']:+d}/96`")
-          raw=d['nuisance_marginal_raw']; beh=d['nuisance_marginal_behavioral']
-          print(f"- NEG marginal raw: involved `{raw['heldout_involved']:+d}`, neither `{raw['heldout_neither']:+d}`, net `{raw['net']:+d}/96`")
-          print(f"- NEG marginal behavioral: involved `{beh['heldout_involved']:+d}`, neither `{beh['heldout_neither']:+d}`, net `{beh['net']:+d}/96`")
-          print(f"- useful consensus matching/nonmatching: `{useful['matching_mean_consensus']:.4f}` / `{useful['nonmatching_mean_consensus']:.4f}`; gate `{useful['mean_raw_gate']:.4f} -> {useful['mean_effective_gate']:.4f}`")
-          print(f"- NEG mean consensus: `{neg['mean_consensus']:.4f}`; gate `{neg['mean_raw_gate']:.4f} -> {neg['mean_effective_gate']:.4f}`")
+              print(f"- `{key}`: involved `{row['heldout_involved']:+d}/42`, neither `{row['heldout_neither']:+d}/54`, net `{row['net']:+d}/96`")
+          cont=d['nuisance_marginal_continuous']; hard=d['nuisance_marginal_hard']
+          print(f"- NEG marginal continuous: involved `{cont['heldout_involved']:+d}`, neither `{cont['heldout_neither']:+d}`, net `{cont['net']:+d}/96`")
+          print(f"- NEG marginal hard-null: involved `{hard['heldout_involved']:+d}`, neither `{hard['heldout_neither']:+d}`, net `{hard['net']:+d}/96`")
+          print(f"- useful hard consensus matching/nonmatching: `{useful['matching_mean_consensus']:.4f}` / `{useful['nonmatching_mean_consensus']:.4f}`; gate `{useful['mean_raw_gate']:.4f} -> {useful['mean_effective_gate']:.4f}`")
+          print(f"- NEG hard mean consensus: `{neg['mean_consensus']:.4f}`; gate `{neg['mean_raw_gate']:.4f} -> {neg['mean_effective_gate']:.4f}`")
           PY
-          gh pr comment 48 --repo Unjuno/math-operator-units --body-file summary.md
+          gh pr comment 49 --repo Unjuno/math-operator-units --body-file summary.md
       - name: Upload result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: mixed-plugin-${{ matrix.heldout }}
+          name: hard-null-${{ matrix.heldout }}
           path: |
-            mixed-*.log
-            mixed-*.status
-            evaluations/mixed_novel_plugin_admission/*.json
+            hard-null-*.log
+            hard-null-*.status
+            evaluations/hard_null_plugin_admission/*.json
           if-no-files-found: warn
       - name: Enforce experiment success
         if: always()
         shell: bash
-        run: test "$(cat mixed-${{ matrix.heldout }}.status)" = "0"
+        run: test "$(cat hard-null-${{ matrix.heldout }}.status)" = "0"
