@@ -1,0 +1,90 @@
+name: fusion-behavioral-admission-protocol-audit
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+concurrency:
+  group: fusion-behavioral-admission-protocol-audit-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - src/opfusion/fusion_behavioral_admission_protocol_audit.py
+      - src/opfusion/fusion_unseen_source_behavioral_admission.py
+      - src/opfusion/fusion_unseen_source_residual_gating.py
+  workflow_dispatch:
+
+jobs:
+  protocol-audit:
+    strategy:
+      fail-fast: false
+      matrix:
+        heldout:
+          - scalar.min
+          - scalar.max
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Run protocol audit
+        shell: bash
+        run: |
+          set +e
+          heldout='${{ matrix.heldout }}'
+          mkdir -p evaluations/behavioral_admission_protocol_audit
+          python -m opfusion.fusion_behavioral_admission_protocol_audit \
+            --root "$GITHUB_WORKSPACE" \
+            --heldout "$heldout" \
+            --examples-per-pair 2 \
+            --train-seed 741000 \
+            --data-seed 741500 \
+            --scorer-seed 741000 \
+            --max-new-tokens 64 \
+            --device cpu \
+            --out "evaluations/behavioral_admission_protocol_audit/${heldout}.json" \
+            > "protocol-${heldout}.log" 2>&1
+          status=$?
+          echo "$status" > "protocol-${heldout}.status"
+          cat "protocol-${heldout}.log"
+          exit "$status"
+      - name: Post audit summary to PR 45
+        if: success()
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          heldout='${{ matrix.heldout }}'
+          result="evaluations/behavioral_admission_protocol_audit/${heldout}.json"
+          python - "$result" > summary.md <<'PY'
+          import json, sys
+          r=json.load(open(sys.argv[1], encoding='utf-8'))
+          print(f"### Protocol audit: `{r['heldout_operator']}`")
+          print()
+          print(f"- without source exact pair match: `{r['without_exact_match']}`; differing pairs `{len(r['without_pair_differences'])}`")
+          print(f"- raw insertion exact pair match: `{r['raw_exact_match']}`; differing pairs `{len(r['raw_pair_differences'])}`")
+          print(f"- custom without E2E: `{r['custom_without']['end_to_end_accuracy']}`; reference `{r['reference_without']['end_to_end_accuracy']}`")
+          print(f"- custom raw E2E: `{r['custom_raw']['end_to_end_accuracy']}`; reference `{r['reference_raw']['end_to_end_accuracy']}`")
+          PY
+          gh pr comment 45 --repo Unjuno/math-operator-units --body-file summary.md
+      - name: Upload audit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: behavioral-protocol-${{ matrix.heldout }}
+          path: |
+            protocol-*.log
+            protocol-*.status
+            evaluations/behavioral_admission_protocol_audit/*.json
+          if-no-files-found: warn
+      - name: Enforce audit execution
+        if: always()
+        shell: bash
+        run: test "$(cat protocol-${{ matrix.heldout }}.status)" = "0"
