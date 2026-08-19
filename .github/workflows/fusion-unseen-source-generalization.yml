@@ -1,4 +1,4 @@
-name: fusion-unseen-source-behavioral-admission
+name: fusion-behavioral-admission-seed-replication
 
 permissions:
   contents: read
@@ -6,21 +6,20 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: fusion-unseen-source-behavioral-admission-${{ github.event.pull_request.number || github.ref }}
+  group: fusion-behavioral-admission-seed-replication-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 on:
   pull_request:
     paths:
       - .github/workflows/fusion-unseen-source-generalization.yml
+      - src/opfusion/fusion_behavioral_admission_seed_replication.py
+      - tests/test_fusion_behavioral_admission_seed_replication.py
       - src/opfusion/fusion_unseen_source_behavioral_admission.py
-      - tests/test_fusion_unseen_source_behavioral_admission.py
-      - src/opfusion/fusion_unseen_source_rollout_consensus.py
-      - src/opfusion/fusion_unseen_source_residual_gating.py
   workflow_dispatch:
 
 jobs:
-  behavioral-admission:
+  deterministic-replication:
     strategy:
       fail-fast: false
       matrix:
@@ -29,6 +28,11 @@ jobs:
           - aggregation.sum
           - scalar.min
           - scalar.max
+        scorer_seed:
+          - 741000
+          - 741001
+          - 741002
+          - 741003
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -38,75 +42,72 @@ jobs:
           python-version: '3.11'
       - name: Install package
         run: python -m pip install -e '.[dev]'
-      - name: Test behavioral admission helpers
-        run: pytest -q tests/test_fusion_unseen_source_residual_gating.py tests/test_fusion_unseen_source_rollout_consensus.py tests/test_fusion_unseen_source_behavioral_admission.py
-      - name: Run behavioral admission pilot
+      - name: Test deterministic replication helpers
+        run: pytest -q tests/test_fusion_behavioral_admission_seed_replication.py tests/test_fusion_unseen_source_behavioral_admission.py
+      - name: Run deterministic seed replication
         shell: bash
         run: |
           set +e
           heldout='${{ matrix.heldout }}'
-          mkdir -p evaluations/unseen_source_behavioral_admission
-          python -m opfusion.fusion_unseen_source_behavioral_admission \
+          seed='${{ matrix.scorer_seed }}'
+          tag="${heldout}-s${seed}"
+          mkdir -p evaluations/behavioral_admission_seed_replication
+          python -m opfusion.fusion_behavioral_admission_seed_replication \
             --root "$GITHUB_WORKSPACE" \
             --heldout "$heldout" \
-            --train-examples-per-operator 24 \
-            --max-positions-per-cohort 3072 \
+            --scorer-seed "$seed" \
             --train-seed 741000 \
-            --sketch-size 32 \
-            --sketch-seed 743000 \
-            --hidden-size 64 \
-            --max-gate 4.0 \
-            --learning-rate 0.01 \
-            --steps 600 \
-            --batch-positions 256 \
-            --gate-penalty 0.01 \
-            --scorer-seed 741000 \
+            --data-seed 741500 \
             --consensus-power 2.0 \
             --examples-per-pair 2 \
-            --data-seed 741500 \
             --max-new-tokens 64 \
-            --device cpu \
-            --out "evaluations/unseen_source_behavioral_admission/${heldout}.json" \
-            > "behavioral-${heldout}.log" 2>&1
+            --out "evaluations/behavioral_admission_seed_replication/${tag}.json" \
+            > "replication-${tag}.log" 2>&1
           status=$?
-          echo "$status" > "behavioral-${heldout}.status"
-          cat "behavioral-${heldout}.log"
+          echo "$status" > "replication-${tag}.status"
+          cat "replication-${tag}.log"
           exit "$status"
-      - name: Post behavioral summary to PR 45
+      - name: Post deterministic replication summary to PR 47
         if: success()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           heldout='${{ matrix.heldout }}'
-          result="evaluations/unseen_source_behavioral_admission/${heldout}.json"
+          seed='${{ matrix.scorer_seed }}'
+          tag="${heldout}-s${seed}"
+          result="evaluations/behavioral_admission_seed_replication/${tag}.json"
           python - "$result" > summary.md <<'PY'
           import json, sys
           r=json.load(open(sys.argv[1], encoding='utf-8'))
-          h=r['heldout_operator']; d=r['insertion_deltas']
-          raw=r['raw_heldout_insertion']; beh=r['behavioral_heldout_insertion']; diag=beh['diagnostics']
-          def e2e(block, subset): return block['subsets'][subset]['end_to_end_accuracy']
-          print(f"### Behavioral admission: `{h}`")
+          h=r['heldout_operator']; seed=r['replication']['scorer_seed']; d=r['insertion_deltas']
+          diag=r['behavioral_heldout_insertion']['diagnostics']; runtime=r['replication']['runtime']
+          ri=round(d['raw_involved']*42); rn=round(d['raw_neither']*54)
+          bi=round(d['behavioral_involved']*42); bn=round(d['behavioral_neither']*54)
+          print(f"### Deterministic replication: `{h}`, seed `{seed}`")
           print()
-          print(f"- raw insertion delta, involved / neither: `{d['raw_involved']:+.4f}` / `{d['raw_neither']:+.4f}`")
-          print(f"- consensus² insertion delta, involved / neither: `{d['behavioral_involved']:+.4f}` / `{d['behavioral_neither']:+.4f}`")
-          print(f"- raw involved/neither E2E: `{e2e(raw,'heldout_involved'):.4f}` / `{e2e(raw,'heldout_neither'):.4f}`")
-          print(f"- behavioral involved/neither E2E: `{e2e(beh,'heldout_involved'):.4f}` / `{e2e(beh,'heldout_neither'):.4f}`")
-          print(f"- held-out consensus matching vs nonmatching task: `{diag['mean_matching_heldout_consensus']:.4f} vs {diag['mean_nonmatching_heldout_consensus']:.4f}`")
-          print(f"- held-out gate raw -> effective: `{diag['mean_heldout_raw_gate']:.4f} -> {diag['mean_heldout_effective_gate']:.4f}`")
+          print(f"- raw insertion counts involved/neither: `{ri:+d}/42`, `{rn:+d}/54` (net `{ri+rn:+d}/96`)")
+          print(f"- behavioral counts involved/neither: `{bi:+d}/42`, `{bn:+d}/54` (net `{bi+bn:+d}/96`)")
+          print(f"- behavioral minus raw net insertion: `{(bi+bn)-(ri+rn):+d}/96`")
+          print(f"- consensus matching/nonmatching: `{diag['mean_matching_heldout_consensus']:.4f}` / `{diag['mean_nonmatching_heldout_consensus']:.4f}`")
+          print(f"- held-out gate raw/effective: `{diag['mean_heldout_raw_gate']:.4f}` / `{diag['mean_heldout_effective_gate']:.4f}`")
+          print(f"- deterministic runtime: `{runtime}`")
           PY
-          gh pr comment 45 --repo Unjuno/math-operator-units --body-file summary.md
+          gh pr comment 47 --repo Unjuno/math-operator-units --body-file summary.md
       - name: Upload result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: behavioral-${{ matrix.heldout }}
+          name: behavioral-replication-${{ matrix.heldout }}-s${{ matrix.scorer_seed }}
           path: |
-            behavioral-*.log
-            behavioral-*.status
-            evaluations/unseen_source_behavioral_admission/*.json
+            replication-*.log
+            replication-*.status
+            evaluations/behavioral_admission_seed_replication/*.json
           if-no-files-found: warn
       - name: Enforce experiment success
         if: always()
         shell: bash
-        run: test "$(cat behavioral-${{ matrix.heldout }}.status)" = "0"
+        run: |
+          heldout='${{ matrix.heldout }}'
+          seed='${{ matrix.scorer_seed }}'
+          test "$(cat replication-${heldout}-s${seed}.status)" = "0"
