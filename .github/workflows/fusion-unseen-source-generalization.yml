@@ -14,11 +14,12 @@ on:
     paths:
       - .github/workflows/fusion-unseen-source-generalization.yml
       - src/opfusion/fusion_unseen_source_generalization.py
+      - src/opfusion/fusion_unseen_source_invariant.py
       - tests/test_fusion_unseen_source_generalization.py
   workflow_dispatch:
 
 jobs:
-  leave-one-unit-out:
+  leave-one-unit-out-invariant:
     strategy:
       fail-fast: false
       matrix:
@@ -36,15 +37,28 @@ jobs:
           python-version: '3.11'
       - name: Install package
         run: python -m pip install -e '.[dev]'
-      - name: Test identity-free scorer helpers
-        run: pytest -q tests/test_fusion_unseen_source_generalization.py
-      - name: Run leave-one-unit-out pilot
+      - name: Test source insertion invariance
+        shell: bash
+        run: |
+          python - <<'PY'
+          import torch
+          from opfusion import fusion_unseen_source_invariant as inv
+          torch.manual_seed(19)
+          existing = torch.randn(4, 37)
+          added = torch.randn(1, 37)
+          before = inv._source_features(existing)
+          after = inv._source_features(torch.cat([existing, added], dim=0))[:4]
+          assert before.shape[-1] == len(inv.FEATURE_NAMES) == 6
+          assert torch.allclose(before, after, atol=1e-7, rtol=1e-7)
+          print('insertion invariance ok')
+          PY
+      - name: Run insertion-invariant leave-one-unit-out pilot
         shell: bash
         run: |
           set +e
           heldout='${{ matrix.heldout }}'
-          mkdir -p evaluations/unseen_source_generalization
-          python -m opfusion.fusion_unseen_source_generalization \
+          mkdir -p evaluations/unseen_source_invariant
+          python -m opfusion.fusion_unseen_source_invariant \
             --root "$GITHUB_WORKSPACE" \
             --heldout "$heldout" \
             --train-examples-per-operator 24 \
@@ -59,59 +73,61 @@ jobs:
             --data-seed 741500 \
             --max-new-tokens 64 \
             --device cpu \
-            --out "evaluations/unseen_source_generalization/${heldout}.json" \
-            > "unseen-source-${heldout}.log" 2>&1
+            --out "evaluations/unseen_source_invariant/${heldout}.json" \
+            > "unseen-source-invariant-${heldout}.log" 2>&1
           status=$?
-          echo "$status" > "unseen-source-${heldout}.status"
-          cat "unseen-source-${heldout}.log"
+          echo "$status" > "unseen-source-invariant-${heldout}.status"
+          cat "unseen-source-invariant-${heldout}.log"
           exit "$status"
-      - name: Post result summary to PR 40
+      - name: Post invariant result summary to PR 40
         if: success()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           heldout='${{ matrix.heldout }}'
-          result="evaluations/unseen_source_generalization/${heldout}.json"
+          result="evaluations/unseen_source_invariant/${heldout}.json"
           python - "$result" > summary.md <<'PY'
           import json
           import sys
-          p = sys.argv[1]
-          r = json.load(open(p, encoding='utf-8'))
+          r = json.load(open(sys.argv[1], encoding='utf-8'))
           h = r['heldout_operator']
           w0 = r['without_heldout_source']
           w1 = r['with_heldout_source']
-          s0i = w0['subsets']['heldout_as_inner']['inner_accuracy']
-          s1i = w1['subsets']['heldout_as_inner']['inner_accuracy']
-          s0o = w0['subsets']['heldout_as_outer']['oracle_intermediate_outer_accuracy']
-          s1o = w1['subsets']['heldout_as_outer']['oracle_intermediate_outer_accuracy']
-          e0 = w0['subsets']['heldout_involved']['end_to_end_accuracy']
-          e1 = w1['subsets']['heldout_involved']['end_to_end_accuracy']
-          a0 = w0['aggregate']['end_to_end_accuracy']
-          a1 = w1['aggregate']['end_to_end_accuracy']
+          hi0 = w0['subsets']['heldout_as_inner']['inner_accuracy']
+          hi1 = w1['subsets']['heldout_as_inner']['inner_accuracy']
+          ho0 = w0['subsets']['heldout_as_outer']['oracle_intermediate_outer_accuracy']
+          ho1 = w1['subsets']['heldout_as_outer']['oracle_intermediate_outer_accuracy']
+          inv0 = w0['subsets']['heldout_involved']['end_to_end_accuracy']
+          inv1 = w1['subsets']['heldout_involved']['end_to_end_accuracy']
+          nei0 = w0['subsets']['heldout_neither']['end_to_end_accuracy']
+          nei1 = w1['subsets']['heldout_neither']['end_to_end_accuracy']
+          all0 = w0['aggregate']['end_to_end_accuracy']
+          all1 = w1['aggregate']['end_to_end_accuracy']
           fit = r['scorer_fit']
-          print(f"### Unseen-source pilot: `{h}`")
+          print(f"### Insertion-invariant unseen-source pilot: `{h}`")
           print()
-          print(f"- scorer NLL: `{fit['optimization_first']:.6f} -> {fit['optimization_last']:.6f}` over `{fit['positions']}` teacher-forced positions")
-          print(f"- held-out as inner, inner accuracy: `{s0i:.4f} -> {s1i:.4f}` (delta `{s1i-s0i:+.4f}`)")
-          print(f"- held-out as outer, oracle-intermediate outer accuracy: `{s0o:.4f} -> {s1o:.4f}` (delta `{s1o-s0o:+.4f}`)")
-          print(f"- pairs involving held-out, end-to-end: `{e0:.4f} -> {e1:.4f}` (delta `{e1-e0:+.4f}`)")
-          print(f"- all 96 composition cases, end-to-end: `{a0:.4f} -> {a1:.4f}` (delta `{a1-a0:+.4f}`)")
+          print(f"- scorer NLL: `{fit['optimization_first']:.6f} -> {fit['optimization_last']:.6f}` over `{fit['positions']}` positions")
+          print(f"- held-out inner accuracy: `{hi0:.4f} -> {hi1:.4f}` (delta `{hi1-hi0:+.4f}`)")
+          print(f"- held-out outer oracle accuracy: `{ho0:.4f} -> {ho1:.4f}` (delta `{ho1-ho0:+.4f}`)")
+          print(f"- held-out-involved E2E: `{inv0:.4f} -> {inv1:.4f}` (delta `{inv1-inv0:+.4f}`)")
+          print(f"- held-out-neither E2E: `{nei0:.4f} -> {nei1:.4f}` (delta `{nei1-nei0:+.4f}`)")
+          print(f"- all 96 E2E: `{all0:.4f} -> {all1:.4f}` (delta `{all1-all0:+.4f}`)")
           print()
-          print("The arrow is **without held-out source -> same scorer with held-out source newly inserted**.")
+          print("Only base-relative/source-local features are used; raw features of existing sources are unchanged when a specialist is appended.")
           PY
           gh pr comment 40 --repo Unjuno/math-operator-units --body-file summary.md
       - name: Upload held-out result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: fusion-unseen-source-${{ matrix.heldout }}
+          name: fusion-unseen-source-invariant-${{ matrix.heldout }}
           path: |
-            unseen-source-*.log
-            unseen-source-*.status
-            evaluations/unseen_source_generalization/*.json
+            unseen-source-invariant-*.log
+            unseen-source-invariant-*.status
+            evaluations/unseen_source_invariant/*.json
           if-no-files-found: warn
       - name: Enforce experiment success
         if: always()
         shell: bash
-        run: test "$(cat unseen-source-${{ matrix.heldout }}.status)" = "0"
+        run: test "$(cat unseen-source-invariant-${{ matrix.heldout }}.status)" = "0"
