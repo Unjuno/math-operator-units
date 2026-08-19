@@ -1,4 +1,4 @@
-name: fusion-cross-source-behavioral-consensus
+name: fusion-metamorphic-contract-diagnostic
 
 permissions:
   contents: read
@@ -6,15 +6,15 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: fusion-cross-source-behavioral-consensus-${{ github.event.pull_request.number || github.ref }}
+  group: fusion-metamorphic-contract-diagnostic-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 on:
   pull_request:
     paths:
       - .github/workflows/fusion-unseen-source-generalization.yml
-      - src/opfusion/fusion_cross_source_behavioral_consensus.py
-      - tests/test_fusion_cross_source_behavioral_consensus.py
+      - src/opfusion/fusion_metamorphic_contract_diagnostic.py
+      - tests/test_fusion_metamorphic_contract_diagnostic.py
   workflow_dispatch:
 
 jobs:
@@ -28,60 +28,64 @@ jobs:
           python-version: '3.11'
       - name: Install package
         run: python -m pip install -e '.[dev]'
-      - name: Test cross-source consensus helpers
-        run: pytest -q tests/test_fusion_cross_source_behavioral_consensus.py
-      - name: Run cross-source behavioral consensus diagnostic
+      - name: Test metamorphic contract helpers
+        run: pytest -q tests/test_fusion_metamorphic_contract_diagnostic.py
+      - name: Run metamorphic contract diagnostic
         shell: bash
         run: |
           set +e
-          mkdir -p evaluations/cross_source_behavioral_consensus
-          python -m opfusion.fusion_cross_source_behavioral_consensus \
+          mkdir -p evaluations/metamorphic_contract_diagnostic
+          python -m opfusion.fusion_metamorphic_contract_diagnostic \
             --root "$GITHUB_WORKSPACE" \
-            --examples-per-operator 6 \
-            --data-seed 747000 \
+            --examples-per-operator 4 \
+            --data-seed 748000 \
             --max-new-tokens 64 \
-            --out evaluations/cross_source_behavioral_consensus/diagnostic.json \
-            > cross-source-consensus.log 2>&1
+            --out evaluations/metamorphic_contract_diagnostic/diagnostic.json \
+            > metamorphic-contract.log 2>&1
           status=$?
-          echo "$status" > cross-source-consensus.status
-          cat cross-source-consensus.log
+          echo "$status" > metamorphic-contract.status
+          cat metamorphic-contract.log
           exit "$status"
-      - name: Post diagnostic summary to PR 50
+      - name: Post diagnostic summary to PR 51
         if: success()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          result=evaluations/cross_source_behavioral_consensus/diagnostic.json
+          result=evaluations/metamorphic_contract_diagnostic/diagnostic.json
           python - "$result" > summary.md <<'PY'
           import json, sys
           r=json.load(open(sys.argv[1], encoding='utf-8'))
           s=r['score_summary']; sel=r['selection_summary']
-          print('### Cross-source behavioral consensus diagnostic')
+          print('### Task-conditioned metamorphic contract diagnostic')
           print()
           print(f"- rows: `{s['rows']}`; correct `{s['positive_rows']}`, incorrect `{s['negative_rows']}`")
           print(f"- consensus=1 rows: `{s['consensus_one_rows']}`; correct `{s['consensus_one_positive_rows']}`, stable-wrong `{s['consensus_one_negative_rows']}`")
-          for key in ('consensus','peer_support','peer_support_weighted','consensus_x_peer','consensus_x_weighted_peer'):
+          for key in ('consensus','contract_rate','contract_weighted','consensus_x_contract','consensus_x_weighted_contract'):
               row=s['scores'][key]
               print(f"- `{key}` AUC all / consensus=1: `{row['auc_all']}` / `{row['auc_consensus_one']}`")
           print()
-          for key in ('consensus','consensus_x_peer','consensus_x_weighted_peer'):
+          for key in ('consensus','contract_weighted','consensus_x_weighted_contract'):
               row=sel[key]
               print(f"- top `{key}`: contains-correct `{row['top_set_contains_correct_rate']:.4f}`, all-top-correct `{row['all_top_sources_correct_rate']:.4f}`, matching-in-top `{row['matching_specialist_in_top_rate']:.4f}`, matching-strict-top `{row['matching_specialist_strict_top_rate']:.4f}`")
           print()
-          print('Scores use no correctness label, source semantic identity, or operator identity; those labels are posthoc diagnostics only.')
+          for task, block in r['by_task'].items():
+              row=block['contract_weighted']
+              print(f"- `{task}` weighted-contract AUC all / consensus=1: `{row['auc_all']}` / `{row['auc_consensus_one']}`")
+          print()
+          print('The contract score uses task-defined output relations under input transformations, not the exact answer and not source identity.')
           PY
-          gh pr comment 50 --repo Unjuno/math-operator-units --body-file summary.md
+          gh pr comment 51 --repo Unjuno/math-operator-units --body-file summary.md
       - name: Upload diagnostic
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: cross-source-behavioral-consensus
+          name: metamorphic-contract-diagnostic
           path: |
-            cross-source-consensus.log
-            cross-source-consensus.status
-            evaluations/cross_source_behavioral_consensus/diagnostic.json
+            metamorphic-contract.log
+            metamorphic-contract.status
+            evaluations/metamorphic_contract_diagnostic/diagnostic.json
           if-no-files-found: warn
       - name: Enforce diagnostic success
         if: always()
-        run: test "$(cat cross-source-consensus.status)" = "0"
+        run: test "$(cat metamorphic-contract.status)" = "0"
