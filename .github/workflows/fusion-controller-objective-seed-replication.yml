@@ -1,0 +1,89 @@
+name: fusion-controller-objective-seed-replication
+
+concurrency:
+  group: fusion-controller-objective-seed-replication-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-controller-objective-seed-replication.yml
+      - src/opfusion/fusion_controller_objective_seed_replication.py
+      - tests/test_fusion_controller_objective_seed_replication.py
+      - src/opfusion/fusion_controller_objective_ablation.py
+  workflow_dispatch:
+
+jobs:
+  replicate:
+    strategy:
+      fail-fast: false
+      matrix:
+        controller_seed: ['739000', '739001', '739002', '739003']
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test seed isolation and objective helpers
+        run: >-
+          pytest -q
+          tests/test_fusion_controller_objective_seed_replication.py
+          tests/test_fusion_controller_objective_ablation.py
+      - name: Run objective replication
+        shell: bash
+        env:
+          OPFUSION_MIXER_ENSEMBLE_MODE: arithmetic
+        run: |
+          set +e
+          seed='${{ matrix.controller_seed }}'
+          python -m opfusion.fusion_controller_objective_seed_replication \
+            --root "$GITHUB_WORKSPACE" \
+            --examples-per-pair 4 \
+            --data-seed 733000 \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --controller-train-examples-per-operator 24 \
+            --controller-holdout-examples-per-operator 32 \
+            --controller-max-positions-per-cohort 3072 \
+            --controller-data-seed 739000 \
+            --controller-seed "$seed" \
+            --controller-holdout-seed 739500 \
+            --controller-embedding-size 16 \
+            --controller-hidden-size 16 \
+            --controller-learning-rate 0.02 \
+            --controller-steps 400 \
+            --controller-batch-positions 256 \
+            --auxiliary-operator-weight 0.25 \
+            --fixed-strength 4.0 \
+            --device cpu \
+            --out "evaluations/controller_objective_seed_replication/seed-${seed}.json" \
+            > "controller-objective-seed-${seed}.log" 2>&1
+          status=$?
+          echo "$status" > "controller-objective-seed-${seed}.status"
+          cat "controller-objective-seed-${seed}.log"
+          exit "$status"
+      - name: Upload seed result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-controller-objective-seed-${{ matrix.controller_seed }}
+          path: |
+            controller-objective-seed-*.log
+            controller-objective-seed-*.status
+            evaluations/controller_objective_seed_replication/*.json
+          if-no-files-found: warn
+      - name: Enforce seed run success
+        if: always()
+        shell: bash
+        run: test "$(cat controller-objective-seed-${{ matrix.controller_seed }}.status)" = "0"
