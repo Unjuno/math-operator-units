@@ -7,6 +7,7 @@ def test_source_features_are_finite_and_identity_free_shape():
     torch.manual_seed(7)
     logits = torch.randn(5, 31)
     features = unseen._source_features(logits)
+    assert len(unseen.FEATURE_NAMES) == 9
     assert features.shape == (5, len(unseen.FEATURE_NAMES))
     assert torch.isfinite(features).all()
 
