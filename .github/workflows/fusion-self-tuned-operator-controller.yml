@@ -1,0 +1,172 @@
+name: fusion-self-tuned-operator-controller
+
+concurrency:
+  group: fusion-self-tuned-operator-controller-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-self-tuned-operator-controller.yml
+      - src/opfusion/fusion_self_tuned_operator_controller.py
+      - tests/test_fusion_self_tuned_operator_controller.py
+      - src/opfusion/fusion_learned_operator_controller.py
+      - src/opfusion/fusion_oracle_sequential_composition.py
+      - src/opfusion/fusion_stateful_oracle_operator.py
+  workflow_dispatch:
+
+jobs:
+  self-tuned-controller:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test self-tuned controller helpers
+        run: >-
+          pytest -q
+          tests/test_fusion_self_tuned_operator_controller.py
+          tests/test_fusion_learned_operator_controller.py
+          tests/test_fusion_oracle_sequential_composition.py
+          tests/test_fusion_stateful_oracle_operator.py
+      - name: Run self-tuned controller composition
+        shell: bash
+        env:
+          OPFUSION_MIXER_ENSEMBLE_MODE: arithmetic
+        run: |
+          set +e
+          python -m opfusion.fusion_self_tuned_operator_controller \
+            --root "$GITHUB_WORKSPACE" \
+            --examples-per-pair 4 \
+            --data-seed 733000 \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --controller-train-examples-per-operator 24 \
+            --controller-holdout-examples-per-operator 32 \
+            --controller-max-positions-per-cohort 3072 \
+            --controller-seed 739000 \
+            --controller-holdout-seed 739500 \
+            --controller-embedding-size 16 \
+            --controller-hidden-size 16 \
+            --controller-learning-rate 0.02 \
+            --controller-steps 400 \
+            --controller-batch-positions 256 \
+            --auxiliary-operator-weight 0.25 \
+            --scale-l2-weight 0.0001 \
+            --device cpu \
+            --out evaluations/self_tuned_operator_controller/summary.json \
+            > self-tuned-controller.log 2>&1
+          status=$?
+          echo "$status" > self-tuned-controller.status
+          cat self-tuned-controller.log
+          exit "$status"
+      - name: Print self-tuned result
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('evaluations/self_tuned_operator_controller/summary.json')
+          if path.is_file():
+              report = json.loads(path.read_text())
+              print(json.dumps({
+                  'manual_controller_strength': report.get('manual_controller_strength'),
+                  'controller_fit': report.get('controller_fit'),
+                  'composition_prompt_controller': report.get('composition_prompt_controller'),
+                  'mean_matching_source_weight': report.get('mean_matching_source_weight'),
+                  'aggregate': report.get('aggregate'),
+              }, indent=2, sort_keys=True))
+          PY
+      - name: Upload self-tuned result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-self-tuned-operator-controller
+          path: |
+            self-tuned-controller.log
+            self-tuned-controller.status
+            evaluations/self_tuned_operator_controller/*.json
+          if-no-files-found: warn
+      - name: Enforce self-tuned run success
+        if: always()
+        shell: bash
+        run: test "$(cat self-tuned-controller.status)" = "0"
+
+  fixed-strength-control:
+    strategy:
+      fail-fast: false
+      matrix:
+        strength: ['2.0', '4.0']
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Run fixed-strength parent control
+        shell: bash
+        env:
+          OPFUSION_MIXER_ENSEMBLE_MODE: arithmetic
+          OPFUSION_LEARNED_CONTROLLER_STRENGTH: ${{ matrix.strength }}
+        run: |
+          set +e
+          tag="$(echo '${{ matrix.strength }}' | tr '.' '_')"
+          python -m opfusion.fusion_learned_operator_controller \
+            --root "$GITHUB_WORKSPACE" \
+            --examples-per-pair 4 \
+            --data-seed 733000 \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --controller-train-examples-per-operator 64 \
+            --controller-holdout-examples-per-operator 32 \
+            --controller-seed 737000 \
+            --controller-holdout-seed 737500 \
+            --controller-embedding-size 16 \
+            --controller-hidden-size 16 \
+            --controller-learning-rate 0.03 \
+            --controller-steps 300 \
+            --device cpu \
+            --out "evaluations/self_tuned_operator_controller/fixed-${tag}.json" \
+            > "fixed-${tag}.log" 2>&1
+          status=$?
+          echo "$status" > "fixed-${tag}.status"
+          cat "fixed-${tag}.log"
+          exit "$status"
+      - name: Upload fixed control
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-self-tuned-fixed-control-${{ matrix.strength }}
+          path: |
+            fixed-*.log
+            fixed-*.status
+            evaluations/self_tuned_operator_controller/fixed-*.json
+          if-no-files-found: warn
+      - name: Enforce fixed control success
+        if: always()
+        shell: bash
+        run: |
+          tag="$(echo '${{ matrix.strength }}' | tr '.' '_')"
+          test "$(cat "fixed-${tag}.status")" = "0"
