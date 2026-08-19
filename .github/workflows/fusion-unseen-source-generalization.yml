@@ -1,4 +1,4 @@
-name: fusion-unseen-source-rollout-consensus
+name: fusion-unseen-source-behavioral-admission
 
 permissions:
   contents: read
@@ -6,19 +6,29 @@ permissions:
   pull-requests: write
 
 concurrency:
-  group: fusion-unseen-source-rollout-consensus-${{ github.event.pull_request.number || github.ref }}
+  group: fusion-unseen-source-behavioral-admission-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 on:
   pull_request:
     paths:
       - .github/workflows/fusion-unseen-source-generalization.yml
+      - src/opfusion/fusion_unseen_source_behavioral_admission.py
+      - tests/test_fusion_unseen_source_behavioral_admission.py
       - src/opfusion/fusion_unseen_source_rollout_consensus.py
-      - tests/test_fusion_unseen_source_rollout_consensus.py
+      - src/opfusion/fusion_unseen_source_residual_gating.py
   workflow_dispatch:
 
 jobs:
-  rollout-consensus-diagnostic:
+  behavioral-admission:
+    strategy:
+      fail-fast: false
+      matrix:
+        heldout:
+          - scalar.add
+          - aggregation.sum
+          - scalar.min
+          - scalar.max
     runs-on: ubuntu-latest
     timeout-minutes: 120
     steps:
@@ -28,66 +38,75 @@ jobs:
           python-version: '3.11'
       - name: Install package
         run: python -m pip install -e '.[dev]'
-      - name: Test consensus helpers
-        run: pytest -q tests/test_fusion_unseen_source_rollout_consensus.py
-      - name: Run semantic-view rollout diagnostic
+      - name: Test behavioral admission helpers
+        run: pytest -q tests/test_fusion_unseen_source_residual_gating.py tests/test_fusion_unseen_source_rollout_consensus.py tests/test_fusion_unseen_source_behavioral_admission.py
+      - name: Run behavioral admission pilot
         shell: bash
         run: |
           set +e
-          mkdir -p evaluations/unseen_source_rollout_consensus
-          python -m opfusion.fusion_unseen_source_rollout_consensus \
+          heldout='${{ matrix.heldout }}'
+          mkdir -p evaluations/unseen_source_behavioral_admission
+          python -m opfusion.fusion_unseen_source_behavioral_admission \
             --root "$GITHUB_WORKSPACE" \
-            --examples-per-operator 4 \
-            --data-seed 745000 \
+            --heldout "$heldout" \
+            --train-examples-per-operator 24 \
+            --max-positions-per-cohort 3072 \
+            --train-seed 741000 \
+            --sketch-size 32 \
+            --sketch-seed 743000 \
+            --hidden-size 64 \
+            --max-gate 4.0 \
+            --learning-rate 0.01 \
+            --steps 600 \
+            --batch-positions 256 \
+            --gate-penalty 0.01 \
+            --scorer-seed 741000 \
+            --consensus-power 2.0 \
+            --examples-per-pair 2 \
+            --data-seed 741500 \
             --max-new-tokens 64 \
-            --include-neg \
             --device cpu \
-            --out evaluations/unseen_source_rollout_consensus/report.json \
-            > rollout-consensus.log 2>&1
+            --out "evaluations/unseen_source_behavioral_admission/${heldout}.json" \
+            > "behavioral-${heldout}.log" 2>&1
           status=$?
-          echo "$status" > rollout-consensus.status
-          cat rollout-consensus.log
+          echo "$status" > "behavioral-${heldout}.status"
+          cat "behavioral-${heldout}.log"
           exit "$status"
-      - name: Post consensus summary to PR 44
+      - name: Post behavioral summary to PR 45
         if: success()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          python - evaluations/unseen_source_rollout_consensus/report.json > summary.md <<'PY'
+          heldout='${{ matrix.heldout }}'
+          result="evaluations/unseen_source_behavioral_admission/${heldout}.json"
+          python - "$result" > summary.md <<'PY'
           import json, sys
           r=json.load(open(sys.argv[1], encoding='utf-8'))
-          s=r['summary']; q=r['selection_diagnostic']
-          print('### Semantic-view rollout consensus diagnostic')
+          h=r['heldout_operator']; d=r['insertion_deltas']
+          raw=r['raw_heldout_insertion']; beh=r['behavioral_heldout_insertion']; diag=beh['diagnostics']
+          def e2e(block, subset): return block['subsets'][subset]['end_to_end_accuracy']
+          print(f"### Behavioral admission: `{h}`")
           print()
-          print(f"- source/example rows: `{s['rows']}`; majority-correct `{s['positive_rows']}`, incorrect `{s['negative_rows']}`")
-          print(f"- consensus AUC for majority correctness: `{s['consensus_auc_for_majority_correct']}`")
-          print(f"- parse-rate AUC: `{s['parse_rate_auc_for_majority_correct']}`")
-          print(f"- mean consensus, correct vs incorrect: `{s['mean_consensus_positive']} vs {s['mean_consensus_negative']}`")
-          print(f"- top-consensus set contains a correct source: `{q['top_consensus_set_contains_majority_correct_source_rate']}`")
-          print(f"- all top-consensus sources are correct: `{q['all_top_consensus_sources_majority_correct_rate']}`")
-          print(f"- matching specialist in top-consensus set: `{q['matching_specialist_in_top_consensus_set_rate']}`")
-          print(f"- matching specialist strictly top: `{q['matching_specialist_strictly_highest_consensus_rate']}`")
-          print()
-          print('Per task:')
-          for op,row in s['by_task_operator'].items():
-              print(f"- `{op}`: AUC `{row['consensus_auc_for_majority_correct']}`, positive `{row['positive_rows']}/{row['rows']}`, consensus correct/incorrect `{row['mean_consensus_positive']} / {row['mean_consensus_negative']}`")
-          print()
-          print('Within-source matching-minus-nonmatching consensus:')
-          for source,row in s['within_source_context_contrast'].items():
-              print(f"- `{source}`: `{row['matching_minus_nonmatching_consensus']}`; correctness `{row['matching_mean_correct_fraction']} vs {row['nonmatching_mean_correct_fraction']}`")
+          print(f"- raw insertion delta, involved / neither: `{d['raw_involved']:+.4f}` / `{d['raw_neither']:+.4f}`")
+          print(f"- consensus² insertion delta, involved / neither: `{d['behavioral_involved']:+.4f}` / `{d['behavioral_neither']:+.4f}`")
+          print(f"- raw involved/neither E2E: `{e2e(raw,'heldout_involved'):.4f}` / `{e2e(raw,'heldout_neither'):.4f}`")
+          print(f"- behavioral involved/neither E2E: `{e2e(beh,'heldout_involved'):.4f}` / `{e2e(beh,'heldout_neither'):.4f}`")
+          print(f"- held-out consensus matching vs nonmatching task: `{diag['mean_matching_heldout_consensus']:.4f} vs {diag['mean_nonmatching_heldout_consensus']:.4f}`")
+          print(f"- held-out gate raw -> effective: `{diag['mean_heldout_raw_gate']:.4f} -> {diag['mean_heldout_effective_gate']:.4f}`")
           PY
-          gh pr comment 44 --repo Unjuno/math-operator-units --body-file summary.md
-      - name: Upload diagnostic
+          gh pr comment 45 --repo Unjuno/math-operator-units --body-file summary.md
+      - name: Upload result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: fusion-unseen-source-rollout-consensus
+          name: behavioral-${{ matrix.heldout }}
           path: |
-            rollout-consensus.log
-            rollout-consensus.status
-            evaluations/unseen_source_rollout_consensus/report.json
+            behavioral-*.log
+            behavioral-*.status
+            evaluations/unseen_source_behavioral_admission/*.json
           if-no-files-found: warn
       - name: Enforce experiment success
         if: always()
-        run: test "$(cat rollout-consensus.status)" = "0"
+        shell: bash
+        run: test "$(cat behavioral-${{ matrix.heldout }}.status)" = "0"
