@@ -1,0 +1,63 @@
+name: fusion-self-tuned-scale-ablation
+
+concurrency:
+  group: fusion-self-tuned-scale-ablation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-self-tuned-scale-ablation.yml
+      - src/opfusion/fusion_self_tuned_scale_ablation.py
+      - tests/test_fusion_self_tuned_scale_ablation.py
+  workflow_dispatch:
+
+jobs:
+  constant-scale-ablation:
+    strategy:
+      fail-fast: false
+      matrix:
+        scale: ['4.0', '5.33', '6.52']
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test scale ablation helper
+        run: pytest -q tests/test_fusion_self_tuned_scale_ablation.py tests/test_fusion_self_tuned_operator_controller.py
+      - name: Run constant-scale ablation
+        shell: bash
+        env:
+          OPFUSION_MIXER_ENSEMBLE_MODE: arithmetic
+        run: |
+          set +e
+          tag="$(echo '${{ matrix.scale }}' | tr '.' '_')"
+          python -m opfusion.fusion_self_tuned_scale_ablation \
+            --root "$GITHUB_WORKSPACE" \
+            --evaluation-scale '${{ matrix.scale }}' \
+            --out "evaluations/self_tuned_scale_ablation/scale-${tag}.json" \
+            > "scale-ablation-${tag}.log" 2>&1
+          status=$?
+          echo "$status" > "scale-ablation-${tag}.status"
+          cat "scale-ablation-${tag}.log"
+          exit "$status"
+      - name: Upload scale ablation result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-self-tuned-scale-ablation-${{ matrix.scale }}
+          path: |
+            scale-ablation-*.log
+            scale-ablation-*.status
+            evaluations/self_tuned_scale_ablation/*.json
+          if-no-files-found: warn
+      - name: Enforce experiment success
+        if: always()
+        shell: bash
+        run: |
+          tag="$(echo '${{ matrix.scale }}' | tr '.' '_')"
+          test "$(cat "scale-ablation-${tag}.status")" = "0"
