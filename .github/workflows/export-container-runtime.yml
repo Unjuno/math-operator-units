@@ -1,0 +1,35 @@
+name: export-container-runtime
+
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build runtime bundle only
+        shell: bash
+        run: |
+          set -euxo pipefail
+          mkdir -p runtime-bundle/runs/gpt_bias_fusion_factory_surface_v3
+          cp -a src configs pyproject.toml runtime-bundle/
+          for seed in seed_0 seed_1 seed_2; do
+            mkdir -p "runtime-bundle/runs/gpt_bias_fusion_factory_surface_v3/$seed"
+            for unit in base_common scalar_add aggregation_sum scalar_min scalar_max; do
+              cp -a "runs/gpt_bias_fusion_factory_surface_v3/$seed/$unit" "runtime-bundle/runs/gpt_bias_fusion_factory_surface_v3/$seed/"
+            done
+          done
+          cp runs/gpt_bias_fusion_factory_surface_v3/batch_state.json runtime-bundle/runs/gpt_bias_fusion_factory_surface_v3/
+          cp runs/gpt_bias_fusion_factory_surface_v3/experiment_plan.json runtime-bundle/runs/gpt_bias_fusion_factory_surface_v3/
+          tar -czf opfusion-container-runtime.tar.gz -C runtime-bundle .
+          du -h opfusion-container-runtime.tar.gz
+      - uses: actions/upload-artifact@v4
+        with:
+          name: opfusion-container-runtime
+          path: opfusion-container-runtime.tar.gz
+          compression-level: 0
