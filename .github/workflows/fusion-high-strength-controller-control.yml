@@ -1,0 +1,82 @@
+name: fusion-high-strength-controller-control
+
+concurrency:
+  group: fusion-high-strength-controller-control-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-high-strength-controller-control.yml
+      - src/opfusion/fusion_learned_operator_controller.py
+      - src/opfusion/fusion_oracle_sequential_composition.py
+      - src/opfusion/fusion_stateful_oracle_operator.py
+  workflow_dispatch:
+
+jobs:
+  fixed-high-strength-control:
+    strategy:
+      fail-fast: false
+      matrix:
+        strength: ['6.5', '8.0']
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Run high-strength learned-controller control
+        shell: bash
+        env:
+          OPFUSION_MIXER_ENSEMBLE_MODE: arithmetic
+          OPFUSION_LEARNED_CONTROLLER_STRENGTH: ${{ matrix.strength }}
+        run: |
+          set +e
+          tag="$(echo '${{ matrix.strength }}' | tr '.' '_')"
+          python -m opfusion.fusion_learned_operator_controller \
+            --root "$GITHUB_WORKSPACE" \
+            --examples-per-pair 4 \
+            --data-seed 733000 \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --controller-train-examples-per-operator 64 \
+            --controller-holdout-examples-per-operator 32 \
+            --controller-seed 737000 \
+            --controller-holdout-seed 737500 \
+            --controller-embedding-size 16 \
+            --controller-hidden-size 16 \
+            --controller-learning-rate 0.03 \
+            --controller-steps 300 \
+            --device cpu \
+            --out "evaluations/high_strength_controller/strength-${tag}.json" \
+            > "high-strength-${tag}.log" 2>&1
+          status=$?
+          echo "$status" > "high-strength-${tag}.status"
+          cat "high-strength-${tag}.log"
+          exit "$status"
+      - name: Upload high-strength control
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-high-strength-controller-${{ matrix.strength }}
+          path: |
+            high-strength-*.log
+            high-strength-*.status
+            evaluations/high_strength_controller/*.json
+          if-no-files-found: warn
+      - name: Enforce experiment success
+        if: always()
+        shell: bash
+        run: |
+          tag="$(echo '${{ matrix.strength }}' | tr '.' '_')"
+          test "$(cat "high-strength-${tag}.status")" = "0"
