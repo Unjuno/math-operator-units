@@ -1,0 +1,109 @@
+name: fusion-self-calibrating-operator-controller
+
+concurrency:
+  group: fusion-self-calibrating-operator-controller-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-self-calibrating-operator-controller.yml
+      - src/opfusion/fusion_self_calibrating_operator_controller.py
+      - tests/test_fusion_self_calibrating_operator_controller.py
+      - src/opfusion/fusion_learned_operator_controller.py
+      - src/opfusion/fusion_oracle_sequential_composition.py
+      - src/opfusion/fusion_stateful_oracle_operator.py
+  workflow_dispatch:
+
+jobs:
+  self-calibrating-controller:
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: ['zero', 'learned']
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test self-calibrating helpers
+        run: >-
+          pytest -q
+          tests/test_fusion_self_calibrating_operator_controller.py
+          tests/test_fusion_learned_operator_controller.py
+          tests/test_fusion_oracle_sequential_composition.py
+          tests/test_fusion_stateful_oracle_operator.py
+      - name: Run self-calibrating composition
+        shell: bash
+        env:
+          OPFUSION_MIXER_ENSEMBLE_MODE: arithmetic
+          OPFUSION_SELF_CALIBRATING_MODE: ${{ matrix.mode }}
+        run: |
+          set +e
+          python -m opfusion.fusion_self_calibrating_operator_controller \
+            --root "$GITHUB_WORKSPACE" \
+            --examples-per-pair 4 \
+            --data-seed 733000 \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --controller-train-examples-per-operator 24 \
+            --controller-holdout-examples-per-operator 16 \
+            --controller-seed 739000 \
+            --controller-holdout-seed 739500 \
+            --controller-embedding-size 16 \
+            --controller-hidden-size 16 \
+            --controller-learning-rate 0.03 \
+            --controller-steps 300 \
+            --controller-prior-l2-weight 0.001 \
+            --device cpu \
+            --out "evaluations/self_calibrating_operator_controller/${{ matrix.mode }}.json" \
+            > "self-calibrating-${{ matrix.mode }}.log" 2>&1
+          status=$?
+          echo "$status" > "self-calibrating-${{ matrix.mode }}.status"
+          cat "self-calibrating-${{ matrix.mode }}.log"
+          exit "$status"
+      - name: Print self-calibrating result
+        if: always()
+        shell: bash
+        run: |
+          python - <<PY
+          import json
+          from pathlib import Path
+
+          mode = '${{ matrix.mode }}'
+          path = Path('evaluations/self_calibrating_operator_controller/' + mode + '.json')
+          if path.is_file():
+              report = json.loads(path.read_text())
+              print(json.dumps({
+                  'mode': mode,
+                  'controller_fit': report.get('controller_fit'),
+                  'composition_prompt_prior': report.get('composition_prompt_prior'),
+                  'mean_matching_source_weight': report.get('mean_matching_source_weight'),
+                  'aggregate': report.get('aggregate'),
+              }, indent=2, sort_keys=True))
+          PY
+      - name: Upload self-calibrating result
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-self-calibrating-operator-controller-${{ matrix.mode }}
+          path: |
+            self-calibrating-*.log
+            self-calibrating-*.status
+            evaluations/self_calibrating_operator_controller/*.json
+          if-no-files-found: warn
+      - name: Enforce experiment run success
+        if: always()
+        shell: bash
+        run: test "$(cat self-calibrating-${{ matrix.mode }}.status)" = "0"
