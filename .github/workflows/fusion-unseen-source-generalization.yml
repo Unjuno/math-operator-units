@@ -15,11 +15,12 @@ on:
       - .github/workflows/fusion-unseen-source-generalization.yml
       - src/opfusion/fusion_unseen_source_generalization.py
       - src/opfusion/fusion_unseen_source_invariant.py
+      - src/opfusion/fusion_unseen_source_absolute_gate.py
       - tests/test_fusion_unseen_source_generalization.py
   workflow_dispatch:
 
 jobs:
-  leave-one-unit-out-invariant:
+  leave-one-unit-out-absolute-gate:
     strategy:
       fail-fast: false
       matrix:
@@ -37,28 +38,34 @@ jobs:
           python-version: '3.11'
       - name: Install package
         run: python -m pip install -e '.[dev]'
-      - name: Test source insertion invariance
+      - name: Test absolute gate insertion locality
         shell: bash
         run: |
           python - <<'PY'
           import torch
-          from opfusion import fusion_unseen_source_invariant as inv
-          torch.manual_seed(19)
-          existing = torch.randn(4, 37)
-          added = torch.randn(1, 37)
-          before = inv._source_features(existing)
-          after = inv._source_features(torch.cat([existing, added], dim=0))[:4]
-          assert before.shape[-1] == len(inv.FEATURE_NAMES) == 6
-          assert torch.allclose(before, after, atol=1e-7, rtol=1e-7)
-          print('insertion invariance ok')
+          from opfusion import fusion_unseen_source_absolute_gate as absolute
+          from opfusion import fusion_unseen_source_invariant as invariant
+          torch.manual_seed(23)
+          existing = torch.randn(4, 41)
+          added = torch.randn(1, 41)
+          before_features = invariant._source_features(existing)[1:]
+          after_features = invariant._source_features(torch.cat([existing, added], dim=0))[1:4]
+          assert torch.allclose(before_features, after_features, atol=1e-7, rtol=1e-7)
+          scorer = absolute.AbsoluteGateScorer(hidden_size=8)
+          scorer.set_normalization(before_features.unsqueeze(0))
+          before_gates = scorer.gates_from_logits(existing)
+          after_gates = scorer.gates_from_logits(torch.cat([existing, added], dim=0))[:3]
+          assert torch.allclose(before_gates, after_gates, atol=1e-7, rtol=1e-7)
+          assert torch.all(before_gates >= 0)
+          print('absolute gate insertion locality ok')
           PY
-      - name: Run insertion-invariant leave-one-unit-out pilot
+      - name: Run absolute-gate leave-one-unit-out pilot
         shell: bash
         run: |
           set +e
           heldout='${{ matrix.heldout }}'
-          mkdir -p evaluations/unseen_source_invariant
-          python -m opfusion.fusion_unseen_source_invariant \
+          mkdir -p evaluations/unseen_source_absolute_gate
+          python -m opfusion.fusion_unseen_source_absolute_gate \
             --root "$GITHUB_WORKSPACE" \
             --heldout "$heldout" \
             --train-examples-per-operator 24 \
@@ -69,24 +76,25 @@ jobs:
             --scorer-steps 400 \
             --scorer-batch-positions 256 \
             --scorer-seed 741000 \
+            --gate-penalty 0.01 \
             --examples-per-pair 2 \
             --data-seed 741500 \
             --max-new-tokens 64 \
             --device cpu \
-            --out "evaluations/unseen_source_invariant/${heldout}.json" \
-            > "unseen-source-invariant-${heldout}.log" 2>&1
+            --out "evaluations/unseen_source_absolute_gate/${heldout}.json" \
+            > "unseen-source-absolute-${heldout}.log" 2>&1
           status=$?
-          echo "$status" > "unseen-source-invariant-${heldout}.status"
-          cat "unseen-source-invariant-${heldout}.log"
+          echo "$status" > "unseen-source-absolute-${heldout}.status"
+          cat "unseen-source-absolute-${heldout}.log"
           exit "$status"
-      - name: Post invariant result summary to PR 40
+      - name: Post absolute-gate result summary to PR 40
         if: success()
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           heldout='${{ matrix.heldout }}'
-          result="evaluations/unseen_source_invariant/${heldout}.json"
+          result="evaluations/unseen_source_absolute_gate/${heldout}.json"
           python - "$result" > summary.md <<'PY'
           import json
           import sys
@@ -94,40 +102,32 @@ jobs:
           h = r['heldout_operator']
           w0 = r['without_heldout_source']
           w1 = r['with_heldout_source']
-          hi0 = w0['subsets']['heldout_as_inner']['inner_accuracy']
-          hi1 = w1['subsets']['heldout_as_inner']['inner_accuracy']
-          ho0 = w0['subsets']['heldout_as_outer']['oracle_intermediate_outer_accuracy']
-          ho1 = w1['subsets']['heldout_as_outer']['oracle_intermediate_outer_accuracy']
-          inv0 = w0['subsets']['heldout_involved']['end_to_end_accuracy']
-          inv1 = w1['subsets']['heldout_involved']['end_to_end_accuracy']
-          nei0 = w0['subsets']['heldout_neither']['end_to_end_accuracy']
-          nei1 = w1['subsets']['heldout_neither']['end_to_end_accuracy']
-          all0 = w0['aggregate']['end_to_end_accuracy']
-          all1 = w1['aggregate']['end_to_end_accuracy']
+          d = r['causal_deltas']
           fit = r['scorer_fit']
-          print(f"### Insertion-invariant unseen-source pilot: `{h}`")
+          print(f"### Absolute-gate unseen-source pilot: `{h}`")
           print()
-          print(f"- scorer NLL: `{fit['optimization_first']:.6f} -> {fit['optimization_last']:.6f}` over `{fit['positions']}` positions")
-          print(f"- held-out inner accuracy: `{hi0:.4f} -> {hi1:.4f}` (delta `{hi1-hi0:+.4f}`)")
-          print(f"- held-out outer oracle accuracy: `{ho0:.4f} -> {ho1:.4f}` (delta `{ho1-ho0:+.4f}`)")
-          print(f"- held-out-involved E2E: `{inv0:.4f} -> {inv1:.4f}` (delta `{inv1-inv0:+.4f}`)")
-          print(f"- held-out-neither E2E: `{nei0:.4f} -> {nei1:.4f}` (delta `{nei1-nei0:+.4f}`)")
-          print(f"- all 96 E2E: `{all0:.4f} -> {all1:.4f}` (delta `{all1-all0:+.4f}`)")
+          print(f"- NLL: `{fit['nll_first']:.6f} -> {fit['nll_last']:.6f}`; mean gate: `{fit['gate_mean_first']:.4f} -> {fit['gate_mean_last']:.4f}`")
+          print(f"- held-out inner delta: `{d['heldout_as_inner_inner_accuracy']:+.4f}`")
+          print(f"- held-out outer oracle delta: `{d['heldout_as_outer_oracle_outer_accuracy']:+.4f}`")
+          print(f"- held-out-involved E2E delta: `{d['heldout_involved_end_to_end_accuracy']:+.4f}`")
+          print(f"- held-out-neither E2E delta: `{d['heldout_neither_end_to_end_accuracy']:+.4f}`")
+          print(f"- all E2E delta: `{d['all_end_to_end_accuracy']:+.4f}`")
+          print(f"- all E2E: `{w0['aggregate']['end_to_end_accuracy']:.4f} -> {w1['aggregate']['end_to_end_accuracy']:.4f}`")
           print()
-          print("Only base-relative/source-local features are used; raw features of existing sources are unchanged when a specialist is appended.")
+          print("Specialist gates are independent softplus outputs; adding a source does not change existing specialists' feature vectors or gate values.")
           PY
           gh pr comment 40 --repo Unjuno/math-operator-units --body-file summary.md
       - name: Upload held-out result
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: fusion-unseen-source-invariant-${{ matrix.heldout }}
+          name: fusion-unseen-source-absolute-${{ matrix.heldout }}
           path: |
-            unseen-source-invariant-*.log
-            unseen-source-invariant-*.status
-            evaluations/unseen_source_invariant/*.json
+            unseen-source-absolute-*.log
+            unseen-source-absolute-*.status
+            evaluations/unseen_source_absolute_gate/*.json
           if-no-files-found: warn
       - name: Enforce experiment success
         if: always()
         shell: bash
-        run: test "$(cat unseen-source-invariant-${{ matrix.heldout }}.status)" = "0"
+        run: test "$(cat unseen-source-absolute-${{ matrix.heldout }}.status)" = "0"
