@@ -14,6 +14,7 @@ on:
     paths:
       - .github/workflows/fusion-unseen-source-generalization.yml
       - src/opfusion/fusion_unseen_source_residual_gating.py
+      - src/opfusion/fusion_unseen_source_residual_gating_runner.py
       - tests/test_fusion_unseen_source_residual_gating.py
   workflow_dispatch:
 
@@ -49,7 +50,7 @@ jobs:
           penalty='${{ matrix.gate_penalty }}'
           tag="${heldout}-p${penalty}"
           mkdir -p evaluations/unseen_source_residual_gating
-          python -m opfusion.fusion_unseen_source_residual_gating \
+          python -m opfusion.fusion_unseen_source_residual_gating_runner \
             --root "$GITHUB_WORKSPACE" \
             --heldout "$heldout" \
             --train-examples-per-operator 24 \
