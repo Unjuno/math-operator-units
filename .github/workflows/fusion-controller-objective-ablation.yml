@@ -1,0 +1,107 @@
+name: fusion-controller-objective-ablation
+
+concurrency:
+  group: fusion-controller-objective-ablation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/fusion-controller-objective-ablation.yml
+      - src/opfusion/fusion_controller_objective_ablation.py
+      - tests/test_fusion_controller_objective_ablation.py
+      - src/opfusion/fusion_self_tuned_operator_controller.py
+      - src/opfusion/fusion_learned_operator_controller.py
+      - src/opfusion/fusion_oracle_sequential_composition.py
+  workflow_dispatch:
+
+jobs:
+  objective-ablation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install package
+        run: python -m pip install -e '.[dev]'
+      - name: Test objective ablation helpers
+        run: >-
+          pytest -q
+          tests/test_fusion_controller_objective_ablation.py
+          tests/test_fusion_self_tuned_operator_controller.py
+          tests/test_fusion_learned_operator_controller.py
+          tests/test_fusion_oracle_sequential_composition.py
+      - name: Run fixed-strength objective ablation
+        shell: bash
+        env:
+          OPFUSION_MIXER_ENSEMBLE_MODE: arithmetic
+        run: |
+          set +e
+          python -m opfusion.fusion_controller_objective_ablation \
+            --root "$GITHUB_WORKSPACE" \
+            --examples-per-pair 4 \
+            --data-seed 733000 \
+            --calibration-examples-per-operator 8 \
+            --max-prefixes-per-example 24 \
+            --max-positions-per-cohort 1536 \
+            --fit-steps 500 \
+            --fit-batch-positions 96 \
+            --hidden-size 16 \
+            --sketch-size 8 \
+            --learning-rate 0.01 \
+            --calibration-seed 731000 \
+            --controller-train-examples-per-operator 24 \
+            --controller-holdout-examples-per-operator 32 \
+            --controller-max-positions-per-cohort 3072 \
+            --controller-seed 739000 \
+            --controller-holdout-seed 739500 \
+            --controller-embedding-size 16 \
+            --controller-hidden-size 16 \
+            --controller-learning-rate 0.02 \
+            --controller-steps 400 \
+            --controller-batch-positions 256 \
+            --auxiliary-operator-weight 0.25 \
+            --fixed-strength 4.0 \
+            --device cpu \
+            --out evaluations/controller_objective_ablation/summary.json \
+            > controller-objective-ablation.log 2>&1
+          status=$?
+          echo "$status" > controller-objective-ablation.status
+          cat controller-objective-ablation.log
+          exit "$status"
+      - name: Print compact objective comparison
+        if: always()
+        shell: bash
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('evaluations/controller_objective_ablation/summary.json')
+          if path.is_file():
+              report = json.loads(path.read_text())
+              compact = {}
+              for name, row in report['conditions'].items():
+                  compact[name] = {
+                      'holdout': row['controller_fit']['holdout_metrics'],
+                      'composition_direction': row['composition_prompt_direction'],
+                      'aggregate': row['aggregate'],
+                      'mean_matching_source_weight': row['mean_matching_source_weight'],
+                  }
+              print(json.dumps(compact, indent=2, sort_keys=True))
+          PY
+      - name: Upload objective ablation
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fusion-controller-objective-ablation
+          path: |
+            controller-objective-ablation.log
+            controller-objective-ablation.status
+            evaluations/controller_objective_ablation/*.json
+          if-no-files-found: warn
+      - name: Enforce objective ablation success
+        if: always()
+        shell: bash
+        run: test "$(cat controller-objective-ablation.status)" = "0"
