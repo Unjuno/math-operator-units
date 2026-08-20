@@ -1,0 +1,45 @@
+{
+  "experiment": "joint_opaque_positionfree_heldout_transformer_common_action_aggregate_v2",
+  "pool_seeds": [310, 311, 312],
+  "protocol": {
+    "opaque_command": "random two-token code per operation",
+    "unlabeled_interface_corpus": "balanced seen-only corpus over five seen operations and seven grammar variants",
+    "heldout_code_present_in_unlabeled_corpus": false,
+    "command_family_discovery": "adjacent-bigram document-frequency/exclusivity family",
+    "position_free_span_inference": "replace each candidate two-token span by an abstract command placeholder and score against grammar skeletons learned from the unlabeled corpus; local observed-bigram support is tie-break evidence",
+    "semantic_grounding": "fixed behavior probes mapping opaque code behavior to anonymous source behavior",
+    "admission_threshold": "fit only from five seen source/operator behavior pairs",
+    "heldout_source": "private-ABI attention Transformer implementing mul",
+    "fusion": "source private sequence likelihood -> common 32-action probability -> primary/secondary probability mixture"
+  },
+  "family_exact_seen": true,
+  "heldout_code_absent_from_unlabeled_corpus": true,
+  "heldout_slot_acc": [1.0, 1.0, 1.0],
+  "seen_only_threshold": [0.65, 0.65, 0.65],
+  "heldout_route": [
+    {"top": 5, "second": 3, "top_score": 1.0, "second_score": 0.3, "accepted": true},
+    {"top": 5, "second": 3, "top_score": 1.0, "second_score": 0.3, "accepted": true},
+    {"top": 5, "second": 3, "top_score": 1.0, "second_score": 0.3, "accepted": true}
+  ],
+  "hard": {
+    "all_depths_all_pools": true,
+    "depths": [1,2,3,4,5]
+  },
+  "probability_mix_0.6_0.4": {
+    "e2e_by_pool": [
+      {"1": 1.0, "2": 1.0, "3": 1.0, "4": 1.0, "5": 1.0},
+      {"1": 0.9583333333333334, "2": 1.0, "3": 1.0, "4": 1.0, "5": 1.0},
+      {"1": 1.0, "2": 1.0, "3": 1.0, "4": 1.0, "5": 1.0}
+    ],
+    "correct_programs": 359,
+    "total_programs": 360,
+    "accuracy": 0.9972222222222222
+  },
+  "failed_v1_diagnostic": {
+    "failure": "local observed-bigram span score alone selected operand-adjacent spans in grammar variants where replacing them with a command was locally plausible",
+    "heldout_slot_accuracy_seed310": 0.5714285714285714,
+    "scientific_effect": "isolated the remaining failure to interface span discovery; source competence, private ABI recovery and behavioral source admission were not the cause",
+    "fix": "learn full command-placeholder grammar skeletons from the unlabeled seen-only corpus and use structural distance before local bigram tie-breaking"
+  },
+  "claim_boundary": "Controlled 32-state synthetic neural screen. All seven grammar variants are represented in the unlabeled seen-only corpus. Behavioral probes still provide expected common actions. A common action domain and stage boundaries remain externally supplied. This is not yet unrelated pretrained-LLM fusion."
+}
