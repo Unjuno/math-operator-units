@@ -1,0 +1,50 @@
+{
+  "checkpoint":"stochastic-plugin-registry-v1",
+  "problem":"candidate/plugin behavioral relations are themselves stochastic; a deterministic source fingerprint is unsafe",
+  "online_negative":{
+    "method":"re-measure chosen source relations online and use majority/mismatch scoring",
+    "examples":[
+      {"source_relation_bitflip":0.05,"repeats":5,"correct":564,"wrong":3,"unresolved":73,"total":640},
+      {"source_relation_bitflip":0.10,"repeats":5,"correct":492,"wrong":25,"unresolved":123,"total":640},
+      {"source_relation_bitflip":0.20,"repeats":5,"correct":340,"wrong":133,"unresolved":167,"total":640}
+    ]
+  },
+  "online_soft_likelihood":{
+    "method":"repeat source relation responses and accumulate smoothed predictive likelihoods rather than hard elimination",
+    "threshold":0.99,
+    "examples":[
+      {"source_relation_bitflip":0.05,"repeats":9,"correct":353,"wrong":0,"unresolved":127,"total":480},
+      {"source_relation_bitflip":0.10,"repeats":9,"correct":219,"wrong":0,"unresolved":261,"total":480},
+      {"source_relation_bitflip":0.20,"repeats":9,"correct":60,"wrong":0,"unresolved":420,"total":480}
+    ],
+    "interpretation":"soft scoring can trade coverage for observed zero wrong routing, but online remeasurement is expensive and low-coverage"
+  },
+  "persistent_probabilistic_registry":{
+    "registration":"for each plugin, repeatedly evaluate a fixed pool of 192 relation + 128 bridge experiments and store Bernoulli probabilities",
+    "runtime":"candidate sources are not re-run; task observations update posterior likelihood against stored source distributions",
+    "fixed_query_order_examples":[
+      {"source_relation_bitflip":0.10,"registration_repeats":15,"correct":156,"wrong":0,"unresolved":4,"total":160,"mean_runtime_relation_queries":38.41,"mean_bridge_queries":1.65},
+      {"source_relation_bitflip":0.20,"registration_repeats":15,"correct":140,"wrong":0,"unresolved":20,"total":160,"mean_runtime_relation_queries":39.71,"mean_bridge_queries":3.04}
+    ]
+  },
+  "active_probabilistic_registry":{
+    "acquisition":"choose the unused registered query with maximum mutual information under current source posterior and stored Bernoulli uncertainty",
+    "examples":[
+      {"source_relation_bitflip":0.05,"registration_repeats":15,"correct":160,"wrong":0,"unresolved":0,"total":160,"mean_runtime_relation_queries":11.08,"mean_bridge_queries":0.71},
+      {"source_relation_bitflip":0.10,"registration_repeats":15,"correct":160,"wrong":0,"unresolved":0,"total":160,"mean_runtime_relation_queries":11.62,"mean_bridge_queries":0.93},
+      {"source_relation_bitflip":0.20,"registration_repeats":50,"correct":154,"wrong":0,"unresolved":6,"total":160,"mean_runtime_relation_queries":13.17,"mean_bridge_queries":1.60}
+    ],
+    "failure_when_underregistered":[
+      {"source_relation_bitflip":0.10,"registration_repeats":5,"correct":138,"wrong":18,"unresolved":4,"total":160},
+      {"source_relation_bitflip":0.20,"registration_repeats":5,"correct":130,"wrong":17,"unresolved":13,"total":160}
+    ],
+    "decision":"active query acquisition is safe only when source-registration uncertainty is itself sufficiently calibrated; otherwise acquisition can amplify registry estimation noise"
+  },
+  "current_architecture_implication":"a plugin registry should store probabilistic behavioral signatures plus uncertainty and acquisition should account for that uncertainty; runtime source identification can then be active without re-running every candidate plugin",
+  "claim_boundary":"noise is modeled as iid symmetric relation-bit flips rather than full neural token stochasticity; task observations are noiseless in this source-noise screen; query pool is fixed at registration",
+  "next":[
+    "represent finite-registration uncertainty hierarchically instead of point Bernoulli estimates",
+    "test simultaneous task-observation noise and candidate-source stochasticity",
+    "validate probabilistic registry using actual stochastic neural decoding rather than injected relation-bit flips"
+  ]
+}
