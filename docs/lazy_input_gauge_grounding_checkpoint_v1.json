@@ -1,0 +1,21 @@
+{
+  "checkpoint": "lazy-on-demand-input-gauge-grounding-v1",
+  "setup": "8 candidate semantic sources with private affine input gauges; relation prefilter uses a deliberately misspecified finite gauge library; exact coordinate grounding is acquired only for shortlisted candidates",
+  "deterministic": {
+    "top1": {"mean_correct_of_8": 6.35, "wrong": 0.0, "unresolved": 1.65, "mean_coordinate_anchors_per_task": 3.0},
+    "top2": {"mean_correct_of_8": 7.4, "wrong": 0.0, "unresolved": 0.6, "mean_coordinate_anchors_per_task": 3.61875},
+    "top3": {"mean_correct_of_8": 7.75, "wrong": 0.0, "unresolved": 0.25, "mean_coordinate_anchors_per_task": 3.84375},
+    "top4": {"mean_correct_of_8": 7.9, "wrong": 0.0, "unresolved": 0.1, "mean_coordinate_anchors_per_task": 3.9375},
+    "top6": {"mean_correct_of_8": 8.0, "wrong": 0.0, "unresolved": 0.0, "mean_coordinate_anchors_per_task": 4.0125},
+    "prealign_all_candidates_for_one_task_baseline": 24,
+    "interpretation": "for a one-off task, relation prefiltering can reduce coordinate grounding from 24 anchors for all eight candidates to roughly 3.6-3.9 anchors on average while preserving 92.5-98.75% deterministic resolution with zero observed wrong routing."
+  },
+  "noisy_semantic_validation": {
+    "bitflip_0.05_threshold_0.065_top2": {"correct": 6.916666666666667, "wrong": 0.08333333333333333, "unresolved": 1.0, "mean_anchors_per_task": 3.78125, "trials": 12},
+    "bitflip_0.05_threshold_0.065_top4": {"correct": 7.416666666666667, "wrong": 0.16666666666666666, "unresolved": 0.4166666666666667, "mean_anchors_per_task": 4.375, "trials": 12},
+    "bitflip_0.10_threshold_0.115_top2": {"correct": 5.833333333333333, "wrong": 0.16666666666666666, "unresolved": 2.0, "mean_anchors_per_task": 4.0625, "trials": 12},
+    "interpretation": "correct input-gauge fitting is not sufficient for safe noisy admission: a wrong semantic source can occasionally pass finite noisy relation validation. Semantic validation remains a separate failure mode from input-coordinate alignment."
+  },
+  "decision": "prefer lazy/on-demand gauge grounding after behavioral source prefiltering, but do not equate successful gauge fitting with semantic source validation. Cache successful per-plugin gauge fits across tasks; use explicit open-world semantic validation before execution.",
+  "claim_boundary": "true private gauges are affine and three exact non-collinear anchors identify each shortlisted candidate; noisy validation uses hand-set thresholds and small synthetic screens"
+}
