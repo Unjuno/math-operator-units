@@ -3,58 +3,67 @@
   "compute_policy": "Experiments run in the container; GitHub is persistence/review/reproducibility only.",
   "active_branch": "experiment/unseen-source-generalization",
   "active_pr": 40,
-  "research_index": "docs/research/README.md",
-  "branch_map": "docs/research/BRANCHES.md",
-  "current_architecture": "interface discovery/normalization -> active behavioral semantic grounding -> source applicability -> source-specific ABI/action adapter -> common action/state-transition distribution -> top-dominant sparse probability fusion -> program composition",
-  "core_results": {
-    "private_tokenizer_abi": "15/15 codecs structurally recovered in three 64-state neural pools; held-out decode 17999/18000; hard depth1-5 4499/4500",
-    "heterogeneous_heads": "common-action probability 0.6/0.4 = 560/560; equal 0.5/0.5 = 168/560; logprob 0.8/0.2 = 521/560",
-    "mixed_architecture": "GRU + NAR-MLP: hard 3000/3000; probability 0.6/0.4 600/600",
-    "heldout_transformer": "MUL attention source absent from seen-only threshold calibration; three pools, threshold 0.65, route score 1.0 vs second 0.3, hard and probability 0.6/0.4 perfect at depth1-5"
+  "current_architecture": "interface discovery/normalization -> active behavioral identification -> source-specific ABI/action adapter -> common or fusion-safe latent state-transition representation -> top-dominant sparse fusion -> learned stream segmentation/program composition",
+  "previous_core": {
+    "private_tokenizer_abi": "15/15 codecs recovered; held-out decode 17999/18000; hard 4499/4500",
+    "heterogeneous_common_action": "probability 0.6/0.4 560/560; equal 0.5/0.5 168/560; logprob 0.8/0.2 521/560",
+    "mixed_architecture": "GRU + NAR-MLP hard 3000/3000; probability 0.6/0.4 600/600",
+    "heldout_transformer": "seen-only threshold 0.65; MUL Transformer 1.0 vs second 0.3; depth1-5 hard and 0.6/0.4 perfect",
+    "joint_opaque_integration": "heldout opaque code absent from structural corpus; grammar-skeleton fix; hard all perfect; 0.6/0.4 = 359/360",
+    "competent_irrelevant_plugin": "JUNK exact but top2 0/18; paired no-impact",
+    "shadow_fixed_probe_boundary": "true ADD and SHADOW both 1.0 on fixed probes; forced tie break wrong about half; two enumerated disagreement probes restore 100% depth5"
   },
-  "joint_integration": {
-    "opaque_command": "random two-token code per operation",
-    "unlabeled_interface_corpus": "five seen codes only across seven grammar skeletons",
-    "heldout_code_seen_in_corpus": false,
-    "failed_local_bigram_span_seed310": 0.5714285714285714,
-    "fix": "learn full command-placeholder grammar skeletons and use structural distance; local bigrams only tie-break",
-    "heldout_span_acc": [1.0,1.0,1.0],
-    "hard_all_depths_all_pools": true,
-    "probability_0.6_0.4": "359/360 = 0.9972222222"
+  "active_probe_without_enumeration": {
+    "pools": 3,
+    "trials_per_pool": 500,
+    "max_oracle_queries": 4,
+    "forced_tiebreak_wrong_rate": 0.4966666667,
+    "random_probe": {"resolved_true":0.6833333333,"wrong":0.0,"unresolved":0.3166666667,"mean_oracle_queries":2.728},
+    "active_proposal_4": {"resolved_true":0.9893333333,"wrong":0.0,"unresolved":0.0106666667,"mean_oracle_queries":1.4326666667},
+    "active_proposal_8": {"resolved_true":1.0,"wrong":0.0,"unresolved":0.0,"mean_oracle_queries":1.1033333333,"mean_source_evals":17.6533333333},
+    "decision": "allow UNRESOLVED; bounded proposal disagreement search replaces full-domain enumeration in this finite SHADOW screen"
   },
-  "competent_irrelevant_plugin": {
-    "junk_function": "(7*a+11*b+3) mod 32",
-    "junk_exact": [1.0,1.0,1.0],
-    "junk_behavior_score_range": "0.0-0.2",
-    "top2_entries": "0/18 command/pool combinations",
-    "hard_before_after_paired_identical": [true,true,true],
-    "probability_0.6_0.4_before_after_paired_identical": [true,true,true]
+  "unseen_grammar": {
+    "pure_structure_slot_accuracy_by_holdout": [1.0,1.0,0.0,0.0,0.0,1.0,0.0],
+    "behavior_grounded_code_plus_structure": "11200/11200",
+    "seed310_forced_heldout_grammar_e2e": "2800/2800",
+    "boundary": "command surface itself was already behaviorally grounded; only wrapper/position was unseen"
   },
-  "shadow_source_identifiability_boundary": {
-    "shadow_function": "matches fixed ten ADD probes exactly; otherwise differs on about 24.7% of the 32x32 domain",
-    "shadow_exact_as_own_function": [1.0,1.0,1.0],
-    "global_add_match": 0.7529296875,
-    "fixed_probe_true_add_score": 1.0,
-    "fixed_probe_shadow_score": 1.0,
-    "true_add_top_rate_random_source_order_fixed_probes": 0.4644444444,
-    "shadow_top_rate_random_source_order_fixed_probes": 0.5355555556,
-    "true_add_top_rate_extra_random_probes": {"1":0.6255555556,"2":0.6933333333,"4":0.8555555556,"8":0.9511111111,"16":0.9944444444,"32":1.0},
-    "worst_order_depth5_fixed_probes": [0.8433333333,0.8566666667,0.85],
-    "worst_order_depth5_plus_two_disagreement_probes": [1.0,1.0,1.0],
-    "decision": "fixed finite anchors are insufficient as a semantic proof; use disagreement-driven active behavioral identification when candidate sources remain observationally ambiguous"
+  "learned_stage_segmentation": {
+    "segmenter": "causal GRU trained on delimiter-free normalized streams depth1-3",
+    "test_depths": "1-10",
+    "segmentation": "3000/3000 exact",
+    "routing": "3000/3000 exact",
+    "e2e": "2995/3000",
+    "boundary": "grounded command pairs are abstracted before segmentation; stage grammar is synthetic"
   },
-  "negative_boundaries": {
-    "arbitrary_semantic_permutation_zero_shot": "not identifiable without behavioral grounding",
-    "arbitrary_whole_action_random_codebook": "does not few-shot generalize to unseen actions",
-    "equal_or_dense_fusion": "unsafe in current screens",
-    "local_only_interface_grammar": "can be structurally ambiguous",
-    "fixed_behavior_probe_set": "can be spoofed by an observationally equivalent shadow source"
+  "latent_geometry": {
+    "hand_binary5": "matches explicit common-action result in earlier screen",
+    "spectral_seen_transition_graph": {"8d":0.5377777778,"12d":0.8355555556,"16d":0.9072222222,"24d":0.9866666667,"explicit":0.9966666667},
+    "learned_fusion_safe_6d": {"pairwise_onehot_06_decode":"1024/1024","explicit_e2e":"1799/1800","latent_e2e":"1799/1800","paired_discrete_identical":true},
+    "boundary": "learned6 uses known state identity + desired fusion law, not transition semantics; source adapters still form action probabilities before projection"
   },
+  "command_surface_paraphrase": {
+    "protocol": "canonical behavior grounding; no behavior query on paraphrase; component substitution learned from paired unlabeled seen-command views; heldout paraphrase is unseen component combination",
+    "heldout_mapping": "3/3",
+    "segmentation": "3000/3000",
+    "routing": "3000/3000",
+    "e2e": "2997/3000",
+    "random_whole_pair_negative": "heldout unmappable 3/3",
+    "boundary": "synthetic compositional cipher with parallel interface evidence, not natural-language paraphrase"
+  },
+  "negative_boundaries": [
+    "arbitrary semantic permutation is not zero-shot identifiable",
+    "arbitrary whole-action random codebook does not few-shot generalize",
+    "equal/dense fusion is unsafe",
+    "structure-only interface discovery does not extrapolate all unseen grammars",
+    "fixed finite behavior probes can be spoofed",
+    "transition topology alone does not automatically yield a low-dimensional fusion-safe latent geometry"
+  ],
   "next": [
-    "Generalize active disagreement probing without enumerating a finite action/input domain.",
-    "Freeze interface discovery and hold out entire grammar skeletons from the unlabeled corpus.",
-    "Remove externally supplied stage boundaries via learned transition segmentation.",
-    "Replace explicit integer actions with a learned latent transition space.",
-    "Then test unrelated pretrained model families through an explicit behavioral task interface."
+    "Learn/query active disagreement proposals in a non-enumerable or continuous domain and calibrate unresolved confidence.",
+    "Learn a latent transition representation from behavior while enforcing fusion safety, without state-identity code supervision.",
+    "Stress learned stream segmentation with unseen/noisy grammar and ambiguous command boundaries.",
+    "Move the controlled interface to unrelated pretrained model families."
   ]
 }
