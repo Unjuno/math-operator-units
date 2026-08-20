@@ -1,0 +1,58 @@
+{
+  "checkpoint": "open-world-adversarial-query-and-input-gauge-equivalence-v1",
+  "near_equivalence": {
+    "pairs": [
+      {"target": "saddle", "candidate": "radial", "random_relation_error": 0.0107421875},
+      {"target": "expdiff", "candidate": "cross", "random_relation_error": 0.015380859375},
+      {"target": "saddle", "candidate": "expdiff", "random_relation_error": 0.01611328125},
+      {"target": "cross", "candidate": "sinmix", "random_relation_error": 0.01904296875}
+    ],
+    "deterministic_48_cases": {
+      "random_detect_8q": "12/48",
+      "committee_pool_detect_8q": "48/48",
+      "cem_detect_8q": "48/48",
+      "committee_pool_detect_1q": "39/48",
+      "cem_detect_1q": "29/48"
+    },
+    "noisy_10pct_repeat5_120_cases": {
+      "decision": "reject after >=2 distinct query-majorities contradict candidate",
+      "targeted_pool_8_unique_queries": "116/120 OOD rejected, 0/120 in-family false rejects",
+      "random_8_unique_queries": "1/120 OOD rejected, 1/120 in-family false reject"
+    },
+    "proposal_cost": {
+      "pool256_committee32": "92/96 detected within 8 task queries",
+      "pool512_committee32": "96/96",
+      "candidate_relation_evals_pool512_committee32": 16384
+    },
+    "diverse_committee": {
+      "K4_pool256_top": "60/96",
+      "K4_pool256_diverse": "83/96",
+      "K8_pool512_top": "92/96",
+      "K8_pool512_diverse": "95/96"
+    }
+  },
+  "continuous_gauge_search_negative": {
+    "global_random_plus_refinement": "16/24 exact source routes despite true similarity gauge having zero relation loss for all 24 targets",
+    "rank_surrogate": "16/32 exact source, 19/32 after quotienting lin1/lin2; candidate continuous margin did not solve search instability",
+    "interpretation": "continuous binary-relation gauge fitting is information-available but optimization-unstable; finite enumeration cannot simply be replaced by local CEM"
+  },
+  "semantic_equivalence": {
+    "allowed_gauge": "bounded 2D orientation-preserving similarity input transform + positive affine output transform",
+    "exact_off_diagonal": ["lin1 -> lin2", "lin2 -> lin1"],
+    "minimal_grounding_lin1_lin2": {
+      "0_coordinate_anchors_mean_relation_error": 0.0,
+      "1_coordinate_anchor_mean_relation_error": 0.0,
+      "2_distinct_coordinate_anchors_mean_relation_error": 0.4652125
+    },
+    "interpretation": "the allowed input gauge defines the semantic quotient; exact quotient symmetries cannot be broken by additional relation queries and require minimal gauge grounding"
+  },
+  "decision": "Use adversarial disagreement queries against a diverse plausible committee for open-world validation. Treat exact source/gauge equivalences as explicit quotient classes and spend coordinate grounding only to fix residual input gauge. Keep continuous gauge optimization as a separate unresolved algorithmic problem.",
+  "claim_boundaries": [
+    "synthetic 2D scalar functions",
+    "near-equivalence pairs selected from prior analysis",
+    "iid bit-noise screen",
+    "coordinate anchors are semantic-native correspondences",
+    "continuous optimizer knows the similarity family",
+    "not arbitrary pretrained-model fusion"
+  ]
+}
