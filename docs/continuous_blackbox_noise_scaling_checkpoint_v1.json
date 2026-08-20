@@ -1,0 +1,62 @@
+{
+  "checkpoint": "continuous-blackbox-noise-scaling-v1",
+  "blackbox_sampled_finite": {
+    "candidate_sources": 20,
+    "no_full_behavior_table": true,
+    "proposal64": {"correct":1999,"total":2000,"wrong":0,"unresolved":1,"mean_relation_queries":4.372,"mean_target_output_evals":8.853,"candidate_table_fraction_observed":0.215643359375}
+  },
+  "committee_proposal_selection": {
+    "proposal_budget":32,
+    "committee_size":4,
+    "correct":1000,
+    "total":1000,
+    "wrong":0,
+    "unresolved":0,
+    "mean_relation_queries":5.152,
+    "mean_target_output_evals":10.376,
+    "candidate_table_fraction_observed":0.062353759765625
+  },
+  "continuous_non_enumerable": {
+    "domain":"[0,1]^2",
+    "candidate_sources":16,
+    "relation":"output order y1<y2",
+    "proposal32_committee4":{"correct":1600,"total":1600,"wrong":0,"unresolved":0,"mean_relation_queries":3.949375,"mean_bridge_queries":0.375,"mean_target_output_evals":8.27375},
+    "residual_monotone_equivalence":["add~avg","mul~geom","sqsum~l2"]
+  },
+  "known_noise_safe_unresolved": {
+    "posterior_threshold":0.999,
+    "bitflip_0.10_budget30_plus8":{"correct":157,"wrong":0,"unresolved":3,"total":160,"mean_target_output_evals":40.3},
+    "bitflip_0.20_budget30_plus8":{"correct":114,"wrong":0,"unresolved":46,"total":160,"mean_target_output_evals":54.3625}
+  },
+  "unknown_noise_joint_inference": {
+    "method":"candidate posterior plus candidate-specific Beta(1,9) observation-error posterior; true bit-flip rate is not supplied",
+    "threshold":0.999,
+    "rows":[
+      {"actual_bitflip":0.0,"correct":320,"wrong":0,"unresolved":0,"total":320,"estimated_error_mean":0.0391},
+      {"actual_bitflip":0.05,"correct":320,"wrong":0,"unresolved":0,"total":320,"estimated_error_mean":0.0626},
+      {"actual_bitflip":0.10,"correct":300,"wrong":0,"unresolved":20,"total":320,"estimated_error_mean":0.0964},
+      {"actual_bitflip":0.20,"correct":174,"wrong":0,"unresolved":146,"total":320,"estimated_error_mean":0.1655},
+      {"actual_bitflip":0.30,"correct":43,"wrong":1,"unresolved":276,"total":320,"estimated_error_mean":0.2514}
+    ],
+    "conservative_threshold_control":"raising threshold to 0.9999 removed observed wrong routing at 30% noise in the matched screen, at the cost of much higher unresolved rate"
+  },
+  "source_pool_scaling": {
+    "family":"continuous 2D linear directions with four positive-scale/offset gauge variants per direction",
+    "relation":"two-output order bit, invariant to positive scale+offset",
+    "bridge":"one-bit output>scalar-reference",
+    "rows":[
+      {"pool_size":32,"direction_classes":8,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":3.145,"mean_bridge_queries":2.0,"log2_direction_classes":3.0},
+      {"pool_size":64,"direction_classes":16,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":4.37,"mean_bridge_queries":2.0,"log2_direction_classes":4.0},
+      {"pool_size":128,"direction_classes":32,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":5.4,"mean_bridge_queries":2.0,"log2_direction_classes":5.0},
+      {"pool_size":256,"direction_classes":64,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":6.54,"mean_bridge_queries":2.0,"log2_direction_classes":6.0}
+    ],
+    "interpretation":"relation query complexity tracks the number of behavioral equivalence classes, while residual gauge fixing cost stays constant at log2(4)=2 bits"
+  },
+  "current_hypothesis":"universal source identification should maximize gauge-invariant behavior, infer the residual equivalence class, and spend grounding bits only on the remaining automorphism/gauge; query complexity is governed more directly by behavioral class entropy than raw source count",
+  "claim_boundaries":[
+    "continuous experiments use synthetic scalar functions and known input generators",
+    "order relations are invariant to strictly increasing output reparameterizations, not arbitrary output bijections",
+    "cross-modal scalar/reference predicates are real grounding channels",
+    "noise screens assume deterministic candidate characterization; unknown-noise inference still uses a low-noise Beta prior"
+  ]
+}
