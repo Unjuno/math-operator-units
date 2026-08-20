@@ -1,0 +1,22 @@
+{
+  "experiment": "heldout_transformer_private_abi_insertion",
+  "pool_seeds": [310, 311, 312],
+  "protocol": "seen-only admission threshold over add/sub/min/max/xor; held-out mul Transformer absent from threshold calibration; private output ABI inferred from 18 behavior anchors; opaque command grounded from fixed behavior probes; common-action fusion after ABI mapping",
+  "source_exact_all": true,
+  "adapter_structural_all": true,
+  "adapter_decode_all": true,
+  "thresholds": [0.65, 0.65, 0.65],
+  "heldout_routing": [
+    {"top": 5, "second": 3, "top_score": 1.0, "second_score": 0.3, "accepted": true},
+    {"top": 5, "second": 3, "top_score": 1.0, "second_score": 0.3, "accepted": true},
+    {"top": 5, "second": 3, "top_score": 1.0, "second_score": 0.3, "accepted": true}
+  ],
+  "hard_all_depths_all_pools": true,
+  "probmix_0.6_all_depths_all_pools": true,
+  "probmix_0.5_e2e_by_pool": [
+    {"1": 0.6083333333, "2": 0.475, "3": 0.375, "4": 0.3166666667, "5": 0.2333333333},
+    {"1": 0.625, "2": 0.5083333333, "3": 0.3166666667, "4": 0.3083333333, "5": 0.275},
+    {"1": 0.5916666667, "2": 0.4083333333, "3": 0.35, "4": 0.2333333333, "5": 0.2333333333}
+  ],
+  "claim_boundary": "controlled 32-state synthetic neural screen; behavioral probes and explicit common action domain remain; stage boundaries external"
+}
