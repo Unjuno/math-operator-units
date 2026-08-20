@@ -1,0 +1,84 @@
+{
+  "checkpoint": "actual-stochastic-neural-registry-v1",
+  "scope": {
+    "domain": 16,
+    "ops": ["add", "sub", "min", "max", "xor", "mul"],
+    "candidate_architectures": ["gru", "mlp", "gru", "mlp", "gru", "transformer"],
+    "target_architectures": "cyclically changed independent neural instances",
+    "private_input": "independent factorized operand permutations per model",
+    "private_output": "independent 16-way output permutations per model",
+    "stochasticity": "actual torch.multinomial token sampling from model logits / temperature",
+    "routing_relation": "raw-private-output(x1) == raw-private-output(x2); no common action decode or expected-answer label in routing"
+  },
+  "matched_sampling": [
+    {"temperature":1.0,"registration_repeats":12,"correct":180,"wrong":0,"unresolved":0,"total":180,"mean_runtime_relation_queries":4.7388888889,"candidate_stochastic_semantic_acc":[0.9875,1.0,1.0,1.0,0.99,1.0],"target_stochastic_semantic_acc":[1.0,0.9875,1.0,0.9975,1.0,0.99]},
+    {"temperature":1.2,"registration_repeats":20,"correct":180,"wrong":0,"unresolved":0,"total":180,"mean_runtime_relation_queries":4.5222222222,"candidate_stochastic_semantic_acc":[0.97,1.0,0.9825,0.9975,0.9725,1.0],"target_stochastic_semantic_acc":[0.995,0.98,1.0,0.9875,1.0,0.975]},
+    {"temperature":1.4,"registration_repeats":6,"correct":120,"wrong":0,"unresolved":0,"total":120,"mean_runtime_relation_queries":6.425,"candidate_stochastic_semantic_acc":[0.9325,0.99,0.9825,1.0,0.9375,0.9975],"target_stochastic_semantic_acc":[0.9975,0.9325,0.995,0.985,0.9775,0.9675]}
+  ],
+  "temperature_mismatch_summary": {
+    "candidate_temperatures": [0.9,1.0,1.1,1.2,1.3,1.4],
+    "rows": [
+      {"repeats":2,"scheme":"matched","correct":240,"wrong":0,"unresolved":0,"total":240,"mean_queries":8.5166666667},
+      {"repeats":2,"scheme":"plus08","correct":201,"wrong":0,"unresolved":39,"total":240,"mean_queries":13.4708333333},
+      {"repeats":2,"scheme":"extreme","correct":189,"wrong":0,"unresolved":51,"total":240,"mean_queries":13.1791666667},
+      {"repeats":4,"scheme":"matched","correct":240,"wrong":0,"unresolved":0,"total":240,"mean_queries":6.2291666667},
+      {"repeats":4,"scheme":"plus08","correct":222,"wrong":0,"unresolved":18,"total":240,"mean_queries":10.3083333333},
+      {"repeats":4,"scheme":"extreme","correct":211,"wrong":0,"unresolved":29,"total":240,"mean_queries":10.7083333333},
+      {"repeats":8,"scheme":"matched","correct":240,"wrong":0,"unresolved":0,"total":240,"mean_queries":5.175},
+      {"repeats":8,"scheme":"plus08","correct":234,"wrong":0,"unresolved":6,"total":240,"mean_queries":8.0875},
+      {"repeats":8,"scheme":"extreme","correct":221,"wrong":0,"unresolved":19,"total":240,"mean_queries":8.7333333333},
+      {"repeats":16,"scheme":"matched","correct":240,"wrong":0,"unresolved":0,"total":240,"mean_queries":4.6},
+      {"repeats":16,"scheme":"plus08","correct":236,"wrong":0,"unresolved":4,"total":240,"mean_queries":7.2375},
+      {"repeats":16,"scheme":"extreme","correct":229,"wrong":0,"unresolved":11,"total":240,"mean_queries":7.575}
+    ]
+  },
+  "routing_to_execution": [
+    {"registration_repeats":4,"target_temperatures":[0.9,1.0,1.1,1.2,1.3,1.4],"routes_resolved_correct":6,"routes_resolved":6,"mean_identification_queries":6.1666666667,"hard_and_soft06_depth1_5_all_exact":true},
+    {"registration_repeats":8,"target_temperatures":[1.7,1.8,1.9,2.0,2.1,2.2],"routes_resolved_correct":6,"routes_resolved":6,"mean_identification_queries":7.1666666667,"hard_and_soft06_depth1_5_all_exact":true},
+    {"registration_repeats":16,"target_temperatures":[1.0,2.0,1.2,2.2,1.4,2.4],"routes_resolved_correct":5,"routes_resolved":5,"unresolved_operation":"mul","mul_posterior":0.4469617605,"resolved_stage_hard_local":1.0,"resolved_stage_soft06_local":1.0,"interpretation":"program E2E loss is entirely from semantic abstention, not execution/fusion failure"}
+  ],
+  "temperature_nuisance_marginalization_negative": {
+    "target_temperatures": [1.0,2.0,1.2,2.2,1.4,2.4],
+    "registration_temperatures": [0.8,1.2,1.6,2.0,2.4],
+    "registration_repeats": 8,
+    "correct": 210,
+    "wrong": 2,
+    "unresolved": 28,
+    "total": 240,
+    "interpretation": "Explicitly marginalizing decoder temperature for a single registered model instance can become overconfident; independent target-instance variation is not captured by temperature alone."
+  },
+  "semantic_prototype_unknown_noise": {
+    "registry":"greedy gauge-invariant equality relation signature per candidate; runtime stochastic decoder noise inferred candidate-wise with Beta(1,9); no registered temperature",
+    "threshold_0.995": [
+      {"scheme":"matched","correct":240,"wrong":0,"unresolved":0,"total":240,"mean_queries":8.0541666667,"mean_selected_error_estimate":0.0604147514},
+      {"scheme":"plus08","correct":234,"wrong":0,"unresolved":6,"total":240,"mean_queries":16.1333333333,"mean_selected_error_estimate":0.1139498471},
+      {"scheme":"extreme","correct":219,"wrong":0,"unresolved":21,"total":240,"mean_queries":17.2416666667,"mean_selected_error_estimate":0.1143899344},
+      {"scheme":"harder","correct":164,"wrong":0,"unresolved":76,"total":240,"mean_queries":22.7,"mean_selected_error_estimate":0.1443722308}
+    ],
+    "threshold_0.999": [
+      {"scheme":"matched","correct":240,"wrong":0,"unresolved":0,"total":240},
+      {"scheme":"plus08","correct":224,"wrong":0,"unresolved":16,"total":240},
+      {"scheme":"extreme","correct":199,"wrong":0,"unresolved":41,"total":240},
+      {"scheme":"harder","correct":162,"wrong":0,"unresolved":78,"total":240}
+    ]
+  },
+  "interpretation": [
+    "Actual neural token sampling supports probabilistic behavioral registration: independent target models with different architectures/private ABIs can be identified from raw-output equality relations.",
+    "Sampling-temperature mismatch mainly reduces coverage under calibrated UNRESOLVED rather than causing wrong routes in the direct probabilistic-registry sweep.",
+    "Routing-to-execution integration localizes extreme-temperature failure to identification: resolved hard and 0.6/0.4 stages remain exact.",
+    "Treating decoder temperature as the nuisance state is too narrow; a greedy semantic relation prototype plus online unknown-noise inference is safer across independent model instances."
+  ],
+  "claim_boundary": [
+    "controlled N=16 synthetic arithmetic domain",
+    "factorized private input ABI and one-token private output state in this stochastic screen",
+    "known semantic input-pair generator",
+    "right-identity output alignment is used for execution after routing",
+    "common-state probability fusion remains after routing",
+    "independent neural instances are small GRU/MLP/Transformer models, not unrelated pretrained LLM families"
+  ],
+  "next": [
+    "register multiple independent plugin instances per semantic class and test a held-out third instance",
+    "compare single-instance registry, class-level hierarchical registry, and semantic-prototype+unknown-noise",
+    "test structured stochasticity such as inference dropout in addition to temperature sampling"
+  ]
+}
