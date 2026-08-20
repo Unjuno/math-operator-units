@@ -1,0 +1,27 @@
+{
+  "experiment": "active_probe_without_domain_enumeration_aggregate_v1",
+  "pool_seeds": [310,311,312],
+  "trials_per_pool": 500,
+  "max_oracle_queries": 4,
+  "forced_fixed_probe_tiebreak": {
+    "true_add_top_rate_mean": 0.5033333333333333,
+    "wrong_rate_mean": 0.49666666666666665
+  },
+  "random_probe": {
+    "resolved_true_rate": 0.6833333333333332,
+    "resolved_wrong_rate": 0.0,
+    "unresolved_rate": 0.31666666666666665,
+    "mean_oracle_queries": 2.728,
+    "mean_source_evals": 5.456
+  },
+  "active": {
+    "2": {"resolved_true_rate":0.882,"resolved_wrong_rate":0.0,"unresolved_rate":0.118,"mean_oracle_queries":2.0993333333333335,"mean_source_evals":8.397333333333334},
+    "4": {"resolved_true_rate":0.9893333333333333,"resolved_wrong_rate":0.0,"unresolved_rate":0.010666666666666666,"mean_oracle_queries":1.4326666666666668,"mean_source_evals":11.461333333333334},
+    "8": {"resolved_true_rate":1.0,"resolved_wrong_rate":0.0,"unresolved_rate":0.0,"mean_oracle_queries":1.1033333333333333,"mean_source_evals":17.653333333333332},
+    "16": {"resolved_true_rate":1.0,"resolved_wrong_rate":0.0,"unresolved_rate":0.0,"mean_oracle_queries":1.008,"mean_source_evals":32.256},
+    "32": {"resolved_true_rate":1.0,"resolved_wrong_rate":0.0,"unresolved_rate":0.0,"mean_oracle_queries":1.0,"mean_source_evals":64.0},
+    "64": {"resolved_true_rate":1.0,"resolved_wrong_rate":0.0,"unresolved_rate":0.0,"mean_oracle_queries":1.0,"mean_source_evals":128.0}
+  },
+  "interpretation": "Bounded-proposal disagreement search removes the need to enumerate all 1024 inputs in the SHADOW-ADD identification problem. With proposal budget 8 and at most four expected-action queries, all 1500 trials resolve the true ADD source with zero wrong resolutions and zero abstentions; mean oracle queries are about 1.10. Random probing with the same four-query cap resolves only about 68.3% and safely abstains on the rest. The trade-off is additional source evaluations inside the proposal set.",
+  "claim_boundary": "Candidate inputs are still sampled from a known finite 32x32 input generator; expected common actions are supplied by an oracle/query channel. Source proposal evaluation is not itself counted as an oracle-label query. This does not yet show active query synthesis in open-ended natural-language or continuous domains."
+}
