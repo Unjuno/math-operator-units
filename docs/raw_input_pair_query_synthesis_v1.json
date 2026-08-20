@@ -1,0 +1,16 @@
+{
+  "experiment": "raw_input_pair_equality_query_synthesis_v1",
+  "candidate_sources": ["add","sub","min","max","xor","mul","and","or","nand","absdiff","avg","satadd","left","right","eq","lt","gcd","mod","rotmix","shadow"],
+  "query": "choose two raw input pairs and observe only whether task outputs are equal; proposals are selected to maximize binary split among surviving candidate source behavior patterns",
+  "rows": [
+    {"proposal_budget_per_round":32,"wrong":0,"unresolved":1,"mean_relation_queries_per_command":4.5435,"mean_bridge_queries_per_command":0.11,"all20_resolved_rate":0.99},
+    {"proposal_budget_per_round":64,"wrong":0,"unresolved":0,"mean_relation_queries_per_command":4.4185,"mean_bridge_queries_per_command":0.101,"all20_resolved_rate":1.0},
+    {"proposal_budget_per_round":128,"wrong":0,"unresolved":0,"mean_relation_queries_per_command":4.3315,"mean_bridge_queries_per_command":0.1,"all20_resolved_rate":1.0},
+    {"proposal_budget_per_round":256,"wrong":0,"unresolved":0,"mean_relation_queries_per_command":4.297,"mean_bridge_queries_per_command":0.1,"all20_resolved_rate":1.0},
+    {"proposal_budget_per_round":512,"wrong":0,"unresolved":0,"mean_relation_queries_per_command":4.2985,"mean_bridge_queries_per_command":0.1,"all20_resolved_rate":1.0}
+  ],
+  "example_pre_bridge_classes": {"add":["add"],"sub":["sub"],"min":["min"],"max":["max"],"xor":["xor"],"mul":["mul"],"and":["and","nand"],"or":["or"],"nand":["and","nand"],"absdiff":["absdiff"],"avg":["avg"],"satadd":["satadd"],"left":["left"],"right":["right"],"eq":["eq"],"lt":["lt"],"gcd":["gcd"],"mod":["mod"],"rotmix":["rotmix"],"shadow":["shadow"]},
+  "interpretation": "no hand-written intervention transformations or operation-specific contracts are used; output-permutation-equivalent functions remain in the same class and require a separate grounding bridge",
+  "claim_boundary": "source-side candidate behavior over the finite input domain is available here; proposal generation samples raw input pairs from a known finite domain, not a continuous/open-ended input space",
+  "elapsed_s": 12.966373920440674
+}
