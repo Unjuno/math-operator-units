@@ -2,204 +2,147 @@
 
 Project: Paraphrase-consensus biased decoding / operator-unit fusion
 
-This is the authoritative recovery checkpoint for the active research branch. Experiments run in the **container**; GitHub is persistence, review, and reproducibility only.
+Experiments run in the **container**. GitHub is persistence, review, and reproducibility only. Active branch: `experiment/unseen-source-generalization`; active draft: PR #40.
 
-Restart order:
+Restart in this order: `docs/research/README.md` → `docs/research/BRANCHES.md` → this file → newest JSON under `docs/` → PR #40.
 
-1. `docs/research/README.md`
-2. `docs/research/BRANCHES.md`
-3. this checkpoint
-4. machine-readable result JSONs under `docs/`
-5. draft PR #40 on `experiment/unseen-source-generalization`
+## Goal
 
-## Goal and current hypothesis
-
-Goal: accept previously unseen computational/model specialists, infer when/how they apply without a hand-written `operator -> source` table, and compose them into unseen programs.
+Accept previously unseen computational/model specialists, infer when/how they apply without a hand-written `operator -> source` table, and compose them into unseen programs.
 
 Current candidate stack:
 
-`interface discovery/normalization -> behavioral semantic grounding -> source applicability -> source-specific ABI/action adapter -> common action/state-transition distribution -> sparse probability fusion -> program composition`
+`interface discovery/normalization -> active behavioral grounding/applicability -> source-specific ABI/action adapter -> common action/state-transition distribution -> top-dominant sparse probability fusion -> program composition`
 
 The main scientific shift is that **shared raw token logits are no longer treated as the universal fusion interface**.
 
-## What the earlier shared-token work established
+## Established trajectory
 
-- ADD/SUM/MIN/MAX specialists were usable; NEG was repeatedly weak/failed.
-- Oracle two-stage composition reached 191/192 E2E.
-- Learned prompt controllers could approach that result, but early versions relied on explicit operator tokens and externally supplied stage boundaries.
-- Identity-free local logit-field morphology could recognize some unseen capability but caused severe insertion interference.
-- Semantic-view behavior and task-conditioned metamorphic behavior were stronger applicability signals than static field morphology.
-- Self-normalized command specificity and unlabeled prompt structure could identify control regions without a fixed hand-written source index or absolute command position in the tested synthetic grammar.
-- Arbitrarily permuted opaque command meanings were not zero-shot identifiable; minimal behavior anchors resolved the permutation symmetry. Treat this as an identifiability boundary.
-- Dense/equal raw-logit fusion accumulated interference with program depth. Top-dominant sparse fusion was substantially safer.
+Earlier shared-token experiments established that ADD/SUM/MIN/MAX could compose nearly perfectly under oracle/learned control, while NEG was weak. Identity-free local logit geometry could recognize some unseen capability but caused irrelevant-source insertion damage. Self-normalized causal specificity and unlabeled prompt structure improved source/interface discovery. Arbitrarily permuted command meanings were not zero-shot identifiable, so behavioral grounding is an identifiability requirement. Dense/equal fusion accumulated depth interference; top-dominant sparse fusion was safer.
 
-## Output ABI and black-box boundary
+Output-ABI experiments then showed that common token coordinates are not essential. Low-complexity private codecs (unknown radix, symbol mapping, sequence direction/length) can be inferred from behavior, including for black-box sources exposing only output token sequences. Arbitrary whole-action random codebooks do not few-shot generalize.
 
-Shared output token coordinates are not intrinsically necessary.
+## Neural private-tokenizer / heterogeneous-source results
 
-- Naïve coordinate-wise interpretation of permuted action tokens failed; an adapter restored performance.
-- Arbitrary whole-action random codebooks do not generalize from a few anchors.
-- Low-complexity/compositional codecs do: unknown radix, digit-symbol mapping, direction, and variable sequence length can be inferred from a small behavior set.
-- An actively chosen eight-probe set identified 500/500 random compositional numeral codecs in the synthetic screen and extrapolated to longer output sequences.
-- A black-box source exposing only generated token sequences could still compose through a common-action adapter when its external ABI had learnable structure.
+Across three 64-state neural pools with private input tokenizers, private variable-length output codecs, and incompatible output-head sizes:
 
-Conclusion: **internal logit access is not the essential requirement; behaviorally identifiable source I/O structure is.**
-
-## Neural private-tokenizer / heterogeneous-head screen
-
-Five independently trained neural specialists (`add/sub/min/max/xor`) used private 4096-way input-pair tokenizers plus private variable-length output codecs and different output-head dimensions.
-
-Across three 64-state pools:
-
-- source competence: 13/15 at 4096/4096, remaining 2 at 4095/4096;
-- codec structural recovery: 15/15;
-- held-out common-action decode: **17,999/18,000**;
-- hard depth-1..5 composition: **4,499/4,500**.
-
-Direct raw-logit fusion was not dimensionally defined. After mapping private sequence likelihoods to a common 64-action probability distribution:
-
-- probability mixture `0.6/0.4`: **560/560**;
-- equal `0.5/0.5`: **168/560**;
-- log-probability pooling `0.8/0.2`: **521/560**.
-
-Reproduction:
-
-- `scripts/experiment_neural_private_tokenizer_adapter.py`
-- `scripts/experiment_heterogeneous_action_space_soft_fusion.py`
-
-## Mixed neural architectures
-
-A later screen mixed autoregressive GRU and non-autoregressive MLP sequence specialists while keeping private input/output ABIs.
-
-Across three pools after fixing an underpowered first NAR design:
-
-- source exact: 14/15 perfect, 1/15 with one miss;
 - codec recovery: **15/15**;
-- common-action decode: **61,439/61,440**;
-- hard depth-1..5: **3,000/3,000**;
-- probability `0.6/0.4`: **600/600**;
-- equal `0.5/0.5`: **200/600**;
-- log-probability `0.8/0.2`: **537/600**.
+- held-out decode: **17,999/18,000**;
+- hard depth1-5: **4,499/4,500**;
+- common-action probability `0.6/0.4`: **560/560**;
+- equal `0.5/0.5`: **168/560**;
+- log-probability `0.8/0.2`: **521/560**.
 
-Shared decoding architecture is therefore not required in this controlled setting.
+Mixed GRU + NAR-MLP pools then achieved codec recovery **15/15**, hard depth1-5 **3,000/3,000**, and common-action `0.6/0.4` **600/600**. Shared decoding architecture is therefore not required in this controlled setting.
 
-Reproduction: `scripts/experiment_mixed_architecture_common_action_fusion.py`.
+## Held-out attention architecture
 
-## Held-out attention architecture/source
-
-A sixth operation, `mul`, was implemented only by a private-ABI attention Transformer. Five seen GRU/NAR sources alone calibrated the source-admission threshold; the Transformer/MUL source was absent from that calibration.
+A new `mul` specialist using an attention Transformer, private tokenizer, and private output ABI was excluded from admission-threshold calibration. Five seen GRU/NAR sources alone set threshold `0.65`.
 
 Across seeds 310/311/312:
 
-- all 18 source instances reached exact standalone competence;
-- all 18 private ABIs were recovered with exact common-action decode;
-- seen-only threshold = **0.65** in all pools;
-- held-out MUL/Transformer compatibility = **1.0**, second-best = **0.3**;
-- hard depth1-5 = **100% at every depth in every pool**;
-- common-action probability `0.6/0.4` = **100% at every depth in every pool**;
-- equal `0.5/0.5` again collapsed by depth 5 (~23–28%).
+- all six sources per pool reached exact standalone competence;
+- all private ABIs decoded exactly;
+- held-out Transformer score = **1.0**, second-best = **0.3**;
+- hard depth1-5 = **100% at every depth in all pools**;
+- common-action `0.6/0.4` = **100% at every depth in all pools**.
 
-Reproduction: `scripts/experiment_heldout_transformer_private_abi_insertion.py`.
-Aggregate: `docs/heldout_transformer_private_abi_insertion_aggregate_v1.json`.
+See `scripts/experiment_heldout_transformer_private_abi_insertion.py` and `docs/heldout_transformer_private_abi_insertion_aggregate_v1.json`.
 
-## Integrated opaque-command + position-free + held-out Transformer run
+## Joint opaque-command / position-free integration
 
-The components were then combined rather than tested separately.
+Each operation received a random two-token opaque command. The unlabeled interface corpus contained only the five seen commands across seven positions/wrappers; the held-out MUL code never appeared there.
 
-Each operation received a random **two-token opaque command**. The unlabeled interface corpus contained only the five seen commands, balanced across seven command positions/wrapper grammars. The held-out MUL code never appeared in that corpus.
+A first integrated version used local observed-bigram support to find the unknown command span and **failed**: seed310 held-out span accuracy was only ~57%, causing severe E2E collapse. Operand-adjacent spans could be locally plausible command sites.
 
-Pipeline:
+The fix was to learn full **command-placeholder grammar skeletons** from the unlabeled seen-only corpus, then score candidate spans by structural distance; local bigrams only break ties.
 
-1. discover the seen two-token categorical command family from document frequency/exclusivity;
-2. abstract values and learn full command-placeholder grammar skeletons from the unlabeled seen-only corpus;
-3. locate an unknown command span by replacing each candidate two-token span with the command placeholder and scoring structural distance to the learned grammar skeletons;
-4. ground opaque command semantics against anonymous source behavior probes;
-5. use the seen-only threshold to admit the held-out Transformer;
-6. map private outputs to common actions;
-7. compose depth1-5 using hard selection or common-action probability `0.6/0.4`.
+With that rule frozen across seeds 310/311/312:
 
-Important negative control: a first version used only local observed-bigram support for span discovery. It achieved only ~57% held-out span accuracy because operand-adjacent spans could be locally plausible command sites. This caused severe E2E collapse. The failure was isolated to interface discovery, not source competence/ABI/routing.
-
-After replacing local-only scoring with learned **full grammar skeleton** matching and freezing that rule:
-
-- seen command-family discovery: exact in 3/3 pools;
-- held-out code absent from structural corpus: true in 3/3;
-- held-out command-span detection: **100% in 3/3 pools**;
-- seen-only threshold: **0.65** in 3/3;
-- held-out Transformer route: top score **1.0**, second **0.3** in 3/3;
+- seen command-family discovery: exact 3/3;
+- held-out code absent from corpus: 3/3;
+- held-out span detection: **100%**;
+- held-out Transformer routing: **100%**;
 - hard depth1-5: **100% at every depth in all pools**;
-- common-action `0.6/0.4`: **359/360 = 99.72%** across 3 pools × 5 depths × 24 programs.
+- common-action `0.6/0.4`: **359/360 = 99.72%**.
 
-Reproduction: `scripts/experiment_joint_opaque_positionfree_heldout_transformer.py`.
-Aggregate: `docs/joint_opaque_positionfree_heldout_transformer_aggregate_v2.json`.
+See `scripts/experiment_joint_opaque_positionfree_heldout_transformer.py` and `docs/joint_opaque_positionfree_heldout_transformer_aggregate_v2.json`.
 
-## Competent irrelevant plugin / exact sparse abstention
+## Competent irrelevant plugin
 
-A seventh source was added: a private-ABI GRU that accurately computes
+A private-ABI GRU was trained to perfectly compute `JUNK(a,b)=(7a+11b+3) mod 32`. It is competent, not random, but irrelevant to the six requested operations.
 
-`JUNK(a,b) = (7a + 11b + 3) mod 32`.
+Across three pools it scored only 0–0.2 against requested behaviors, entered top-2 **0/18** command/pool combinations, and both hard and `0.6/0.4` results were paired-identical before/after insertion. Sparse top-2 therefore gave this clearly irrelevant plugin exact zero contribution.
 
-This is not a broken/random network; it is a competent but irrelevant computational plugin.
+See `scripts/experiment_joint_competent_irrelevant_plugin.py` and `docs/joint_competent_irrelevant_nuisance_aggregate_v2.json`.
 
-Across seeds 310/311/312:
+## New identifiability boundary: SHADOW-ADD
 
-- JUNK standalone exact: **3/3 = 100%**;
-- JUNK ABI decode: **3/3 = 100%**;
-- behavior score against requested `add/sub/min/max/xor/mul`: `0–0.2`;
-- JUNK enters top-2 sparse source set: **0/18 command/pool combinations**;
-- hard results before/after JUNK insertion: **paired-identical in 3/3 pools**;
-- common-action `0.6/0.4` results before/after JUNK: **paired-identical in 3/3 pools**.
+The easy JUNK case is not sufficient. A near-confusable private-ABI GRU was therefore trained on a `SHADOW-ADD` function that:
 
-Thus a source can be independently useful, privately encoded, and nevertheless receive **exact zero contribution** to unrelated sparse fusion by remaining outside the selected field.
+- matches ADD **exactly on the fixed ten behavioral probes**;
+- agrees with ADD on ~**75.29%** of the full 32×32 domain;
+- is itself learned with 100% standalone accuracy.
 
-Reproduction: `scripts/experiment_joint_competent_irrelevant_plugin.py`.
-Aggregate: `docs/joint_competent_irrelevant_nuisance_aggregate_v2.json`.
+On the fixed probes, true ADD and SHADOW both score **1.0**. Source order was randomized to remove identity/tie-break assumptions.
+
+Across 3 pools × 300 order/probe trials:
+
+| extra random probes | true ADD top rate | SHADOW top rate |
+|---:|---:|---:|
+| 0 | 46.44% | 53.56% |
+| 1 | 62.56% | 37.44% |
+| 2 | 69.33% | 30.67% |
+| 4 | 85.56% | 14.44% |
+| 8 | 95.11% | 4.89% |
+| 16 | 99.44% | 0.56% |
+| 32 | 100% | 0% |
+
+Under worst-case source ordering, fixed-probe routing selects SHADOW for ADD and depth-5 E2E falls to **84.33%, 85.67%, 85.00%** across the three seeds.
+
+Crucially, selecting **two inputs where the competing candidate sources disagree**, then querying the expected common action only on those two probes, restores the true ADD route and depth-5 E2E to **100%, 100%, 100%**.
+
+Decision: a fixed finite behavioral anchor set is **not** a semantic proof. When multiple candidate sources remain observationally equivalent on calibration evidence, the controller should actively generate/select disagreement probes until the ambiguity is resolved or explicitly remain uncertain.
+
+See `scripts/experiment_shadow_add_active_probing.py` and `docs/shadow_add_active_probe_aggregate_v2.json`.
 
 ## Current interpretation
 
-The experimental object is now better described as **behaviorally grounded state-transition composition** than token-logit fusion.
-
-Separate failure modes must be measured independently:
+The research object is now better described as **behaviorally grounded state-transition composition** than token-logit fusion. Distinct failure modes must remain separated:
 
 1. source competence;
 2. interface/control-region discovery;
-3. semantic grounding/applicability;
-4. source ABI alignment;
-5. fusion algebra/field sparsity;
+3. semantic/applicability identification;
+4. ABI alignment;
+5. fusion algebra/sparsity;
 6. program segmentation/execution.
 
-Within the current controlled screens, a source may differ in tokenizer, output head, output sequence convention, internal GRU/MLP/attention architecture, and may be absent from admission calibration, yet still compose when its behavior can be mapped into the common action field.
+A useful source may differ in tokenizer, output head, output sequence convention, internal GRU/MLP/attention architecture, and may be absent from admission calibration. What currently matters is whether its behavior can be actively identified and mapped into a common transition field.
 
 ## Claim boundary
 
-Do **not** claim arbitrary-model or arbitrary-LLM fusion yet.
+Do **not** claim arbitrary-model or arbitrary-LLM fusion yet. Remaining assumptions include:
 
-Remaining assumptions:
-
-- an explicit common 32/64-state action domain is externally defined;
-- behavior probes expose expected common actions for semantic/ABI grounding;
-- source ABIs have inferable/compressible structure;
-- the seven integrated grammar skeletons are represented in the unlabeled seen-only corpus, so the current success is structural interpolation rather than unseen-grammar extrapolation;
+- an explicit common 32/64-state action domain;
+- an oracle/query mechanism that can provide expected common actions on selected behavioral probes;
+- structured/inferable source ABIs;
+- integrated grammar success currently interpolates among seven skeletons present in the unlabeled corpus;
 - stage boundaries are externally supplied;
-- the nuisance source is behaviorally well separated, not near-confusable/adversarial;
-- no unrelated pretrained LLM families have been integrated.
+- active disagreement search currently enumerates a small finite input domain;
+- no unrelated pretrained LLM families have been connected.
 
-## Next experiments — priority order
+## Next experiments
 
-1. **Near-confusable nuisance:** train a competent source intentionally close to a real operator's behavior so it approaches/enters the top-2 set. Test whether applicability can reject it without removing useful secondary signal.
-2. **Unseen grammar holdout:** freeze the current interface discovery rule, remove one or more wrapper/position skeletons entirely from the unlabeled corpus, and test structural extrapolation.
-3. **Remove external stage boundaries:** infer transition termination/segmentation and execute a full program stream.
-4. **Learn latent transition space:** replace the explicit integer action vocabulary with a learned representation aligned from behavior.
-5. After these controlled tests, move to unrelated pretrained model families through an explicit behavioral task interface.
+1. **Generalize active probing:** choose high-information disagreements without enumerating the entire input domain; quantify query/sample complexity and allow an explicit unresolved state.
+2. **Unseen grammar holdout:** freeze interface discovery and remove entire wrapper/position skeletons from the unlabeled corpus to test structural extrapolation.
+3. **Remove external stage boundaries:** learn transition termination/segmentation on a continuous program stream.
+4. **Learn latent transition space:** replace explicit integer actions with a behaviorally aligned latent state-transition representation.
+5. Only after those controlled tests, move to unrelated pretrained model families through an explicit behavioral task interface.
 
 ## Repository policy
 
-- Active research branch: `experiment/unseen-source-generalization` / draft PR #40.
-- Historical PRs are closed without merging; their branch refs are retained as research history because the available GitHub MCP does not expose branch deletion.
-- Other `experiment/*` branches are read-only history unless explicitly reactivated.
-- `*-ci-base` and `*-runner` are obsolete old Actions artifacts.
-- Do not create a new branch for each screening experiment while the central scientific object remains common-action fusion.
+Historical research PRs have been closed without merging; branch refs are retained because the available GitHub MCP does not expose branch deletion. `experiment/unseen-source-generalization` / PR #40 is the sole active research line. Other `experiment/*` refs, including old `*-ci-base` and `*-runner` branches, are read-only history unless explicitly reactivated.
 
 ## Scientific decision
 
-Do not return to dense raw-logit addition as the main direction unless new evidence specifically motivates it. Current evidence favors **behaviorally grounded, top-dominant sparse probability composition in a common action/state-transition space with source-specific ABI adapters**.
+Do not return to dense raw-logit addition as the main direction unless new evidence specifically motivates it. Current evidence favors **active behavioral identification + source-specific ABI alignment + top-dominant sparse probability composition in a common action/state-transition space**.
