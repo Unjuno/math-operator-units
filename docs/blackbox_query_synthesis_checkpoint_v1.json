@@ -1,79 +1,35 @@
 {
-  "checkpoint": "blackbox-query-synthesis-v1",
-  "compute_policy": "All experiment computation ran in the container; GitHub stores compact reproducibility/results checkpoints.",
+  "checkpoint": "blackbox-query-synthesis-v2",
   "finite_blackbox_sampling": {
-    "candidate_sources": 20,
-    "query": "choose two sampled raw input pairs; observe only whether task outputs are equal",
-    "no_full_candidate_table": true,
-    "proposal64": {
-      "correct": 1999,
-      "total": 2000,
-      "wrong": 0,
-      "unresolved": 1,
-      "mean_relation_queries": 4.372,
-      "mean_bridge_queries": 0.139,
-      "mean_target_output_evals": 8.853,
-      "mean_candidate_table_fraction_observed": 0.215643359375
-    }
+    "candidate_sources":20,
+    "query":"choose two sampled raw inputs and observe only whether task outputs are equal",
+    "no_precomputed_candidate_table":true,
+    "full_survivor_proposal64":{"correct":1999,"wrong":0,"unresolved":1,"total":2000,"mean_relation_queries":4.372,"mean_candidate_table_fraction_observed":0.215643359375},
+    "committee_proposal32_size4":{"correct":1000,"wrong":0,"unresolved":0,"total":1000,"mean_relation_queries":5.152,"mean_candidate_table_fraction_observed":0.062353759765625}
   },
-  "committee_query_synthesis": {
-    "principle": "score proposals on a small random committee of surviving sources; evaluate only the chosen query on all survivors",
-    "best_low_cost_screen": {
-      "proposal_budget": 32,
-      "committee_size": 4,
-      "correct": 1000,
-      "total": 1000,
-      "wrong": 0,
-      "unresolved": 0,
-      "mean_relation_queries": 5.152,
-      "mean_bridge_queries": 0.12,
-      "mean_target_output_evals": 10.376,
-      "mean_candidate_source_output_evals": 1277.005,
-      "mean_candidate_table_fraction_observed": 0.062353759765625
-    },
-    "comparison": "candidate-side observation drops from 21.56% of the full 20x1024 table in the full-survivor proposal64 screen to 6.24% while preserving 1000/1000 correctness"
+  "continuous_blackbox": {
+    "domain":"[0,1]^2 non-enumerable",
+    "relation":"output order y1<y2",
+    "proposal32_committee4":{"correct":1600,"wrong":0,"unresolved":0,"total":1600,"mean_relation_queries":3.949375,"mean_bridge_queries":0.375},
+    "monotone_equivalence":["add~avg","mul~geom","sqsum~l2"]
   },
-  "continuous_non_enumerable": {
-    "domain": "[0,1]^2",
-    "candidate_sources": 16,
-    "relation": "output order y1 < y2",
-    "invariance": "preserved under source-specific strictly increasing output reparameterizations",
-    "proposal32_committee4": {
-      "correct": 1600,
-      "total": 1600,
-      "wrong": 0,
-      "unresolved": 0,
-      "mean_relation_queries": 3.949375,
-      "mean_bridge_queries": 0.375,
-      "mean_target_output_evals": 8.27375
-    },
-    "order_equivalence_classes": ["add~avg", "mul~geom", "sqsum~l2"],
-    "bridge": "one-bit grounded predicate output > scalar reference r, used only to break monotone-output equivalence"
-  },
-  "noisy_continuous_unresolved": {
-    "policy": "Bayesian posterior; synthesize posterior-splitting relation/bridge queries; emit a source only at posterior >= 0.999, otherwise UNRESOLVED",
-    "standard_budget_10_plus_4": [
-      {"bitflip": 0.0, "correct": 317, "wrong": 0, "unresolved": 3, "total": 320},
-      {"bitflip": 0.05, "correct": 283, "wrong": 0, "unresolved": 37, "total": 320},
-      {"bitflip": 0.1, "correct": 193, "wrong": 0, "unresolved": 127, "total": 320},
-      {"bitflip": 0.2, "correct": 28, "wrong": 0, "unresolved": 292, "total": 320},
-      {"bitflip": 0.3, "correct": 0, "wrong": 0, "unresolved": 320, "total": 320}
+  "noise_and_unresolved":"see docs/continuous_blackbox_noise_scaling_checkpoint_v1.json",
+  "stochastic_plugins":"see docs/stochastic_plugin_registry_checkpoint_v1.json",
+  "pool_scaling": {
+    "family":"four positive-scale/offset variants per behavioral direction class",
+    "rows":[
+      {"sources":32,"behavior_classes":8,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":3.145,"mean_bridge_queries":2.0},
+      {"sources":64,"behavior_classes":16,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":4.37,"mean_bridge_queries":2.0},
+      {"sources":128,"behavior_classes":32,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":5.4,"mean_bridge_queries":2.0},
+      {"sources":256,"behavior_classes":64,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":6.54,"mean_bridge_queries":2.0}
     ],
-    "budget_scaling": [
-      {"bitflip": 0.1, "max_relation": 30, "max_bridge": 8, "correct": 157, "wrong": 0, "unresolved": 3, "total": 160, "forced_argmax_correct_rate": 1.0, "mean_target_output_evals": 40.3},
-      {"bitflip": 0.2, "max_relation": 30, "max_bridge": 8, "correct": 114, "wrong": 0, "unresolved": 46, "total": 160, "forced_argmax_correct_rate": 0.95, "mean_target_output_evals": 54.3625}
-    ]
+    "interpretation":"relation cost tracks behavioral-class entropy; residual four-way gauge fixing stays at two bits"
   },
-  "interpretation": "Query synthesis no longer requires a precomputed finite behavior table. A small source committee can propose informative black-box experiments; the same principle extends to a continuous non-enumerable input domain using order relations. Under noisy observations, calibrated UNRESOLVED trades coverage for zero observed wrong routing in these screens.",
-  "claim_boundaries": [
-    "finite 20-source experiment still has a known random input generator",
-    "continuous order relation is invariant to strictly monotone output transforms, not arbitrary output bijections",
-    "a small grounded cross-modal bridge remains necessary for residual output-reparameterization equivalence",
-    "Bayesian noise screen assumes the observation bit-flip rate is known and candidate source characterization is stable"
-  ],
-  "next": [
-    "infer/calibrate observation noise online instead of assuming a known bit-flip rate",
-    "replace random proposal sampling with learned continuous query optimization while preserving black-box constraints",
-    "integrate black-box query synthesis with private-ABI neural sources and learned stream execution"
+  "current_rule":"query candidate behavior as black boxes; maximize gauge-invariant information gain; preserve explicit equivalence classes; use minimal grounded bits only for residual gauge; represent stochastic plugin behavior as a probability distribution rather than a deterministic fingerprint",
+  "claim_boundaries":[
+    "synthetic scalar/state environments remain",
+    "continuous order queries are only invariant to strictly monotone output transforms",
+    "grounded scalar/state predicates remain necessary to break residual output-reparameterization symmetry",
+    "stochastic-source experiments inject relation-bit noise rather than full token-level neural stochasticity"
   ]
 }
