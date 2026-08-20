@@ -2,7 +2,10 @@
   "checkpoint": "2026-08-20-container-research",
   "compute_policy": "Experiments are run in the container; GitHub is persistence/review/reproducibility only.",
   "research_index": "docs/research/README.md",
-  "current_architecture": "interface normalization -> behavioral semantic grounding -> causal source applicability -> source-specific ABI/action adapter -> common action/state-transition distribution -> sparse probability fusion -> program composition",
+  "branch_map": "docs/research/BRANCHES.md",
+  "active_branch": "experiment/unseen-source-generalization",
+  "active_pr": 40,
+  "current_architecture": "interface normalization -> behavioral semantic grounding -> source applicability -> source-specific ABI/action adapter -> common action/state-transition distribution -> sparse probability fusion -> program composition",
   "neural_private_tokenizer": {
     "pools": 3,
     "sources_per_pool": 5,
@@ -30,15 +33,31 @@
     "probability_mix_0.5_0.5": "200/600",
     "logprob_pool_primary_0.8_secondary_0.2": "537/600"
   },
+  "heldout_transformer_private_abi_insertion": {
+    "pool_seeds": [310,311,312],
+    "seen_architectures": ["GRU", "NAR-MLP"],
+    "heldout_architecture": "attention Transformer",
+    "heldout_operation": "mul",
+    "heldout_absent_from_admission_threshold_calibration": true,
+    "seen_only_threshold": [0.65,0.65,0.65],
+    "heldout_top_score": [1.0,1.0,1.0],
+    "heldout_second_score": [0.3,0.3,0.3],
+    "source_exact": "18/18",
+    "codec_structural_recovery": "18/18",
+    "common_action_decode": "18/18 sources at 100%",
+    "hard_depth1_5": "100% at every depth in all 3 pools",
+    "probability_mix_primary_0.6_secondary_0.4": "100% at every depth in all 3 pools",
+    "equal_0.5_0.5_depth5": [0.2333333333,0.275,0.2333333333]
+  },
   "negative_boundaries": {
     "arbitrary_semantic_permutation_zero_shot": "not identifiable; requires behavioral grounding",
     "arbitrary_whole_action_codebook_few_shot": "does not generalize to unseen actions",
     "dense_or_equal_weight_fusion": "unsafe in current screens"
   },
-  "interpretation": "Shared raw token logits, tokenizers, output-head dimensions, and at least some decoding architectures are not necessary in controlled screens. Current evidence favors source-specific behavioral ABI adapters into a common action/state-transition probability space followed by sparse probability fusion.",
+  "interpretation": "Shared raw token logits, tokenizers, output-head dimensions, and shared neural architecture are not necessary in controlled screens. A useful attention-based source can also be inserted after seen-only admission calibration when its behavioral ABI is inferable. Current evidence favors source-specific behavioral ABI adapters into a common action/state-transition probability space followed by top-dominant probability fusion.",
   "next": [
-    "Add an attention-based Transformer specialist as a held-out architecture/source absent from applicability calibration.",
-    "Jointly test opaque commands + position-free grammar normalization + unseen-source applicability + heterogeneous architectures + private output ABIs + common-action probability fusion.",
+    "Jointly test opaque commands + position-free grammar normalization + seen-only applicability calibration + held-out Transformer/private ABI insertion + common-action probability fusion.",
+    "Add nuisance sources to that joint run and require exact abstention while preserving useful held-out-source gains.",
     "Learn stage termination/segmentation instead of supplying stage boundaries externally.",
     "Test learned latent transition representations instead of an explicit integer action vocabulary."
   ]
