@@ -1,6 +1,8 @@
 {
   "checkpoint": "2026-08-20-container-research",
-  "compute_policy": "All experiments summarized after the CI objection were run in the container; GitHub is persistence only.",
+  "compute_policy": "Experiments are run in the container; GitHub is persistence/review/reproducibility only.",
+  "research_index": "docs/research/README.md",
+  "current_architecture": "interface normalization -> behavioral semantic grounding -> causal source applicability -> source-specific ABI/action adapter -> common action/state-transition distribution -> sparse probability fusion -> program composition",
   "neural_private_tokenizer": {
     "pools": 3,
     "sources_per_pool": 5,
@@ -16,6 +18,28 @@
     "probability_mix_0.5_0.5": "168/560",
     "logprob_pool_primary_0.8_secondary_0.2": "521/560"
   },
-  "interpretation": "Map source-specific outputs into a common action/state-transition probability space, then use sparse probability fusion; token/logit coordinates are not the right universal interface.",
-  "next": "Jointly test unseen-source routing + opaque commands + heterogeneous neural architectures + learned action adapters, then remove explicit stage boundaries."
+  "mixed_architecture": {
+    "architectures": ["autoregressive GRU", "non-autoregressive MLP sequence model"],
+    "pools": 3,
+    "sources_per_pool": 5,
+    "source_exact": "14/15 at 4096/4096; 1/15 at 4095/4096",
+    "codec_structural_recovery": "15/15",
+    "common_action_decode": "61439/61440",
+    "depth1_5_hard_composition": "3000/3000",
+    "probability_mix_primary_0.6_secondary_0.4": "600/600",
+    "probability_mix_0.5_0.5": "200/600",
+    "logprob_pool_primary_0.8_secondary_0.2": "537/600"
+  },
+  "negative_boundaries": {
+    "arbitrary_semantic_permutation_zero_shot": "not identifiable; requires behavioral grounding",
+    "arbitrary_whole_action_codebook_few_shot": "does not generalize to unseen actions",
+    "dense_or_equal_weight_fusion": "unsafe in current screens"
+  },
+  "interpretation": "Shared raw token logits, tokenizers, output-head dimensions, and at least some decoding architectures are not necessary in controlled screens. Current evidence favors source-specific behavioral ABI adapters into a common action/state-transition probability space followed by sparse probability fusion.",
+  "next": [
+    "Add an attention-based Transformer specialist as a held-out architecture/source absent from applicability calibration.",
+    "Jointly test opaque commands + position-free grammar normalization + unseen-source applicability + heterogeneous architectures + private output ABIs + common-action probability fusion.",
+    "Learn stage termination/segmentation instead of supplying stage boundaries externally.",
+    "Test learned latent transition representations instead of an explicit integer action vocabulary."
+  ]
 }
