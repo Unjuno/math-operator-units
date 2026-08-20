@@ -1,0 +1,43 @@
+{
+  "checkpoint": "private-input-gauge-and-anchorfree-joint-search-v1",
+  "affine_input_gauge": {
+    "noiseless_3_anchors": {"mean_route_acc":1.0,"all10_rate":1.0,"mean_native_coord_rmse":3.272022111623441e-16,"anchors":3,"anchor_noise":0},
+    "noise_0.01_3_anchors": {"mean_route_acc":0.9833333333333334,"all10_rate":0.8333333333333334,"mean_native_coord_rmse":0.008543770625279189,"anchors":3,"anchor_noise":0.01},
+    "noise_0.01_24_anchors": {"mean_route_acc":0.9958333333333333,"all10_rate":0.9583333333333334,"mean_native_coord_rmse":0.0034630150502037754,"anchors":24,"anchor_noise":0.01},
+    "interpretation": "2D affine private ABI is exactly fixed by three non-collinear semantic-native anchors when noiseless; redundant anchors reduce coordinate noise."
+  },
+  "nonlinear_cubic_gauge": {
+    "affine_misspecified_16": {"mean_route_acc":0.9458333333333333,"all10_rate":0.4583333333333333,"mean_native_coord_rmse":0.027675420732419645,"adapter":"affine","anchors":16,"anchor_noise":0},
+    "affine_misspecified_96": {"mean_route_acc":0.9541666666666667,"all10_rate":0.5416666666666666,"mean_native_coord_rmse":0.02646231157274034,"adapter":"affine","anchors":96,"anchor_noise":0},
+    "correct_poly3_10": {"mean_route_acc":1.0,"all10_rate":1.0,"mean_native_coord_rmse":0.0030336915946165195,"adapter":"poly3","anchors":10,"anchor_noise":0},
+    "correct_poly3_16": {"mean_route_acc":1.0,"all10_rate":1.0,"mean_native_coord_rmse":3.3040247404450167e-06,"adapter":"poly3","anchors":16,"anchor_noise":0},
+    "poly3_noise_0.01_16": {"mean_route_acc":0.9458333333333333,"all10_rate":0.4583333333333333,"mean_native_coord_rmse":0.015661032988027894,"adapter":"poly3","anchors":16,"anchor_noise":0.01},
+    "poly3_noise_0.01_96": {"mean_route_acc":1.0,"all10_rate":1.0,"mean_native_coord_rmse":0.0036502619645418315,"adapter":"poly3","anchors":96,"anchor_noise":0.01},
+    "interpretation": "more anchors cannot remove adapter-class bias; when the adapter family contains the true cubic warp, recovery becomes exact and noisy anchors can be averaged down."
+  },
+  "generic_smooth_adapter": {
+    "private_map": "source-specific smooth sinusoidal diffeomorphism + affine map; exact analytic form not supplied to adapter",
+    "rbf_noiseless_16": {"route":0.9895833333333333,"all":0.9166666666666667,"rmse":0.0077986407385249295,"anchors":16,"noise":0},
+    "rbf_noiseless_32": {"route":1.0,"all":1.0,"rmse":0.0023970266651444838,"anchors":32,"noise":0},
+    "rbf_noiseless_128": {"route":1.0,"all":1.0,"rmse":0.00025312853434814183,"anchors":128,"noise":0},
+    "rbf_noise_0.01_64": {"route":0.9895833333333333,"all":0.9166666666666667,"rmse":0.005388486050959188,"anchors":64,"noise":0.01},
+    "zero_anchor_identity_baseline_mean_route": 0.13666666666666666,
+    "zero_anchor_all_correct_rate": 0.0,
+    "interpretation": "generic nonparametric smooth adapter removes the need to know the exact warp family, but semantic-native anchor correspondences are still a real grounding channel."
+  },
+  "anchorfree_joint_source_gauge": {
+    "gauge_family": "finite rotation x positive-scale x translation library; no semantic-native coordinate anchors",
+    "angles4_library72_proposal256": {"trials":50,"mean_correct_of_8":7.94,"mean_wrong_of_8":0.0,"mean_unresolved_of_8":0.06,"mean_relation_queries":7.19},
+    "angles8_library144_proposal512": {"trials":20,"mean_correct_of_8":8.0,"mean_wrong_of_8":0.0,"mean_unresolved_of_8":0.0,"mean_relation_queries":8.48125},
+    "angles16_library288_proposal512": {"trials":10,"mean_correct_of_8":8.0,"mean_wrong_of_8":0.0,"mean_unresolved_of_8":0.0,"mean_relation_queries":9.275},
+    "interpretation": "exact coordinate anchors are not logically necessary when the private input gauge lies in a known finite low-complexity family; relation-only active search can identify source while leaving several gauge hypotheses alive."
+  },
+  "gauge_family_misspecification": {
+    "angles8_without_validation": {"trials":10,"mean_correct_of_8":6.4,"mean_wrong_of_8":1.6,"mean_unresolved_of_8":0.0},
+    "angles8_validation128": {"trials":10,"mean_correct_of_8":4.0,"mean_wrong_of_8":0.0,"mean_unresolved_of_8":4.0,"mean_relation_queries":8.3875},
+    "angles4_validation128": {"trials":15,"mean_correct_of_8":4.2,"mean_wrong_of_8":0.0,"mean_unresolved_of_8":3.8,"mean_relation_queries":7.083333333333333},
+    "interpretation": "closed-world elimination can confidently choose the wrong source when the true gauge is outside the registered family. Independent held-out relation validation converts observed wrong routing into UNRESOLVED in the matched screens."
+  },
+  "current_hypothesis": "grounding cost is controlled by residual interface-gauge complexity, but safe active identification additionally requires explicit open-world validation that the assumed gauge family can explain held-out behavior.",
+  "claim_boundaries": ["controlled synthetic 2D scalar functions","semantic-native anchor pairs are used in adapter-fitting screens","anchorfree positive screen assumes a finite known gauge library containing the truth","OOD validation is deterministic and uses strict zero held-out relation error"]
+}
