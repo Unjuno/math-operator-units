@@ -1,0 +1,37 @@
+{
+  "checkpoint": "2026-08-20-latent-and-metamorphic-followup",
+  "behavior_only_latent5": {
+    "state_classification_supervision": false,
+    "heldout_mul_transitions_used": false,
+    "dim_sweep": [
+      {"dim":2,"base":0.21875,"pair06":0.1640625},
+      {"dim":3,"base":0.28125,"pair06":0.29296875},
+      {"dim":4,"base":0.53125,"pair06":0.55078125},
+      {"dim":5,"base":1.0,"pair06":1.0},
+      {"dim":6,"base":1.0,"pair06":1.0},
+      {"dim":8,"base":1.0,"pair06":1.0},
+      {"dim":12,"base":1.0,"pair06":1.0}
+    ],
+    "five_dim_init_check":"8/8 base=1.0, pair06=1.0",
+    "neural_pools":"seeds 310/311/312: explicit and behavior-latent depth10 E2E=1.0, paired stage agreement=1.0; threshold=0.65; heldout Transformer route=1.0 vs 0.3"
+  },
+  "observed_transition_latent": {
+    "construction":"64 equality relations from actual decoded rollouts of behaviorally grounded seen neural specialists; analytic op_apply and heldout MUL excluded",
+    "seeds":[310,311,312],
+    "unique_signatures":"32/32 each",
+    "renaming_invariant":true,
+    "five_dim_pair06":"1024/1024 each",
+    "explicit_vs_latent_programs":"1800/1800 each and 9900/9900 paired stages"
+  },
+  "metamorphic_active_no_exact_answer": {
+    "proposal_budget":4,
+    "seed310":{"correct":500,"wrong":0,"unresolved":0,"mean_contract_queries":1.086,"depth5_e2e":1.0},
+    "seed311":{"correct":500,"wrong":0,"unresolved":0,"mean_contract_queries":1.106,"depth5_e2e":1.0},
+    "seed312":{"correct":500,"wrong":0,"unresolved":0,"mean_contract_queries":1.108,"depth5_e2e":1.0},
+    "boundary":"initial fixed behavior anchors still use expected actions; only ambiguity-resolution queries avoid exact answers"
+  },
+  "fusion_weight_generalization": {
+    "pair":{"0.501":0.2119140625,"0.505":0.294921875,"0.51":0.427734375,"0.52":0.65234375,"0.53":0.8154296875,"0.54":0.9130859375,"0.55":0.9609375,"0.575":0.998046875,"0.6":1.0,"0.65":1.0,"0.7":1.0,"0.8":1.0,"0.9":1.0},
+    "triple":{"0.6/0.2/0.2":1.0,"0.55/0.25/0.2":0.987274169921875,"0.51/0.25/0.24":0.67974853515625,"0.5/0.3/0.2":0.48004150390625,"0.45/0.3/0.25":0.2423095703125}
+  }
+}
