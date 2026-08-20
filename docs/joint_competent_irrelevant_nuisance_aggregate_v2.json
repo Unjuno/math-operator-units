@@ -1,0 +1,21 @@
+{
+  "experiment": "competent_irrelevant_junk_plugin_aggregate_v2",
+  "pool_seeds": [310,311,312],
+  "nuisance_plugin": {
+    "function": "(7*a + 11*b + 3) mod 32",
+    "architecture": "GRU",
+    "private_input_output_abi": true,
+    "standalone_exact": [1.0,1.0,1.0],
+    "adapter_decode_exact": [1.0,1.0,1.0]
+  },
+  "nuisance_behavior_scores": [
+    {"add":0.0,"sub":0.0,"min":0.0,"max":0.0,"xor":0.0,"mul":0.2},
+    {"add":0.0,"sub":0.0,"min":0.0,"max":0.0,"xor":0.0,"mul":0.2},
+    {"add":0.0,"sub":0.0,"min":0.0,"max":0.0,"xor":0.0,"mul":0.2}
+  ],
+  "nuisance_top2_any": [false,false,false],
+  "hard_paired_identical_before_after_nuisance": [true,true,true],
+  "probability_mix_0.6_0.4_paired_identical_before_after_nuisance": [true,true,true],
+  "interpretation": "A source may be computationally competent and have a perfectly recoverable private ABI yet contribute exactly zero to the sparse fusion result when behavioral applicability keeps it outside the top-2 source set.",
+  "claim_boundary": "The nuisance is synthetic and behaviorally well separated from the six requested operations. Sparse top-2 gives exact zero contribution by construction when the nuisance is outside top-2. This does not yet test a near-confusable/adversarial nuisance whose behavior score approaches the useful secondary source."
+}
