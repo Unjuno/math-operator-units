@@ -1,0 +1,18 @@
+{
+  "experiment": "mixed_architecture_common_action_fusion",
+  "compute": "container-only",
+  "architectures_per_pool": ["gru", "nar_mlp", "gru", "nar_mlp", "gru"],
+  "pools": 3,
+  "sources_per_pool": 5,
+  "private_input_tokenizer": true,
+  "private_variable_length_output_codec": true,
+  "private_output_head_sizes": true,
+  "source_exact": "14/15 at 4096/4096; 1/15 at 4095/4096",
+  "codec_structural_recovery": "15/15",
+  "full_common_action_decode": "61439/61440",
+  "hard_depth1_5_e2e": "3000/3000",
+  "common_action_probability_mix_primary_0.6_secondary_0.4": "600/600",
+  "common_action_probability_mix_0.5_0.5": "200/600",
+  "common_action_logprob_pool_primary_0.8_secondary_0.2": "537/600",
+  "interpretation": "The behavioral ABI adapter and common-action probability fusion survived a pool containing autoregressive GRU and non-autoregressive MLP sequence specialists. The first NAR attempt failed because the NAR specialist itself was weak; after using position-specific heads, source competence saturated and composition recovered. Architecture heterogeneity did not add measurable loss in this controlled screen."
+}
