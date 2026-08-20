@@ -1,0 +1,21 @@
+{
+  "checkpoint": "2026-08-20-container-research",
+  "compute_policy": "All experiments summarized after the CI objection were run in the container; GitHub is persistence only.",
+  "neural_private_tokenizer": {
+    "pools": 3,
+    "sources_per_pool": 5,
+    "source_exact": "13/15 at 4096/4096; 2/15 at 4095/4096",
+    "active20_codec_structural_recovery": "15/15",
+    "active20_heldout_decode": "17999/18000",
+    "depth1_5_hard_composition": "4499/4500"
+  },
+  "heterogeneous_common_action_soft_fusion": {
+    "private_head_sizes": [[14,12,12,10,13],[12,10,11,10,9],[11,13,13,7,8]],
+    "raw_token_logit_fusion_defined_for_all_sources": false,
+    "probability_mix_primary_0.6_secondary_0.4": "560/560",
+    "probability_mix_0.5_0.5": "168/560",
+    "logprob_pool_primary_0.8_secondary_0.2": "521/560"
+  },
+  "interpretation": "Map source-specific outputs into a common action/state-transition probability space, then use sparse probability fusion; token/logit coordinates are not the right universal interface.",
+  "next": "Jointly test unseen-source routing + opaque commands + heterogeneous neural architectures + learned action adapters, then remove explicit stage boundaries."
+}
