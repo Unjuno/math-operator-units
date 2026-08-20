@@ -1,32 +1,35 @@
 # Operator-unit fusion research index
 
-This directory is the entry point for the active **Paraphrase-consensus biased decoding / operator-unit fusion** research line.
+Active research line for **Paraphrase-consensus biased decoding / operator-unit fusion**.
 
-## Operations / recovery
-
-- Experiments run in the **container**. GitHub is persistence, review, and reproducibility only.
+- Compute: container only.
 - Active branch: `experiment/unseen-source-generalization`.
 - Active draft: PR #40.
-- Branch status/restart rules: [`BRANCHES.md`](BRANCHES.md).
-- Authoritative checkpoint: [`../container_research_checkpoint_2026-08-20.md`](../container_research_checkpoint_2026-08-20.md).
+- Branch/archive policy: [`BRANCHES.md`](BRANCHES.md).
+- Human checkpoint: [`../container_research_checkpoint_2026-08-20.md`](../container_research_checkpoint_2026-08-20.md).
 - Machine checkpoint: [`../container_research_checkpoint_2026-08-20.json`](../container_research_checkpoint_2026-08-20.json).
 
-## Current research object
+## Current object
 
-The candidate composition stack is:
+`interface discovery/normalization -> active behavioral identification -> source-specific ABI/action adapter -> common or fusion-safe latent transition representation -> top-dominant sparse fusion -> learned stream segmentation/program composition`
 
-`interface discovery/normalization -> behavioral semantic grounding -> source applicability -> source-specific ABI/action adapter -> common action/state-transition distribution -> sparse probability fusion -> program composition`
+Shared raw token logits are no longer the main candidate universal interface.
 
-The central shift is that **shared token logits are not treated as the universal fusion interface**. Current evidence instead favors source-specific behavioral adapters into a common action/state-transition probability space.
+## Current headline evidence
 
-## Reproduction map
+- Private tokenizers/output codecs/output-head sizes: behaviorally aligned; held-out decode 17,999/18,000.
+- Mixed GRU/NAR-MLP: hard depth1-5 3,000/3,000; common-action probability `0.6/0.4` 600/600.
+- Held-out private-ABI attention Transformer/MUL, absent from seen-only admission calibration: correctly inserted across seeds 310/311/312.
+- Full opaque-command + position-free + held-out-Transformer integration: hard perfect; common-action `0.6/0.4` **359/360**.
+- Competent irrelevant JUNK plugin: top-2 **0/18**, exact paired zero-impact.
+- SHADOW-ADD proves fixed behavioral probes can be spoofed. Forced tie-breaking is wrong about half the time.
+- Bounded-proposal active identification, without enumerating all 1024 inputs: proposal budget 8 resolves **1500/1500**, wrong 0, abstain 0, mean expected-action queries ~**1.10**. Random probing with four-query cap resolves only ~68.3% and safely abstains on ~31.7%.
+- Unseen wrapper/position grammar: pure structure fails on 4/7 holdouts; structure + already behavior-grounded command identity gives **11,200/11,200** span recovery and seed310 E2E **2,800/2,800**.
+- Runtime stage boundaries removed in a controlled flat-stream screen: causal GRU trained only on depth1-3 delimiter-free normalized streams segments depth1-10 **3000/3000**, routing **3000/3000**, E2E **2995/3000**.
+- Latent compression: learned fusion-safe **6D** code exactly matches explicit 32-way probability-fusion discrete outcomes, E2E **1799/1800**. Transition-graph spectral geometry is not automatically safe (8D 53.8%, 16D 90.7%, 24D 98.7%).
+- Command-surface paraphrase: a held-out paraphrase pair never seen as a pair is recovered from compositional component alignment without a behavior query on that paraphrase; delimiter-free segmentation/routing exact, E2E **2997/3000**. Arbitrary whole-pair paraphrase remains unmappable.
 
-Historical identity-free logit-field baseline:
-
-- `src/opfusion/fusion_unseen_source_generalization.py`
-- `tests/test_fusion_unseen_source_generalization.py`
-
-Current controlled heterogeneous-source screens:
+## Reproduction scripts
 
 - `scripts/experiment_neural_private_tokenizer_adapter.py`
 - `scripts/experiment_heterogeneous_action_space_soft_fusion.py`
@@ -34,46 +37,32 @@ Current controlled heterogeneous-source screens:
 - `scripts/experiment_heldout_transformer_private_abi_insertion.py`
 - `scripts/experiment_joint_opaque_positionfree_heldout_transformer.py`
 - `scripts/experiment_joint_competent_irrelevant_plugin.py`
+- `scripts/experiment_shadow_add_active_probing.py`
+- `scripts/experiment_active_probe_without_enumeration.py`
+- `scripts/experiment_unseen_grammar_hybrid_interface.py`
+- `scripts/experiment_learned_stream_stage_segmentation.py`
+- `scripts/experiment_fusion_safe_latent.py`
+- `scripts/experiment_spectral_transition_latent.py`
+- `scripts/experiment_compositional_command_paraphrase.py`
 
-Key machine-readable aggregates:
+## Key aggregates
 
-- `docs/container_research_checkpoint_2026-08-20_mixed_architecture.json`
-- `docs/heldout_transformer_private_abi_insertion_aggregate_v1.json`
 - `docs/joint_opaque_positionfree_heldout_transformer_aggregate_v2.json`
-- `docs/joint_competent_irrelevant_nuisance_aggregate_v2.json`
-
-## Headline results
-
-1. **Private tokenizers/output ABIs are compatible with composition when behaviorally inferable.** In the 64-state neural screen, behavior-diverse calibration recovered 15/15 private codecs; held-out decode was 17,999/18,000.
-2. **Incompatible output-head dimensions can be fused after action alignment.** Common-action probability mixing `0.6/0.4` achieved 560/560 programs across three heterogeneous-head pools; equal `0.5/0.5` collapsed to 168/560.
-3. **Shared neural architecture is not required in the controlled setting.** GRU + NAR-MLP pools achieved 3,000/3,000 hard depth-1..5 programs and 600/600 at common-action `0.6/0.4`.
-4. **A held-out attention architecture can be inserted after seen-only admission calibration.** A private-ABI Transformer implementing new `mul`, absent from admission-threshold calibration, was correctly inserted across seeds 310/311/312; hard and `0.6/0.4` composition were perfect in the initial held-out-architecture screen.
-5. **The main components now work jointly.** In the integrated screen, every operation is represented by a random opaque two-token code. The unlabeled interface corpus contains only the five seen codes, spread over seven command positions/wrappers; the held-out MUL code never occurs there. The system discovers the seen command family, infers the unknown command span from learned grammar skeletons, grounds code/source semantics from behavior, recovers private ABIs, admits the unseen Transformer under the seen-only threshold, and composes depth-1..5 programs. Hard execution was perfect in all three pools; common-action `0.6/0.4` was **359/360 = 99.72%**.
-6. **A useful failure exposed the remaining interface issue.** A first integrated version used only local bigram grammaticality and achieved only ~57% held-out span accuracy because operand-adjacent spans could be locally plausible command sites. Replacing it with full command-placeholder grammar skeleton matching restored 100% span detection across all seven tested grammars.
-7. **A competent but irrelevant plugin can receive exact zero sparse contribution.** A separate private-ABI GRU accurately learned `JUNK(a,b)=(7a+11b+3) mod 32`. Across three pools it scored only 0–0.2 against the six requested behaviors, never entered top-2 (0/18 command/pool combinations), and hard plus `0.6/0.4` results were paired-identical before/after insertion.
-8. **Opaque semantic permutations are not zero-shot identifiable.** Behavioral grounding remains necessary when command meanings are arbitrarily permuted; this is an identifiability boundary rather than a mere routing defect.
+- `docs/shadow_add_active_probe_aggregate_v2.json`
+- `docs/active_probe_no_enumeration_aggregate_v1.json`
+- `docs/unseen_grammar_hybrid_interface_aggregate_v1.json`
+- `docs/stage_boundary_stream_aggregate_v1.json`
+- `docs/fusion_safe_latent_aggregate_v1.json`
+- `docs/spectral_transition_latent_aggregate_v1.json`
+- `docs/paraphrase_surface_aggregate_v1.json`
 
 ## Claim boundary
 
-These are controlled synthetic neural screens, not arbitrary fusion of unrelated pretrained LLMs. Important remaining assumptions:
+Still controlled/synthetic. We still assume a common state domain, an expected-action query channel for active grounding, inferable private ABIs, and structured interface evidence. The learned 6D code uses state identity plus the desired fusion law; it is not a label-free transition representation. The paraphrase experiment is a compositional cipher with paired interface views, not natural-language paraphrasing.
 
-- an explicit common action/state domain exists;
-- behavioral probes provide common-action supervision for semantic/ABI grounding;
-- source ABIs have inferable structure;
-- all seven tested grammar skeletons are represented in the unlabeled seen-only interface corpus;
-- stage boundaries are externally supplied;
-- the nuisance source tested so far is behaviorally well separated, not near-confusable/adversarial.
+## Next
 
-## Next experiments
-
-Priority order:
-
-1. **Near-confusable nuisance:** train a competent plugin whose behavior intentionally overlaps one real operator enough to approach or enter the top-2 set, then test whether applicability calibration can abstain without sacrificing the useful secondary contribution.
-2. **Unseen grammar:** with the discovery rule frozen, hold out one or more wrapper/position skeletons entirely from the unlabeled interface corpus and test structural extrapolation rather than interpolation.
-3. **Stage-boundary removal:** infer transition termination/segmentation rather than supplying each program stage externally.
-4. **Latent transition space:** replace explicit integer actions with a learned state-transition representation aligned from behavior.
-5. Only after those controlled tests, move to unrelated pretrained model families through an explicit behavioral task interface.
-
-## Scientific decision log
-
-Do not return to dense raw-logit addition as the main direction unless a new experiment specifically motivates it. Current evidence supports **behaviorally grounded, top-dominant sparse probability composition in a common action/state-transition space**.
+1. Active identification in a non-enumerable/continuous domain, including calibrated `UNRESOLVED`.
+2. Learn a fusion-safe latent transition representation from behavior **without state-identity code supervision**.
+3. Stress learned stream segmentation with noisy/unseen syntax and ambiguous boundaries.
+4. Move the controlled interface to unrelated pretrained model families.
