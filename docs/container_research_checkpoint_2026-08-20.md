@@ -2,31 +2,32 @@
 
 Project: Paraphrase-consensus biased decoding / operator-unit fusion
 
-This checkpoint is intended to preserve the research state if the chat/container session disappears. Experiment computation after the CI objection was performed in the container; GitHub is used here only for persistence/version control.
+This is the authoritative human-readable recovery checkpoint for the current research branch. Experiment computation after the CI objection is performed in the container; GitHub is used for persistence, review, and reproducibility.
+
+For a file map and restart instructions, see [`docs/research/README.md`](research/README.md).
 
 ## Research goal
 
-Find a model-composition mechanism that can accept previously unseen computational specialists, infer when/how they apply without a hand-written `operator -> source` table, and compose them into unseen programs. A mere operator classifier or hard-coded switch is insufficient. The strongest current hypothesis is a layered system:
+Find a composition mechanism that can accept previously unseen computational/model specialists, infer when/how they apply without a hand-written `operator -> source` table, and compose them into unseen programs.
 
-1. infer/normalize the source interface;
-2. ground opaque semantics from minimal behavior when symmetry makes zero-shot identification impossible;
-3. estimate causal source-context applicability;
-4. map source-specific outputs into a common action/state-transition space;
-5. perform sparse fusion in that common space;
-6. compose stagewise to arbitrary program depth.
+The current candidate stack is:
 
-## Established results before heterogeneous-tokenizer work
+`interface normalization -> behavioral semantic grounding -> causal source applicability -> source-specific ABI/action adapter -> common action/state-transition distribution -> sparse probability fusion -> program composition`
+
+A key scientific shift is that **shared raw token logits are no longer treated as the universal fusion interface**.
+
+## Established results before heterogeneous-output work
 
 - Oracle sequential composition over ADD/SUM/MIN/MAX reached 191/192 E2E at strength 4.
-- Identity-free source-local logit geometry was insufficient: adding a held-out source could improve held-out tasks while damaging unrelated tasks.
-- Prompt likelihood and command-token causal sensitivity were complementary; a fixed generic compatibility score generalized across independent model/data seeds, but depended on knowing the command position.
-- Command specificity (actual-command perturbation normalized by alternative-command baseline) fixed OOD-instability problems and identified a newly trained DIFF source in 160/160 prompts on an independent data seed.
-- A position-free interface detector using unlabeled prompt structure (categorical-family discovery + local grammar/bigram support + rare-token abstraction) recovered command slots and routing across independent seeds.
-- Random per-prompt grammar changes (prefix/suffix command movement and wrappers) were normalized back to native ABI with no paired E2E loss.
-- Completely arbitrary opaque command codes were not identifiable zero-shot (near chance); two behavioral anchors per command were sufficient to restore canonical two-stage performance.
-- Hard routing remained ~99.7% correct across depths 1–5. Dense 0.8/0.2 logit fusion accumulated errors with depth; sparse 0.95/0.05 fusion matched paired hard performance on the tested depth-1..5 programs.
+- Identity-free source-local logit geometry was insufficient: inserting an unseen source could improve held-out tasks while damaging unrelated tasks.
+- Prompt likelihood and command-token causal sensitivity were complementary, but absolute sensitivity failed on a genuinely new DIFF source because OOD instability was misread as applicability.
+- Self-normalized command specificity fixed that calibration problem and identified the new DIFF source in 160/160 prompts on an independent data seed.
+- A position-free interface detector using unlabeled prompt structure recovered command slots and routing without a hand-written command position/token list.
+- Random per-prompt grammar changes (prefix/suffix movement and wrappers) were normalized back to native ABI with no paired E2E loss in the tested grammar family.
+- Completely arbitrary opaque command codes were not zero-shot identifiable; two behavioral anchors per command restored canonical two-stage performance. This is treated as an identifiability boundary.
+- Hard routing stayed about 99.7% correct across depth 1–5. Dense 0.8/0.2 raw-logit fusion accumulated errors with depth; sparse 0.95/0.05 fusion matched paired hard performance in the original shared-token-space experiments.
 
-## Synthetic output-ABI boundary screens
+## Output-ABI boundary screens
 
 When one source's action tokens were permuted, naïve coordinate-wise interpretation failed (1.675% for an affine permutation; 0.275% for a random permutation), while an oracle adapter restored 100%.
 
@@ -37,73 +38,118 @@ For a compositional foreign numeral tokenizer with unknown radix (5–16), digit
 - 16 random anchors: 93.503% unseen-value decode;
 - 32 random anchors: 99.5325%;
 - 64 anchors: 100%;
-- an actively designed fixed set of 8 probes identified 500/500 random tokenizers and decoded 1000/1000 unseen values;
-- the learned tokenizer rule extrapolated perfectly to longer values up to 999,999 even though anchor sequences were shorter.
+- a fixed actively designed set of 8 probes identified 500/500 random tokenizers and decoded 1000/1000 unseen values;
+- the inferred tokenizer rule extrapolated perfectly to longer values up to 999,999 even though anchor sequences were shorter.
 
-A black-box source exposing only generated token sequences (no logits/probabilities/hidden states) also composed through the learned common-action adapter. A random whole-value codebook negative control failed strongly, showing that learnable output-ABI structure is essential.
+A black-box source exposing only generated token sequences, with no logits/probabilities/hidden states, also composed through a learned common-action adapter. A random whole-value codebook negative control failed strongly. The relevant quantity is therefore not internal logit access but whether the source I/O ABI has learnable structure.
 
-## New result: independently trained neural specialists with private tokenizers/output heads
+## Independently trained neural specialists with private tokenizers/output heads
 
-A new self-contained container experiment trains five independent neural specialists for `add`, `sub`, `min`, `max`, and `xor` on a 64-state domain. Each source has:
+A self-contained container experiment trains five neural specialists for `add`, `sub`, `min`, `max`, and `xor` on a 64-state domain. Each source has:
 
-- its own private permutation of the 4096 input-pair tokens;
-- its own unknown output radix in 5–12;
-- its own digit-to-symbol permutation;
-- its own forward/reverse sequence convention;
-- therefore a different local output vocabulary and potentially different output-head size.
+- a private permutation of the 4096 input-pair tokens;
+- an unknown output radix in 5–12;
+- a private digit-to-symbol permutation;
+- a private forward/reverse sequence convention;
+- therefore a potentially different output-head dimension.
 
-The fusion layer is not given these mappings. It sees behavior anchors `(input, expected common action, observed private output sequence)` and infers the output ABI.
+The fusion layer is not given these mappings. It receives behavior anchors `(input, expected common action, observed private output sequence)` and infers the ABI.
 
 Across three independently initialized/tokenized pools:
 
-- 13/15 specialists reached 4096/4096 exact; the remaining two were 4095/4096.
-- The behavior-diverse 20-anchor calibration structurally recovered all 15 private codecs (15/15).
-- Held-out decode after active-20 calibration was 17,999/18,000 across the three pools (99.9944%).
-- Random-anchor calibration was materially worse, confirming that information content matters more than raw example count.
-- Stagewise hard composition with the inferred adapters was 4,499/4,500 across 4,500 depth-1..5 random programs (99.9778%); the single miss came from a specialist's own residual prediction error, not codec inference.
+- 13/15 specialists reached 4096/4096 exact; the remaining 2 were 4095/4096.
+- behavior-diverse 20-anchor calibration structurally recovered all 15 private codecs.
+- held-out decode after calibration: **17,999/18,000 = 99.9944%**.
+- hard depth-1..5 composition through learned adapters: **4,499/4,500 = 99.9778%**.
 
-## New result: soft fusion across incompatible output-head sizes
+Reproduction: `scripts/experiment_neural_private_tokenizer_adapter.py`.
 
-For one neural pool the private output-head sizes were `[14, 12, 12, 10, 13]`; other pools used `[12,10,11,10,9]` and `[11,13,13,7,8]`. Direct token-logit fusion is therefore not even dimensionally defined across all sources.
+## Soft fusion across incompatible output-head sizes
 
-For each source and input, the adapter maps the source's private sequence likelihood into a normalized probability distribution over 64 common actions. Two sources are then fused in common-action space.
+Example private head sizes are `[14,12,12,10,13]`, `[12,10,11,10,9]`, and `[11,13,13,7,8]`. Direct token-logit fusion is therefore not even dimensionally defined across all sources.
 
-Paired screens over three independent pools show:
+Each source's private sequence likelihood is mapped into a normalized distribution over 64 common actions, then two sources are fused in that common space.
 
-- common-action **probability mixture**, primary 0.6 / secondary 0.4: 560/560 E2E programs across depths 1–5 (100%);
-- common-action probability mixture at 0.5 / 0.5: 168/560 (30%), so equal weighting is unsafe;
-- common-action **log-probability pooling** at 0.8 / 0.2: 521/560 (93.04%), materially worse than probability mixing despite a larger primary weight.
+Across three independent pools / depth-1..5 screens:
 
-This is evidence that heterogeneous-model fusion depends not only on discovering a common action space but also on choosing the correct algebra in that space. Arithmetic mixing of calibrated action probabilities is much more robust here than product-of-experts/log-prob pooling.
+- common-action **probability mixture 0.6/0.4**: **560/560 = 100%**;
+- probability mixture 0.5/0.5: **168/560 = 30%**;
+- common-action **log-probability pooling 0.8/0.2**: **521/560 = 93.04%**.
+
+This establishes two separate points in the controlled setting:
+
+1. common token/logit coordinates are not necessary if source outputs can be mapped into a common action distribution;
+2. the algebra used in that common space matters materially.
+
+Arithmetic mixing of calibrated action probabilities was much more robust here than product-of-experts/log-prob pooling.
+
+Reproduction: `scripts/experiment_heterogeneous_action_space_soft_fusion.py`.
+
+## Mixed neural architectures
+
+The next experiment removed the shared decoding-architecture assumption by mixing:
+
+- autoregressive GRU specialists;
+- non-autoregressive MLP sequence specialists;
+- private input-pair tokenizers;
+- private variable-length output codecs.
+
+The first NAR design was intentionally informative as a failure: SUB reached 42.8% and MAX 72.6%, while the codec adapter still recovered all 5 private ABIs. That separated **source competence failure** from **adapter/fusion failure**.
+
+After using position-specific NAR output heads, source competence saturated.
+
+Across three independent mixed-architecture pools:
+
+- source exact: **14/15 at 4096/4096; 1/15 at 4095/4096**;
+- codec structural recovery: **15/15**;
+- common-action decode: **61,439/61,440**;
+- hard depth-1..5 composition: **3,000/3,000**;
+- common-action probability mixture 0.6/0.4: **600/600**;
+- probability mixture 0.5/0.5: **200/600**;
+- log-probability pooling 0.8/0.2: **537/600 = 89.5%**.
+
+Therefore, in this controlled screen, a shared neural decoding architecture is not necessary either.
+
+Reproduction: `scripts/experiment_mixed_architecture_common_action_fusion.py`.
 
 ## Current interpretation
 
-The strongest object is no longer "shared token logits". The candidate universal interface is closer to a probability field over **actions/state transitions**. Source-specific tokenizers and heads can be treated as latent ABIs learned from behavior when those ABIs have compressible structure.
+The strongest candidate universal interface is no longer a shared token-logit space. It is closer to a probability field over **actions/state transitions**, with source-specific ABIs inferred from behavior.
 
-A plausible architecture is therefore:
+Current working architecture:
 
 `external prompt/program -> interface normalizer -> behavioral semantic grounding -> source applicability -> source-specific action adapter -> common action distribution -> sparse probability fusion -> next state`
 
-## Claim boundaries / unresolved assumptions
+This architecture naturally explains several previous observations:
 
-These heterogeneous-tokenizer experiments are controlled/synthetic and isolate ABI alignment. They do **not** yet prove arbitrary fusion of unrelated pretrained LLM architectures.
+- arbitrary semantic permutations require grounding because they are unidentifiable from syntax alone;
+- low-complexity/compositional ABIs can be inferred from few behavior probes;
+- private tokenizers and private head dimensions are acceptable if they admit an action adapter;
+- dense fusion in the wrong coordinate system accumulates interference;
+- source competence, routing/applicability, ABI alignment, and fusion algebra are distinct failure modes and should be measured separately.
+
+## Claim boundaries
+
+These heterogeneous-tokenizer/architecture experiments are controlled neural/synthetic screens. They do **not** prove arbitrary fusion of unrelated pretrained LLM architectures.
 
 Remaining major assumptions:
 
-- a shared externally interpretable state/action domain exists or can be learned;
-- the source I/O ABI has enough compositional structure to infer from few behavioral examples;
-- stage boundaries are currently supplied externally;
-- source semantic grounding still requires behavioral information when labels are arbitrarily permuted;
-- source applicability and ABI calibration have not yet been jointly tested with independently trained, unrelated neural architectures at LLM scale.
+- a common state/action domain is externally available or learnable;
+- source I/O ABIs have enough structure to infer from feasible behavioral evidence;
+- arbitrary semantic permutations still require grounding information;
+- stage boundaries are externally supplied;
+- opaque commands, position-free normalization, unseen-source applicability, heterogeneous architectures, and private output ABIs have not yet all been combined in one E2E experiment;
+- an attention-based Transformer source has not yet been tested as a held-out architecture/source in the heterogeneous pool;
+- no LLM-scale unrelated pretrained models have yet been connected by this mechanism.
 
-## Next experiments
+## Next experiments — priority order
 
-1. Replace the private pair-token specialists with genuinely different neural architectures (e.g. Transformer vs GRU/MLP) while keeping no shared tokenizer/output head.
-2. Learn the common action adapter from behavior while simultaneously leaving one architecture/source absent from router calibration.
-3. Couple opaque commands + position-free grammar normalization + heterogeneous action adapters in one end-to-end experiment.
-4. Remove externally supplied stage boundaries by learning state-transition termination/segmentation.
-5. Test whether the common object can be a learned latent transition representation rather than an explicit integer action vocabulary.
+1. Add an attention-based Transformer specialist as a **held-out architecture/source**: absent from source-applicability calibration, with only behavioral ABI/action-adapter calibration allowed.
+2. Run one joint E2E experiment combining **opaque commands + position-free grammar normalization + unseen-source applicability + heterogeneous architectures + private output ABIs + common-action probability fusion**.
+3. Remove externally supplied stage boundaries by learning transition termination/segmentation.
+4. Replace the explicit integer action vocabulary with a learned latent transition representation and test whether independently learned sources can be aligned behaviorally.
+5. Only after the controlled pipeline is stable, move to unrelated pretrained language/model families with an explicit common behavioral task interface.
 
 ## Scientific decision
 
-Do not return to dense raw-logit addition as the main direction. Current evidence favors sparse, behaviorally grounded composition in a common action/state-transition space, with source-specific ABI adapters.
+Do not return to dense raw-logit addition as the main direction unless a new experiment specifically motivates it. Current evidence favors **behaviorally grounded, sparse composition in a common action/state-transition space with source-specific ABI adapters**.
