@@ -1,0 +1,66 @@
+{
+  "checkpoint": "v2_phase5b_neural_validation_and_true_fusion",
+  "open_world_validation": {
+    "all_sources_two_perturbations": {
+      "in_family_calibration_samples": 384,
+      "near_ood_samples": 768,
+      "random_detected": 59,
+      "random_rate": 0.07682291666666667,
+      "targeted_detected": 578,
+      "targeted_rate": 0.7526041666666666
+    },
+    "multiscale_margin_negative": {
+      "near_samples": 768,
+      "random_detected": 56,
+      "low_margin_detected": 576,
+      "multiscale_detected": 242,
+      "random_rate": 0.07291666666666667,
+      "low_rate": 0.75,
+      "multiscale_rate": 0.3151041666666667
+    },
+    "virtual_adversary": {
+      "samples": 768,
+      "random": 55,
+      "low_margin": 549,
+      "virtual_adversary": 586,
+      "rates": {
+        "random": 0.07161458333333333,
+        "low_margin": 0.71484375,
+        "virtual_adversary": 0.7630208333333334
+      }
+    },
+    "finding": "multi-instance consensus boundary stress generalizes strongly across source families, but no single stress family covers every near-OOD direction; naive multi-scale spreading hurts, while random smooth virtual adversaries give a modest aggregate gain and still leave a blind direction."
+  },
+  "depth_fusion": {
+    "depth1": {
+      "programs": 250,
+      "aligned_mean_error_vs_independent_target_fusion": 0.001381335712224229,
+      "naive_private_chart_mean_error": 0.14793950526318603,
+      "hard_primary_mean_error": 0.07522324221804738,
+      "mean_cached_output_grounding_cost": 4.0,
+      "mean_aligned_vs_hard_difference": 0.07520880241394043
+    },
+    "depth10": {
+      "programs": 250,
+      "aligned_mean_error_vs_independent_target_fusion": 0.0012632325887679847,
+      "aligned_p95": 0.002810634151101051,
+      "naive_private_chart_mean_error": 0.15994210090222555,
+      "hard_primary_mean_error": 0.07311459146738053,
+      "mean_cached_output_grounding_cost": 11.8,
+      "mean_aligned_vs_hard_difference": 0.0730633086323738
+    },
+    "finding": "with independent positive-affine output charts aligned by two anchors per used plugin, 0.6/0.4 interpolation tracks the independent-target fused program far better than hard primary routing or raw private-chart mixing."
+  },
+  "design_updates": [
+    "Gauge-aware fusion must depend on residual gauge group plus cross-plugin chart coupling/scope.",
+    "Open-world validation should be a portfolio/capability layer rather than one universal stress heuristic.",
+    "Persistent multi-instance agreement is useful both for routing uncertainty and for selecting stress queries that avoid instance-noise regions.",
+    "A grounded affine chart gives a concrete regime where neural interpolative fusion is identifiable and measurably distinct from routing."
+  ],
+  "next": [
+    "Represent validation capabilities explicitly and actively select among them based on which residual alternatives they can falsify.",
+    "Integrate source routing, private-input gauge fixing, output chart alignment, and depth fusion in one program-level experiment.",
+    "Replace finite D4 private-input family with continuous learned proposals plus grounding fallback.",
+    "Test an unrelated held-out environment/model family without changing V2 core."
+  ]
+}
