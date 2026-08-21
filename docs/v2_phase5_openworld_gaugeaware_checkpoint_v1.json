@@ -1,0 +1,109 @@
+{
+  "checkpoint": "v2_phase5_openworld_private_input_gaugeaware_fusion",
+  "headline": {
+    "private_input_routing": "48/48 correct, wrong 0 with target-native queries under finite D4 input gauge",
+    "closed_world_failure": "broad OOD initially resolved 6/8 under routing alone",
+    "existential_active_validation_64": "12/12 in-family accepted, 20/20 tested OOD rejected, wrong accepted 0",
+    "e2e": "6/6 in-family registered, 7/7 OOD rejected, depth10 180/180 resolved, 600/600 OOD-mixed programs stopped before unsafe execution",
+    "weight_sweep": "after common positive-affine chart grounding, 0.5 through 0.9 weighted fusion all remain below 0.01 mean error at depth10"
+  },
+  "gauge_scope_result": {
+    "shared_positive_affine": "weighted mean equivariant; numerical error ~1e-15",
+    "independent_positive_affine_unaligned": "not identifiable; naive mean semantic error ~0.71",
+    "independent_positive_affine_after_two_output_anchors_per_plugin": "weighted mean restored; numerical error ~1e-16",
+    "strict_monotone": "weighted mean rejected without geometry grounding",
+    "one_parameter_monotone_plus_one_interior_anchor": "weighted mean restored; mean semantic error ~2.4e-5"
+  },
+  "open_world_validation": {
+    "naive_committee_32": {
+      "in_family_accept": "10/12",
+      "ood_reject": "15/20"
+    },
+    "existential_latent_gauge_32": {
+      "in_family_accept": "12/12",
+      "ood_reject": "19/20"
+    },
+    "existential_latent_gauge_64": {
+      "in_family_accept": "12/12",
+      "ood_reject": "20/20",
+      "broad_ood_reject": "8/8",
+      "near_ood_reject": "12/12"
+    },
+    "random_64": {
+      "in_family_accept": "11/12",
+      "ood_reject": "12/20"
+    },
+    "design": "input gauge is a persistent latent nuisance. A selected semantic source is rejected only if every plausible gauge hypothesis fails independent target-native heldout behavioral stress tests."
+  },
+  "routing_budget_and_instance_result": {
+    "single_instance_maxq36": {
+      "correct": 48,
+      "wrong": 0,
+      "unresolved": 0,
+      "mean_queries": 8.083333333333334
+    },
+    "persistent_instance_latent_maxq36": {
+      "correct": 48,
+      "wrong": 0,
+      "unresolved": 0,
+      "mean_queries": 9.416666666666666
+    },
+    "interpretation": "the earlier source-5 abstention was a 24-query budget cutoff, not evidence that hierarchical instance routing was required. Do not enable extra hierarchy by default when adaptive query budget is sufficient."
+  },
+  "end_to_end": {
+    "in_family_registration": {
+      "total": 6,
+      "accepted": 6,
+      "correct_accepted": 6,
+      "wrong_accepted": 0
+    },
+    "ood_registration": {
+      "total": 7,
+      "rejected": 7,
+      "false_accept": 0,
+      "near_rejected": 6,
+      "broad_rejected": 1
+    },
+    "depth10": {
+      "programs": 180,
+      "resolved": 180,
+      "unresolved": 0,
+      "fused_mean_error": 0.0016122087339560198,
+      "fused_p95": 0.004348606765270238,
+      "hard_mean_error": 0.06946610676538613,
+      "mean_grounding": 17.633333333333333,
+      "mean_unique_grounded": 5.877777777777778
+    },
+    "mixed_ood_programs": {
+      "programs": 600,
+      "unresolved_before_unsafe_execution": 600,
+      "false_execute": 0
+    }
+  },
+  "weight_sweep_depth10": {
+    "0.5": {"mean": 0.0017528341766446828, "p95": 0.004225120693445203},
+    "0.55": {"mean": 0.0017076178717426963, "p95": 0.004156717471778391},
+    "0.6": {"mean": 0.0017340043127536768, "p95": 0.004268287755548953},
+    "0.7": {"mean": 0.0018346872764639559, "p95": 0.0045428126491606265},
+    "0.8": {"mean": 0.0018332849835976952, "p95": 0.004760371446609486},
+    "0.9": {"mean": 0.002187080382741987, "p95": 0.0056559763476252715}
+  },
+  "facts": [
+    "Gauge group alone is insufficient for fusion capability; gauge scope/coupling across plugin outputs matters.",
+    "Closed-world source routing is not an OOD detector, even when routing posterior is high.",
+    "Persistent nuisance variables should be retained through sequential evidence rather than averaged query-wise; this holds for both model-instance style in earlier experiments and input gauge in the current V2 screen.",
+    "After a common affine chart is grounded, exact 0.5/0.5 fusion is stable in this controlled neural scalar setting. The earlier V1 near-tie collapse is therefore not a universal gauge-impossibility result."
+  ],
+  "boundaries": [
+    "Positive private-input result still uses a known finite D4 gauge family.",
+    "Neural sources are small controlled regressors, not unrelated pretrained foundation models.",
+    "Open-world thresholds are empirically calibrated on heldout in-family instances; formal finite-sample guarantees remain open.",
+    "Fusion is scalar transition-output mixing after explicit chart alignment, not arbitrary hidden-state or weight-space fusion."
+  ],
+  "next": [
+    "Replace finite D4 input-gauge enumeration with learned or continuous gauge proposals while keeping existential open-world validation.",
+    "Repeat gauge-scope and open-world validation with heterogeneous architectures and stochastic token outputs.",
+    "Infer the admissible composition algebra from behavior instead of hand-declaring gauge capabilities.",
+    "Revisit the old V1 latent transition representation with explicit chart geometry to isolate the cause of 0.5/0.5 collapse."
+  ]
+}
