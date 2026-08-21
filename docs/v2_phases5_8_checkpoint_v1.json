@@ -1,0 +1,47 @@
+{
+  "checkpoint": "v2_phases5_8",
+  "phase5_actual_neural_gauge_aware_fusion": {
+    "source_rmse": [0.009344366379082203,0.007890619337558746,0.007825220935046673,0.01480990368872881,0.00892273336648941,0.002444717101752758],
+    "positive_affine_max_errors": [1.2846511088238088e-07,1.1626704088385509e-07,1.0578054282506244e-07,1.0551099183242485e-07,9.183179922045426e-08],
+    "strict_monotone_mean_ambiguity": [0.0021106077653894905,0.002222497971810892],
+    "one_interior_grounding_mean_errors": [1.9618182946212758e-17,1.8909353249885184e-17,1.4803262782248083e-17,1.773108569691484e-17],
+    "policy": {
+      "positive_affine_weighted_mean": {"resolved":5000,"unresolved":0},
+      "strict_monotone_weighted_mean_without_geometry": {"resolved":0,"unresolved":5000},
+      "strict_monotone_weighted_mean_with_one_interior_grounding": {"resolved":5000,"unresolved":0,"grounding_cost":1}
+    }
+  },
+  "phase6_private_input_joint_routing": {
+    "in_family": {"trials":144,"correct":144,"wrong":0,"unresolved":0,"mean_queries":8.520833333333334,"mean_validation_mismatch":0.010877821180555556},
+    "gauge_family_ood": {"trials":30,"resolved":0,"wrong_or_false_accept":0,"unresolved":30,"mean_validation_mismatch":0.1177734375,"ood_model_rmse_semantic":0.0068436479195952415},
+    "boundary": "relative input gauge is searched over a finite known D4 family; continuous/high-dimensional private-input gauge remains open."
+  },
+  "phase7_private_input_e2e": {
+    "routing_correct":6,
+    "routing_wrong":0,
+    "depth1":{"programs":80,"abstained":0,"mean_abi_only_error":2.7704753638793655e-17,"max_abi_only_error":2.220446049250313e-16,"mean_vs_independent_target":0.007891890313476323,"p95_vs_independent_target":0.025122967176139353,"mean_lazy_grounding":4.0,"eager_grounding":24},
+    "depth10":{"programs":80,"abstained":0,"mean_abi_only_error":3.3560122996573185e-17,"max_abi_only_error":1.3877787807814457e-16,"mean_vs_independent_target":0.007987137674354017,"p95_vs_independent_target":0.02043052166700363,"mean_lazy_grounding":20.0,"eager_grounding":24},
+    "grounding_policy":"zero semantic-coordinate grounding before routing; after source resolution, 2 input + 2 output anchors per actually-used candidate, cached"
+  },
+  "phase8_continuous_rotation_invariants": {
+    "routing":{"trials":210,"correct_class":201,"wrong_class":0,"unresolved":9},
+    "angle_stress":{"trials":150,"correct_class":150,"wrong_class":0},
+    "equivalence_geometry":{"signature_rmse_source0_vs3":0.005144339179061353,"nearest_0_or_3_to_other_class":0.03985241607907941,"interpretation":"0 and 3 are intentionally order-equivalent up to monotone output; evaluator scores behavioral class, not arbitrary source identity."},
+    "noncommuting_affine_negative":{"trials":120,"forced_correct_class":90,"forced_wrong_class":30,"mean_best_signature_distance":0.04952583819169805,"p95_best_signature_distance":0.1360787599723206},
+    "coordinate_grounding_before_routing":0,
+    "boundary":"works for SO(2) private-input gauge because the intervention family commutes with rotations; general affine/noncommutative gauges require other invariants or grounding."
+  },
+  "updated_interpretation": [
+    "Weighted fusion is a capability of a residual gauge certificate, not a generic property of behavioral equivalence.",
+    "Actual neural outputs preserve weighted fusion under a common positive-affine residual gauge; strict monotone residual gauges require extra geometry grounding.",
+    "Private-input neural source identification can precede coordinate grounding when source and relative gauge are inferred jointly over a known finite group.",
+    "For continuous SO(2) input gauges, angle search can be eliminated using intrinsic interventions that commute with the gauge group.",
+    "The same intervention algebra fails under noncommuting shear/translation, making gauge/intervention-group discovery a separate problem."
+  ],
+  "next_experiments": [
+    "Learn or infer the maximal intervention algebra that commutes with an unknown plugin input-gauge group.",
+    "Add calibrated open-world rejection to invariant-signature routing under noncommuting gauge misspecification.",
+    "Test stochastic neural plugins with private continuous SO(2) gauges and distributional invariant signatures.",
+    "After group discovery, connect GaugeAwareComposer to end-to-end sparse fusion programs."
+  ]
+}
