@@ -1,0 +1,30 @@
+{
+  "checkpoint": "operator_fusion_v2_milestone3_checkpoint_v1",
+  "milestone3_hard_composition": {
+    "discrete": {"correct": 1000, "total": 1000, "grounding_probes_total": 2, "depth": "1-10 all exact"},
+    "continuous": {"exact": 500, "total": 500, "grounding_probes_total": 6, "max_abs_error": 0.0}
+  },
+  "unseen_string_environment": {
+    "core_changes": 0,
+    "routing_60": {"correct": 20, "wrong": 0, "equivalence_candidate_correct": 40},
+    "natural_equivalence_candidate": ["s0", "s1", "s2", "s4", "s6"],
+    "equivalence_reason": "output-equality observation collapses injective string transformations",
+    "grounding_probes_total_for_7_plugins": 13,
+    "program_correct": 1000,
+    "program_total": 1000,
+    "depth": "1-10 all exact"
+  },
+  "interpretation": [
+    "the same clean core performs black-box identification across discrete numeric, continuous numeric, neural approximators, and string transforms",
+    "finite no-counterexample search yields an uncertified equivalence_candidate, never an exact-equivalence proof",
+    "weak relation families can induce large natural quotient classes",
+    "minimal grounding should use behavior-aware proposal generation when random grounded references are nearly always uninformative",
+    "hard program composition is now reimplemented before latent fusion"
+  ],
+  "next": [
+    "add a formal equivalence/gauge certificate layer",
+    "add lazy ABI adapters to V2 instead of direct shared inputs",
+    "connect independent neural instance routing to hard program execution",
+    "only then reintroduce behavior-derived latent sparse fusion"
+  ]
+}
