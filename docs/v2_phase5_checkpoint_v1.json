@@ -1,0 +1,47 @@
+{
+  "checkpoint": "v2_phase5_neural_gauge_scope_private_input_open_world",
+  "headline": [
+    "Weighted mean is equivariant under a shared positive-affine output gauge, but not under independent per-plugin positive-affine gauges. Gauge group alone is insufficient; certificate scope/coupling matters.",
+    "On actual neural outputs, shared positive-affine weighted fusion has ~1e-15 semantic error; independent unaligned affine charts produce mean error ~0.71; two output anchors per plugin restore ~1e-16 error.",
+    "Target-native private-input behavioral routing over a known finite D4 gauge family identifies 48/48 independent neural targets with wrong 0 and mean 7.75 relation queries, without a runtime common semantic experiment coordinate.",
+    "Closed-world routing alone false-accepts far OOD targets (6/8 in the first screen); independent held-out behavior is therefore mandatory.",
+    "For a 1-2% near-OOD perturbation, random validation is weak. Three registered instances + consensus/stable low-margin stress queries detect 238/240 near-OOD cases with 32 queries at a threshold having 0 observed false rejects on 240 held-out in-family samples.",
+    "Route -> one D4 input-coordinate anchor -> two affine output anchors -> execute gives 48/48 routes, 0 gauge errors, and mean semantic error 0.00245 vs independent target models over 6144 samples."
+  ],
+  "design_updates": {
+    "gauge_certificate": "must represent (group, scope/coupling, chart alignment/grounding status), not group alone",
+    "open_world": "identification posterior and predictive validation are separate stages",
+    "stress_validation": "use persistent multi-instance agreement to avoid targeting model-instance approximation noise; then stress low-margin regions",
+    "private_input": "runtime experiment coordinates may stay native/private if source posterior marginalizes a known input-gauge family; residual gauge is grounded only after source identification"
+  },
+  "boundaries": [
+    "Private-input positive result uses a known finite D4 gauge family; arbitrary continuous/high-dimensional private input gauges are not solved.",
+    "Output execution uses two grounded affine-output correspondences; no-grounding arbitrary output geometry remains impossible for metric fusion.",
+    "Near-OOD validation was calibrated on one semantic family with three registered instances; broader calibration across all source families is still required.",
+    "Models are small neural regressors, not unrelated pretrained foundation models."
+  ],
+  "next_experiments": [
+    "Integrate scope-aware GaugeCertificate into the V2 composer contract and reject independent-chart weighted fusion before alignment.",
+    "Run multi-instance near-OOD stress validation across all six neural source families and multiple perturbation types.",
+    "Replace finite D4 input-gauge marginalization with learned/continuous proposal while preserving open-world validation and minimal grounding fallback.",
+    "Test gauge-aware fusion inside depth>1 neural programs and separate fusion geometry error from model competence accumulation."
+  ],
+  "headline_metrics": {
+    "shared_affine_neural_fusion_mean_error": 6.362175394261822e-17,
+    "independent_unaligned_affine_mean_error": 0.7108111194935124,
+    "independent_affine_after_two_anchors_mean_error": 6.868373057800081e-17,
+    "common_monotone_naive_mean_error": 0.01843557394318684,
+    "common_monotone_after_one_geometry_anchor_mean_error": 2.374609777194321e-05,
+    "private_input_routing_correct": 48,
+    "private_input_routing_wrong": 0,
+    "private_input_routing_mean_queries": 7.75,
+    "closed_world_far_ood_false_accepts": 6,
+    "near_ood_random_detected_at_32": 1,
+    "near_ood_multiinstance_stress_detected_at_32": 238,
+    "near_ood_validation_samples": 240,
+    "private_input_e2e_routes_correct": 48,
+    "private_input_e2e_gauge_errors": 0,
+    "private_input_e2e_semantic_mean_error": 0.0024464958517000923,
+    "private_input_e2e_execution_samples": 6144
+  }
+}

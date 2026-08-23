@@ -1,0 +1,57 @@
+{
+  "checkpoint": "v2_phase5c_integrated_private_neural_fusion_program",
+  "routing": {
+    "runtime_targets": 6,
+    "correct": 6,
+    "wrong": 0,
+    "unresolved": 0,
+    "mean_behavioral_queries": 9.0,
+    "runtime_query_coordinates": "target-native only"
+  },
+  "grounding": {
+    "input_gauge_family": "D4",
+    "input_anchors_per_first_used_plugin": 1,
+    "output_gauge_family": "independent positive affine",
+    "output_anchors_per_first_used_plugin": 2,
+    "depth10_mean_lazy_grounding_cost": 17.6625,
+    "eager_all_six_cost": 18
+  },
+  "fusion_certificate": {
+    "group": "positive_affine",
+    "scope_before_grounding": "independent_per_plugin",
+    "scope_after_grounding": "aligned_common_chart",
+    "weighted_mean_allowed_after_grounding": true
+  },
+  "program_results": {
+    "depth1": {
+      "programs": 240,
+      "fused_mean_error_vs_independent_target_program": 0.001320874087978156,
+      "hard_primary_mean_error": 0.0740437995774361,
+      "mean_fused_vs_hard_difference": 0.07408713509173444
+    },
+    "depth10": {
+      "programs": 240,
+      "fused_mean_error_vs_independent_target_program": 0.001132810869021341,
+      "fused_p95": 0.0026781925559044707,
+      "hard_primary_mean_error": 0.07359231003016854,
+      "hard_p95": 0.1515387690067291,
+      "mean_fused_vs_hard_difference": 0.07362783239261868
+    }
+  },
+  "interpretation": [
+    "The full V2 path now composes target-native behavioral routing, residual input-gauge grounding, output-chart alignment, gauge-aware interpolation, and depth-10 neural program execution in one run.",
+    "The aligned 0.6/0.4 result is not merely routing: hard-primary execution is about 65x worse at depth 10 and the fused result differs materially from hard selection.",
+    "Residual error is dominated by independent neural model-instance competence, not by routing or exact D4/affine ABI recovery in this controlled screen."
+  ],
+  "boundaries": [
+    "Input gauges are from a known finite D4 family.",
+    "Output geometry is positive affine and is grounded with two scalar correspondences.",
+    "Open-world validation is not yet inserted into every stage of this integrated program run.",
+    "Models are small regressors rather than unrelated pretrained foundation models."
+  ],
+  "next": [
+    "Insert calibrated multi-instance open-world validation before route acceptance in the integrated program pipeline.",
+    "Generalize private-input gauge proposals beyond finite D4 while retaining minimal grounding fallback.",
+    "Use a completely held-out environment/model family without modifying V2 core."
+  ]
+}

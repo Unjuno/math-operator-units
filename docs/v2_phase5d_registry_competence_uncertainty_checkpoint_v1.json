@@ -1,0 +1,33 @@
+{
+  "checkpoint": "v2_phase5d_registry_competence_and_open_world_identifiability",
+  "core_result": "Open-world semantic shift is only safely rejectable when it exceeds the accepted model-instance behavioral uncertainty envelope. Query synthesis amplifies observable differences but cannot manufacture identifiability when near-OOD behavior lies inside in-family variation.",
+  "low_competence_case": {
+    "analytic_semantic_relation_shift": 0.01845,
+    "ensemble_vs_heldout_infamily": [0.004341666666666666, 0.03793333333333333, 0.024333333333333332],
+    "ensemble_vs_near_ood": [0.01645, 0.013475, 0.013875],
+    "infamily_pairwise_max": 0.041558333333333336,
+    "finding": "the near-OOD target is behaviorally closer to the registry ensemble than some legitimate heldout instances, so a validator calibrated to accept all in-family instances cannot safely reject it"
+  },
+  "higher_competence_case": {
+    "analytic_semantic_relation_shift": 0.0179,
+    "ensemble_vs_heldout_infamily": [0.0025583333333333335, 0.0015916666666666666, 0.00165],
+    "ensemble_vs_near_ood": [0.015191666666666666, 0.015625, 0.014308333333333333],
+    "infamily_pairwise_max": 0.0047666666666666664,
+    "query_budget": 32,
+    "targeted_near_ood_detected": 186,
+    "targeted_near_ood_samples": 192,
+    "random_detected": 13,
+    "observed_infamily_false_rejects_at_threshold": 0
+  },
+  "competence_sweep": [
+    {"epochs": 100, "mean_candidate_rmse": 0.036791505912939705, "infamily_pairwise_p95": 0.016447857142857143, "near_relation_mismatch_mean": 0.0044714285714285715, "signal_to_infamily_p95": 0.2718547791557478},
+    {"epochs": 200, "mean_candidate_rmse": 0.032798606902360916, "infamily_pairwise_p95": 0.037565714285714286, "near_relation_mismatch_mean": 0.0062928571428571434, "signal_to_infamily_p95": 0.16751597200649299},
+    {"epochs": 400, "mean_candidate_rmse": 0.025209913185487192, "infamily_pairwise_p95": 0.01401, "near_relation_mismatch_mean": 0.015300000000000001, "signal_to_infamily_p95": 1.0920770877164827},
+    {"epochs": 700, "mean_candidate_rmse": 0.005607257597148418, "infamily_pairwise_p95": 0.0063292857142857135, "near_relation_mismatch_mean": 0.014564285714285714, "signal_to_infamily_p95": 2.3010946842092843}
+  ],
+  "design_update": {
+    "unresolved_reason": "registry_resolution_insufficient",
+    "suggested_metric": "behavioral semantic-shift signal divided by heldout model-instance uncertainty envelope",
+    "implication": "registration quality/competence is a first-class identifiability variable, separate from runtime query budget"
+  }
+}

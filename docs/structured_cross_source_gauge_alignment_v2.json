@@ -1,0 +1,16 @@
+{
+  "experiment":"structured_cross_source_gauge_alignment_v2",
+  "N":32,
+  "trials":100,
+  "common_coordinate":"MIN-chain rank inferred only from private MIN transition structure",
+  "methods":{"min/max":"0 bridge queries via chain structure","add/sub":"1 symmetry-breaking generator query each","xor":"5 basis queries","mul":"enumerate 64 multiplication-monoid gauge candidates from private table; greedy active bridge collapses them in 3 queries"},
+  "mean_bridge_queries":{"add":1,"sub":1,"min":0,"max":0,"xor":5,"mul":3},
+  "total_queries_per_pool":10,
+  "naive_nonreference_per_state_queries":160,
+  "query_reduction_vs_naive":0.9375,
+  "all_mappings_exact":true,
+  "all_e2e_exact":true,
+  "mean_e2e":{"1":1.0,"2":1.0,"3":1.0,"4":1.0,"5":1.0,"6":1.0,"7":1.0,"8":1.0,"9":1.0,"10":1.0},
+  "interpretation":"private transition algebra reduces cross-source alignment to symmetry breaking: bridge query complexity tracks residual automorphism/gauge degrees of freedom, not state-vocabulary size",
+  "claim_boundary":"requires exhaustive source-local transition tables and a same-latent-state transfer bridge into MIN; operation family remains synthetic and known enough to construct structural coordinate candidates"
+}

@@ -1,0 +1,15 @@
+{
+  "experiment": "compositional_command_paraphrase_alignment_aggregate_v1",
+  "pool_seeds": [310,311,312],
+  "protocol": "Canonical command is behaviorally grounded; paraphrase surface receives no behavior query. Token-component substitution is learned from paired unlabeled canonical/paraphrase views of the five seen commands. Heldout sixth paraphrase is an unseen pair combination of individually aligned components. Runtime uses learned delimiter-free stage segmentation.",
+  "heldout_pair_never_seen_as_pair": [true,true,true],
+  "heldout_mapping_ok": [true,true,true],
+  "whole_pair_random_negative_mappable": [false,false,false],
+  "segmentation_exact_all": true,
+  "route_exact_all": true,
+  "e2e_correct": 2997,
+  "e2e_total": 3000,
+  "e2e_accuracy": 0.999,
+  "interpretation": "A previously unseen paraphrase pair can be aligned without querying its behavior when the surface transformation is compositional and its token components are individually identified from paired unlabeled views of seen commands. Segmentation and routing are exact across all 3000 programs; E2E is 2997/3000, with three seed311 source-execution misses. The whole-pair random negative control is unmappable by construction, preserving the identifiability boundary for arbitrary paraphrases.",
+  "claim_boundary": "This is a synthetic compositional paraphrase/cipher, not natural-language paraphrasing. Paired canonical/paraphrase views are available for the five seen commands and collectively cover every component token needed by the heldout combination. No claim is made for arbitrary surface changes with unseen components or no parallel/interface evidence."
+}

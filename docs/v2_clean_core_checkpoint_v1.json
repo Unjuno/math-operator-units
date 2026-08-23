@@ -1,0 +1,53 @@
+{
+  "checkpoint": "operator_fusion_v2_clean_core_checkpoint_v1",
+  "principle": "clean-room core: behavior identification -> uncertified equivalence candidate -> minimal grounding; hard and soft paths; open-world UNRESOLVED",
+  "milestone1": {
+    "experiment": "v2_clean_core_milestone1",
+    "discrete": {
+      "counts": {"resolved_correct": 212, "equivalence_candidate_correct": 88, "wrong": 0, "unresolved": 0},
+      "mean_queries": 2.57
+    },
+    "continuous": {
+      "counts": {"resolved_correct": 69, "equivalence_candidate_correct": 231, "wrong": 0, "unresolved": 0},
+      "mean_queries": 2.23
+    },
+    "open_world": {"unresolved": 100, "resolved": 0, "equivalence_candidate": 0},
+    "core_literal_leaks": [],
+    "pass": true,
+    "important_fix": "finite failure to find a counterexample is not an exact-equivalence proof; return an uncertified equivalence_candidate unless a later certificate/grounding step resolves it"
+  },
+  "neural_instance": {
+    "hard": {"correct": 23, "wrong": 0, "unresolved": 7, "mean_queries": 2.6666666667},
+    "soft_compare": {
+      "hard": {"correct": 14, "wrong": 0, "unresolved": 4, "mean_queries": 2.7222222222},
+      "soft": {"correct": 17, "wrong": 0, "unresolved": 1, "mean_queries": 8.8333333333},
+      "soft_ood": {"resolved": 0, "unresolved": 8}
+    },
+    "note": "same core API; independent neural instances with private positive affine output gauges; soft Beta-Bernoulli behavioral likelihood improves coverage without wrong routing in this small screen"
+  },
+  "milestone2_grounding": {
+    "discrete_output_relabel": {"correct": 200, "wrong": 0, "unresolved": 0, "mean_grounding_probes": 1.0},
+    "continuous_monotone_output": {"correct": 300, "wrong": 0, "unresolved": 0, "mean_grounding_probes": 1.0},
+    "note": "generic grounding manager only sees candidate grounded-predicate bits and chooses a maximally splitting probe; no operation-specific knowledge in core"
+  },
+  "static": {
+    "python_files": 12,
+    "core_files": 5,
+    "core_loc": 217,
+    "py_compile": "pass",
+    "forbidden_core_literals": ["ADD", "SUB", "MUL", "N=32", "op_apply", "xor", "nand"],
+    "forbidden_hits": []
+  },
+  "claim_boundary": [
+    "equivalence_candidate is not a proof of exact equivalence",
+    "soft neural screen is small and uses related synthetic regressors, not unrelated pretrained models",
+    "grounded predicates are environment capabilities, not automatically discovered in this milestone",
+    "composition/fusion is not yet reimplemented in V2"
+  ],
+  "next": [
+    "add an explicit equivalence certificate / gauge manager instead of promoting failed search",
+    "implement lazy ABI adapters behind grounding manager",
+    "reimplement hard program composition before latent fusion",
+    "run the same V2 API on an unseen third environment without changing core"
+  ]
+}

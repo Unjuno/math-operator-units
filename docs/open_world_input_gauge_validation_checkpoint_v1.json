@@ -1,0 +1,32 @@
+{
+  "checkpoint": "open-world-input-gauge-validation-v1",
+  "deterministic_misspecification": {
+    "angles8_no_validation": {"trials":10,"mean_correct_of_8":6.4,"mean_wrong_of_8":1.6,"mean_unresolved_of_8":0.0},
+    "angles8_random_validation128": {"trials":10,"mean_correct_of_8":4.0,"mean_wrong_of_8":0.0,"mean_unresolved_of_8":4.0},
+    "interpretation": "closed-world source+gauge elimination can be confidently wrong when the true input gauge is absent; independent held-out relation validation converts those observed wrong routes into abstentions in the matched deterministic screen."
+  },
+  "noisy_validation_threshold_sweep": {
+    "bitflip_0.05_threshold_0.055": {"in_family":{"correct":6.0,"wrong":0.0,"unresolved":2.0},"gauge_ood":{"correct":3.3333333333333335,"wrong":0.0,"unresolved":4.666666666666667},"trials":6},
+    "bitflip_0.05_threshold_0.065": {"in_family":{"correct":7.166666666666667,"wrong":0.0,"unresolved":0.8333333333333334},"gauge_ood":{"correct":4.166666666666667,"wrong":0.0,"unresolved":3.8333333333333335},"trials":6},
+    "bitflip_0.05_threshold_0.075": {"in_family":{"correct":7.5,"wrong":0.0,"unresolved":0.5},"gauge_ood":{"correct":4.833333333333333,"wrong":0.16666666666666666,"unresolved":3.0},"trials":6},
+    "bitflip_0.10_threshold_0.11": {"in_family":{"correct":5.5,"wrong":0.16666666666666666,"unresolved":2.3333333333333335},"gauge_ood":{"correct":3.3333333333333335,"wrong":0.0,"unresolved":4.666666666666667},"trials":6},
+    "interpretation": "under noisy relations, validation threshold creates a safety/coverage trade-off. At 5% noise, threshold 0.065 preserved wrong=0 in both matched and gauge-OOD samples while resolving about 89.6% of in-family commands. At 10% noise, threshold-only validation is not sufficient to guarantee wrong=0 on the in-family identification stage."
+  },
+  "validation_rerank": {
+    "bitflip_0.10_threshold_0.12_margin_0.005": {"in_family":{"correct":7.333333333333333,"wrong":0.0,"unresolved":0.6666666666666666},"gauge_ood":{"correct":4.333333333333333,"wrong":0.16666666666666666,"unresolved":3.5},"trials":6},
+    "interpretation": "using validation to rerank all sources removes observed in-family wrong routing at 10% in this small screen, but a small gauge-OOD false accept remains. Open-world stochastic validation is therefore harder than ordinary noisy routing."
+  },
+  "near_equivalence_analysis": {
+    "relative_gauge_transforms_enumerated": 1560,
+    "relation_pairs_per_test": 2048,
+    "closest_observed_off_diagonal_examples": [
+      {"target":"saddle","candidate":"radial","best_relation_error":0.00537109375},
+      {"target":"expdiff","candidate":"cross","best_relation_error":0.0126953125},
+      {"target":"saddle","candidate":"expdiff","best_relation_error":0.0146484375},
+      {"target":"cross","candidate":"sinmix","best_relation_error":0.01708984375}
+    ],
+    "interpretation": "the remaining false accepts are not exact semantic equivalences in this search, but some wrong source+input-gauge hypotheses are extremely close on relation behavior. Random validation needs many queries to reliably expose a 0.5% disagreement region, especially on top of stochastic observation noise."
+  },
+  "decision": "safe open-world plugin admission needs an explicit model-misspecification/novelty test, not only posterior confidence inside a closed candidate/gauge family. Near-equivalent wrong hypotheses can require targeted disagreement queries or large validation budgets.",
+  "claim_boundaries": ["synthetic deterministic candidate source tables","task noise modeled as iid relation-bit flips","threshold sweeps are small-sample screens, not calibrated production guarantees","gauge library is finite similarity transforms"]
+}

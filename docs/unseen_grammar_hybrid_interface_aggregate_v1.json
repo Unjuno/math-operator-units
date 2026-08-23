@@ -1,0 +1,22 @@
+{
+  "experiment": "unseen_grammar_hybrid_interface_aggregate_v1",
+  "grammar_variants": 7,
+  "structural_screen": {
+    "code_seeds_per_holdout": 200,
+    "cases_per_holdout": 1600,
+    "family_exact_rate": [1.0,1.0,1.0,1.0,1.0,1.0,1.0],
+    "pure_structure_slot_acc_by_heldout_variant": [1.0,1.0,0.0,0.0,0.0,1.0,0.0],
+    "behavior_grounded_code_plus_structure_slot_acc_by_heldout_variant": [1.0,1.0,1.0,1.0,1.0,1.0,1.0]
+  },
+  "e2e_seed310": {
+    "unlabeled_corpus_excludes_evaluation_grammar": true,
+    "programs_per_depth_per_heldout_variant": 80,
+    "depths": [1,2,3,4,5],
+    "total_programs": 2800,
+    "hard_e2e_correct": 2800,
+    "slot_accuracy": 1.0,
+    "route_accuracy": 1.0
+  },
+  "interpretation": "Full grammar-skeleton structure alone does not extrapolate reliably to all unseen wrapper/position forms. However, once an opaque code span has been learned automatically through behavioral grounding, exact learned code membership can serve as a semantic interface anchor; combining that evidence with structural scoring recovered all seven held-out grammar forms in this controlled screen.",
+  "claim_boundary": "This is not zero-shot semantic discovery of a completely new command phrase. The held-out command code has already been behaviorally calibrated, although its evaluation wrapper/position grammar is absent from the unlabeled structural corpus. Exact token-pair membership is used as semantic evidence. Natural-language paraphrases that change the command surface form remain untested."
+}

@@ -1,0 +1,20 @@
+{
+  "experiment": "v2_output_adapter_ablation_v1",
+  "aggregate": {
+    "seeds": [31,32,33],
+    "route_correct": 108,
+    "route_total": 108,
+    "program_total": 360,
+    "program_no_output_adapter": 36,
+    "program_identity_adapter": 360,
+    "program_oracle_adapter": 360,
+    "grounding_queries_total": 72
+  },
+  "per_seed": [
+    {"seed":31,"route":"36/36","no_adapter":"10/120","identity_adapter":"120/120","oracle_adapter":"120/120","identity_grounding_queries":24},
+    {"seed":32,"route":"36/36","no_adapter":"14/120","identity_adapter":"120/120","oracle_adapter":"120/120","identity_grounding_queries":24},
+    {"seed":33,"route":"36/36","no_adapter":"12/120","identity_adapter":"120/120","oracle_adapter":"120/120","identity_grounding_queries":24}
+  ],
+  "interpretation": "Routing and output ABI alignment are separate. Correct behavioral source identification does not make private output tokens composable. A source-local right-identity contract recovers the private output-token adapter without an operation truth table in this controlled family.",
+  "boundary": "The current identity adapter uses one grounded contract observation per common state (8/source); input ABI is still hidden inside the environment wrapper."
+}

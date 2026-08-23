@@ -1,0 +1,34 @@
+{
+  "experiment": "exact-vs-near-input-gauge-equivalence-validation-v1",
+  "gauge": "bounded 2D orientation-preserving similarity input transform plus positive affine output transform",
+  "exact_equivalence": {
+    "pairs": ["lin1 -> lin2", "lin2 -> lin1"],
+    "trials": 40,
+    "random_detect_8q": 0,
+    "targeted_pool_detect_8q": 0,
+    "interpretation": "relation-only counterexample search cannot break a true quotient symmetry"
+  },
+  "near_equivalence": {
+    "pairs": [
+      {"target":"lin1","candidate":"quad","random_order_error":0.00341796875},
+      {"target":"lin2","candidate":"quad","random_order_error":0.006591796875},
+      {"target":"lin2","candidate":"expdiff","random_order_error":0.006591796875},
+      {"target":"expdiff","candidate":"sinmix","random_order_error":0.00732421875},
+      {"target":"lin2","candidate":"saddle","random_order_error":0.0087890625},
+      {"target":"lin2","candidate":"sinmix","random_order_error":0.009033203125},
+      {"target":"radial","candidate":"sinmix","random_order_error":0.00927734375},
+      {"target":"saddle","candidate":"cross","random_order_error":0.010009765625}
+    ],
+    "trials": 160,
+    "random_detect_8q": 8,
+    "targeted_pool_detect_8q": 159,
+    "targeted_pool_detect_rate": 0.99375
+  },
+  "minimal_grounding_for_exact_linear_pair": {
+    "0_coordinate_anchors_mean_relation_error": 0.0,
+    "1_coordinate_anchor_mean_relation_error": 0.0,
+    "2_coordinate_anchors_mean_relation_error": 0.4652125
+  },
+  "decision": "Use adversarial behavioral queries to reject near-equivalent hypotheses; when the hypothesis is an exact member of the source/input/output gauge quotient, preserve the equivalence class and request only the minimal grounding needed to fix that residual gauge.",
+  "claim_boundary": "synthetic 2D scalar functions and numerically fitted near-equivalent transforms; exact lin1/lin2 equivalence has an analytic linear-gradient construction"
+}

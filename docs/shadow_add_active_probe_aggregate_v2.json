@@ -1,0 +1,42 @@
+{
+  "experiment": "shadow_add_probe_identifiability_aggregate_v2",
+  "pool_seeds": [310,311,312],
+  "shadow_plugin": {
+    "architecture": "private-ABI GRU",
+    "standalone_exact": [1.0,1.0,1.0],
+    "construction": "matches ADD exactly on the fixed ten behavioral probes; outside those probes agrees with ADD unless (31*a+17*b+5) mod 4 == 0, where it returns ADD+1 mod 32",
+    "global_add_match": [0.7529296875,0.7529296875,0.7529296875]
+  },
+  "fixed_ten_probe_scores": {
+    "true_add": [1.0,1.0,1.0],
+    "shadow_add": [1.0,1.0,1.0],
+    "identifiable": false
+  },
+  "random_source_order_trials": {
+    "trials_per_pool_per_k": 300,
+    "true_add_top_mean_by_extra_random_probes": {
+      "0": 0.46444444444444444,
+      "1": 0.6255555555555555,
+      "2": 0.6933333333333334,
+      "4": 0.8555555555555555,
+      "8": 0.9511111111111111,
+      "16": 0.9944444444444445,
+      "32": 1.0
+    },
+    "shadow_top_mean_by_extra_random_probes": {
+      "0": 0.5355555555555556,
+      "1": 0.3744444444444444,
+      "2": 0.30666666666666664,
+      "4": 0.14444444444444446,
+      "8": 0.04888888888888889,
+      "16": 0.005555555555555556,
+      "32": 0.0
+    }
+  },
+  "worst_order_depth5": {
+    "fixed_ten_probes": [0.8433333333333334,0.8566666666666667,0.85],
+    "plus_two_disagreement_driven_probes": [1.0,1.0,1.0]
+  },
+  "interpretation": "A finite fixed behavioral probe set is not a source-identity-free semantic proof: a competent shadow source can be observationally equivalent on the probe set and win by arbitrary source ordering. Probe diversity reduces the ambiguity, while disagreement-driven active probing resolves this constructed ambiguity with only two additional target queries in all three pools.",
+  "claim_boundary": "SHADOW is intentionally adversarial to the fixed ten probes and synthetic. Active disagreement probes are selected by comparing candidate source outputs over the finite 32x32 domain, then querying the expected common action. This does not yet solve active probe discovery in large/open-ended natural-language domains."
+}

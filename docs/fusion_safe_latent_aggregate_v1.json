@@ -1,0 +1,14 @@
+{
+  "experiment": "fusion_safe_learned6_latent_aggregate_v1",
+  "pool_seeds": [310,311,312],
+  "programs_per_depth_per_pool": 60,
+  "depths": [1,2,3,4,5,6,7,8,9,10],
+  "latent_dim": 6,
+  "code_learning": "state identity + desired primary-dominant 0.6/0.4 mixture decoding; no operator/transition semantics",
+  "pairwise_06_decode": [1.0,1.0,1.0],
+  "explicit": {"e2e_correct":1799,"e2e_total":1800,"e2e_accuracy":0.9994444444444445,"stage_local_accuracy":0.9997979797979798},
+  "learned6": {"e2e_correct":1799,"e2e_total":1800,"e2e_accuracy":0.9994444444444445,"stage_local_accuracy":0.9997979797979798},
+  "paired_discrete_identical": true,
+  "interpretation": "A six-dimensional codebook learned only to preserve primary identity under 0.6/0.4 mixtures can replace the explicit 32-way common-action probability vector at the fusion layer in this controlled screen. The learned code decodes all 1024 one-hot state pairs correctly and matches the explicit probability-mixture discrete outcomes across all three source pools/depth1-10.",
+  "claim_boundary": "The codebook is learned from externally known state identity and the desired fusion dominance law, not from transition semantics. Source adapters still form common-action probabilities before projecting to the latent expectation. This demonstrates learned fusion-safe compression, not a label-free latent transition space."
+}

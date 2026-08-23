@@ -1,0 +1,35 @@
+{
+  "checkpoint": "blackbox-query-synthesis-v2",
+  "finite_blackbox_sampling": {
+    "candidate_sources":20,
+    "query":"choose two sampled raw inputs and observe only whether task outputs are equal",
+    "no_precomputed_candidate_table":true,
+    "full_survivor_proposal64":{"correct":1999,"wrong":0,"unresolved":1,"total":2000,"mean_relation_queries":4.372,"mean_candidate_table_fraction_observed":0.215643359375},
+    "committee_proposal32_size4":{"correct":1000,"wrong":0,"unresolved":0,"total":1000,"mean_relation_queries":5.152,"mean_candidate_table_fraction_observed":0.062353759765625}
+  },
+  "continuous_blackbox": {
+    "domain":"[0,1]^2 non-enumerable",
+    "relation":"output order y1<y2",
+    "proposal32_committee4":{"correct":1600,"wrong":0,"unresolved":0,"total":1600,"mean_relation_queries":3.949375,"mean_bridge_queries":0.375},
+    "monotone_equivalence":["add~avg","mul~geom","sqsum~l2"]
+  },
+  "noise_and_unresolved":"see docs/continuous_blackbox_noise_scaling_checkpoint_v1.json",
+  "stochastic_plugins":"see docs/stochastic_plugin_registry_checkpoint_v1.json",
+  "pool_scaling": {
+    "family":"four positive-scale/offset variants per behavioral direction class",
+    "rows":[
+      {"sources":32,"behavior_classes":8,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":3.145,"mean_bridge_queries":2.0},
+      {"sources":64,"behavior_classes":16,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":4.37,"mean_bridge_queries":2.0},
+      {"sources":128,"behavior_classes":32,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":5.4,"mean_bridge_queries":2.0},
+      {"sources":256,"behavior_classes":64,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":6.54,"mean_bridge_queries":2.0}
+    ],
+    "interpretation":"relation cost tracks behavioral-class entropy; residual four-way gauge fixing stays at two bits"
+  },
+  "current_rule":"query candidate behavior as black boxes; maximize gauge-invariant information gain; preserve explicit equivalence classes; use minimal grounded bits only for residual gauge; represent stochastic plugin behavior as a probability distribution rather than a deterministic fingerprint",
+  "claim_boundaries":[
+    "synthetic scalar/state environments remain",
+    "continuous order queries are only invariant to strictly monotone output transforms",
+    "grounded scalar/state predicates remain necessary to break residual output-reparameterization symmetry",
+    "stochastic-source experiments inject relation-bit noise rather than full token-level neural stochasticity"
+  ]
+}

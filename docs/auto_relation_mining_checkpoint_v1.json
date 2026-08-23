@@ -1,0 +1,46 @@
+{
+  "checkpoint": "2026-08-20-auto-relation-mining-v1",
+  "auto_label_invariant_symbolic": {
+    "generic_interventions": 65,
+    "n16_k32_all6_rate": 1.0,
+    "n96_k32_all6_rate": 1.0,
+    "swap_only_mean_route_acc": 0.555
+  },
+  "shadow": {
+    "global_add_match": 0.7529296875,
+    "fixed_probe_match": 1.0,
+    "all_screened_conditions_true_add_top": true
+  },
+  "random_dsl": {
+    "m32_mean_route": 0.99,
+    "m64_mean_route": 0.9983333333,
+    "m128_all6_rate": 1.0
+  },
+  "adaptive": {
+    "q8_route_acc": 0.9966666667,
+    "q8_all6_trial_rate": 0.98,
+    "q8_shadow_top": 0.0,
+    "q8_abstention_eval": {
+      "resolved_correct": 298,
+      "resolved_wrong": 0,
+      "unresolved": 2
+    }
+  },
+  "neural_auto_relation": {
+    "seeds": [740, 741, 742],
+    "route_exact": [1.0, 1.0, 1.0],
+    "hard_depth1_5_all_perfect": true,
+    "programs": 1800
+  },
+  "integrated_behavior_latent": {
+    "seeds": [750, 751, 752],
+    "route_exact": [1.0, 1.0, 1.0],
+    "signature_unique_states": [32, 32, 32],
+    "latent_pairwise_0.6_decode": [1.0, 1.0, 1.0],
+    "explicit_correct": 598,
+    "latent_correct": 597,
+    "programs": 600,
+    "paired_stage_agreement": 0.9972222222
+  },
+  "claim_boundary": "Generic intervention library/DSL and common input intervention capability remain supplied. Output execution still uses a right-identity relation to align private output sequences to state handles. Relation mining selects useful behavioral tests automatically but does not yet synthesize arbitrary intervention programs from raw trajectories."
+}

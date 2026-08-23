@@ -1,0 +1,94 @@
+{
+  "checkpoint": "continuous-blackbox-noise-scaling-v2",
+  "blackbox_sampled_finite": {
+    "candidate_sources": 20,
+    "no_full_behavior_table": true,
+    "proposal64": {"correct":1999,"total":2000,"wrong":0,"unresolved":1,"mean_relation_queries":4.372,"mean_target_output_evals":8.853,"candidate_table_fraction_observed":0.215643359375}
+  },
+  "committee_proposal_selection": {
+    "principle":"score proposals on a small random committee; evaluate only the selected query on all surviving candidates",
+    "proposal_budget":32,
+    "committee_size":4,
+    "correct":1000,
+    "total":1000,
+    "wrong":0,
+    "unresolved":0,
+    "mean_relation_queries":5.152,
+    "mean_target_output_evals":10.376,
+    "candidate_table_fraction_observed":0.062353759765625
+  },
+  "continuous_non_enumerable": {
+    "domain":"[0,1]^2",
+    "candidate_sources":16,
+    "relation":"output order y1<y2",
+    "proposal32_committee4":{"correct":1600,"total":1600,"wrong":0,"unresolved":0,"mean_relation_queries":3.949375,"mean_bridge_queries":0.375,"mean_target_output_evals":8.27375},
+    "residual_monotone_equivalence":["add~avg","mul~geom","sqsum~l2"],
+    "bridge":"one-bit semantic output>scalar-reference query only for residual equivalence"
+  },
+  "known_task_observation_noise": {
+    "posterior_threshold":0.999,
+    "bitflip_0.10_budget30_plus8":{"correct":157,"wrong":0,"unresolved":3,"total":160,"mean_target_output_evals":40.3},
+    "bitflip_0.20_budget30_plus8":{"correct":114,"wrong":0,"unresolved":46,"total":160,"mean_target_output_evals":54.3625}
+  },
+  "unknown_task_observation_noise": {
+    "method":"candidate posterior plus candidate-specific Beta(1,9) observation-error posterior; true bit-flip rate is not supplied",
+    "threshold":0.999,
+    "rows":[
+      {"actual_bitflip":0.0,"correct":320,"wrong":0,"unresolved":0,"total":320,"estimated_error_mean":0.0391},
+      {"actual_bitflip":0.05,"correct":320,"wrong":0,"unresolved":0,"total":320,"estimated_error_mean":0.0626},
+      {"actual_bitflip":0.10,"correct":300,"wrong":0,"unresolved":20,"total":320,"estimated_error_mean":0.0964},
+      {"actual_bitflip":0.20,"correct":174,"wrong":0,"unresolved":146,"total":320,"estimated_error_mean":0.1655},
+      {"actual_bitflip":0.30,"correct":43,"wrong":1,"unresolved":276,"total":320,"estimated_error_mean":0.2514}
+    ],
+    "conservative_threshold_control":"threshold 0.9999 removed observed wrong routing at 30% noise in the matched screen, with a large unresolved increase"
+  },
+  "candidate_source_behavior_noise": {
+    "negative":"hard mismatch/majority scoring is unsafe when candidate source relation responses themselves are stochastic",
+    "hard_majority_examples":[
+      {"source_bitflip":0.05,"repeats":5,"correct":564,"wrong":3,"unresolved":73,"total":640},
+      {"source_bitflip":0.10,"repeats":5,"correct":492,"wrong":25,"unresolved":123,"total":640},
+      {"source_bitflip":0.20,"repeats":5,"correct":340,"wrong":133,"unresolved":167,"total":640}
+    ],
+    "soft_likelihood":"repeat source relation observations, convert each query to a smoothed predictive probability, accumulate candidate likelihoods instead of hard elimination",
+    "soft_threshold_0.99_examples":[
+      {"source_bitflip":0.05,"repeats":9,"correct":353,"wrong":0,"unresolved":127,"total":480},
+      {"source_bitflip":0.10,"repeats":9,"correct":219,"wrong":0,"unresolved":261,"total":480},
+      {"source_bitflip":0.20,"repeats":9,"correct":60,"wrong":0,"unresolved":420,"total":480}
+    ],
+    "confidence_tradeoff_repeats9":[
+      {"source_bitflip":0.05,"threshold":0.90,"correct":286,"wrong":0,"unresolved":34,"total":320},
+      {"source_bitflip":0.05,"threshold":0.95,"correct":263,"wrong":0,"unresolved":57,"total":320},
+      {"source_bitflip":0.05,"threshold":0.99,"correct":219,"wrong":0,"unresolved":101,"total":320},
+      {"source_bitflip":0.10,"threshold":0.90,"correct":234,"wrong":0,"unresolved":86,"total":320},
+      {"source_bitflip":0.10,"threshold":0.95,"correct":198,"wrong":0,"unresolved":122,"total":320},
+      {"source_bitflip":0.10,"threshold":0.99,"correct":145,"wrong":0,"unresolved":175,"total":320}
+    ],
+    "decision":"plugin/source registration should store a distribution over behavioral relations, not a single deterministic fingerprint"
+  },
+  "source_pool_scaling": {
+    "family":"continuous 2D linear directions with four positive-scale/offset gauge variants per direction",
+    "relation":"two-output order bit, invariant to positive scale+offset",
+    "bridge":"one-bit output>scalar-reference",
+    "rows":[
+      {"pool_size":32,"direction_classes":8,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":3.145,"mean_bridge_queries":2.0,"log2_direction_classes":3.0},
+      {"pool_size":64,"direction_classes":16,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":4.37,"mean_bridge_queries":2.0,"log2_direction_classes":4.0},
+      {"pool_size":128,"direction_classes":32,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":5.4,"mean_bridge_queries":2.0,"log2_direction_classes":5.0},
+      {"pool_size":256,"direction_classes":64,"correct":200,"wrong":0,"unresolved":0,"mean_relation_queries":6.54,"mean_bridge_queries":2.0,"log2_direction_classes":6.0}
+    ],
+    "interpretation":"relation query complexity tracks behavioral equivalence-class entropy; residual four-way gauge fixing remains exactly two bits"
+  },
+  "current_hypothesis":"universal source identification should maximize gauge-invariant behavior, explicitly infer residual equivalence/gauge, and spend grounding only on that residual symmetry. Source-registration uncertainty must be represented probabilistically when plugins are stochastic.",
+  "claim_boundaries":[
+    "continuous experiments use synthetic scalar functions and known input generators",
+    "order relations are invariant to strictly increasing output reparameterizations, not arbitrary output bijections",
+    "cross-modal scalar/reference predicates are real grounding channels",
+    "task-noise inference uses a low-noise Beta prior",
+    "candidate-source noise is injected at relation-bit level rather than full token/model stochasticity"
+  ],
+  "next":[
+    "learn a persistent probabilistic behavioral signature for stochastic neural plugins rather than estimating each relation independently",
+    "integrate black-box committee query synthesis with private-ABI neural sources",
+    "replace random continuous proposals with learned black-box query optimization",
+    "stress equivalence/gauge discovery when both task and candidate source observations are noisy"
+  ]
+}

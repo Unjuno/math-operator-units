@@ -1,0 +1,14 @@
+{
+  "experiment": "spectral_transition_latent_source_fusion_aggregate_v1",
+  "pool_seeds": [310,311,312],
+  "programs_per_depth_per_pool": 60,
+  "depths": [1,2,3,4,5,6,7,8,9,10],
+  "embedding_source": "normalized Laplacian eigenvectors of a state-transition graph constructed from the five seen operations; MUL held out from embedding construction",
+  "explicit": {"e2e_correct":1794,"e2e_total":1800,"e2e_accuracy":0.9966666666666667},
+  "sp8": {"e2e_correct":968,"e2e_total":1800,"e2e_accuracy":0.5377777777777778},
+  "sp12": {"e2e_correct":1504,"e2e_total":1800,"e2e_accuracy":0.8355555555555556},
+  "sp16": {"e2e_correct":1633,"e2e_total":1800,"e2e_accuracy":0.9072222222222223},
+  "sp24": {"e2e_correct":1776,"e2e_total":1800,"e2e_accuracy":0.9866666666666667},
+  "interpretation": "Transition-topology spectral geometry is not automatically fusion-safe. In actual source fusion, 8D degrades heavily and 16D remains materially below the explicit action-probability baseline; 24D approaches but does not exactly match it. This contrasts with the hand-coded binary5 and fusion-law-trained learned6 geometries.",
+  "claim_boundary": "The graph construction uses externally identified common states and seen-operation transitions, so this is not label-free discovery. Spectral embeddings are deterministic topology features, not jointly learned source adapters."
+}
