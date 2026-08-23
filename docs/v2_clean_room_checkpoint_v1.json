@@ -1,0 +1,77 @@
+{
+  "experiment": "operator_fusion_v2_clean_room_three_environment_screen_v1",
+  "date": "2026-08-24",
+  "design_contract": {
+    "core_operation_names": false,
+    "core_state_cardinality": false,
+    "core_torch_dependency": false,
+    "old_experiment_helper_imports": false,
+    "source_keys": "opaque hashes",
+    "pipeline": "register -> active invariant relation identification -> residual bridge only if needed -> common executor composition"
+  },
+  "discrete": {
+    "route_total": 60,
+    "route_correct": 60,
+    "route_wrong": 0,
+    "route_unresolved": 0,
+    "mean_relation_queries": 2.65,
+    "mean_bridge_queries": 0.3333333333333333,
+    "programs": 50,
+    "program_correct": 50,
+    "stage_unresolved": 0,
+    "total_stages": 140,
+    "program_by_depth": {"1":{"correct":12,"total":12},"2":{"correct":11,"total":11},"3":{"correct":11,"total":11},"4":{"correct":7,"total":7},"5":{"correct":9,"total":9}}
+  },
+  "continuous": {
+    "route_total": 60,
+    "route_correct": 60,
+    "route_wrong": 0,
+    "route_unresolved": 0,
+    "mean_relation_queries": 3.3333333333333335,
+    "mean_bridge_queries": 0.3333333333333333,
+    "programs": 50,
+    "program_correct": 50,
+    "stage_unresolved": 0,
+    "total_stages": 151,
+    "program_by_depth": {"1":{"correct":7,"total":7},"2":{"correct":11,"total":11},"3":{"correct":10,"total":10},"4":{"correct":18,"total":18},"5":{"correct":4,"total":4}}
+  },
+  "stochastic_neural_aggregate": {
+    "seeds": [15,16,17],
+    "route_correct": 96,
+    "route_total": 96,
+    "route_wrong": 0,
+    "route_unresolved": 0,
+    "program_correct": 150,
+    "program_total": 150,
+    "mean_relation_queries": 2.9895833333333335,
+    "candidate_target_greedy_accuracy": 1.0,
+    "notes": "Each seed trains independent candidate and held-out target MLP/GRU specialists with independent private input/output permutations. Runtime relation observations are actual multinomial samples; registry relation probabilities are estimated from repeated candidate samples."
+  },
+  "exact_equivalence_ablation": {
+    "core_forbidden_token_audit": {"ADD":false,"SUB":false,"MIN":false,"MAX":false,"XOR":false,"NAND":false,"state_cardinality":false,"torch":false,"experiment_":false},
+    "discrete_relation_only": {"correct":0,"wrong":0,"unresolved":40,"mean_relation_queries":3.0,"mean_bridge_queries":0.0},
+    "discrete_with_bridge": {"correct":40,"wrong":0,"unresolved":0,"mean_relation_queries":3.0,"mean_bridge_queries":1.0},
+    "continuous_relation_only": {"correct":0,"wrong":0,"unresolved":40,"mean_relation_queries":5.0,"mean_bridge_queries":0.0},
+    "continuous_with_bridge": {"correct":40,"wrong":0,"unresolved":0,"mean_relation_queries":5.0,"mean_bridge_queries":1.0}
+  },
+  "facts": [
+    "The same core.py ran discrete finite-state, continuous scalar, and stochastic neural environments without operation names or environment cardinality in the core.",
+    "Discrete: 60/60 routes, wrong 0, unresolved 0; 50/50 depth1-5 programs.",
+    "Continuous: 60/60 routes, wrong 0, unresolved 0; 50/50 depth1-5 programs.",
+    "Stochastic neural seeds15-17 aggregate: 96/96 routes, wrong 0, unresolved 0; 150/150 depth1-5 programs; mean relation queries ~2.99.",
+    "For deliberately exact relation-equivalent pairs, relation-only identification returned UNRESOLVED 80/80 total across discrete+continuous; adding one grounded bridge resolved 80/80 with wrong 0."
+  ],
+  "boundaries": [
+    "This V2 screen still assumes a shared semantic intervention/probe domain at the environment wrapper boundary.",
+    "Registered execute_common adapters are supplied by each environment; neural output-token inverse maps are currently known inside the wrapper rather than discovered by V2.",
+    "Composition is hard source selection followed by common-interface execution; sparse probability fusion is not yet reintroduced.",
+    "The neural models are small synthetic MLP/GRU specialists, not unrelated pretrained models.",
+    "Open-world gauge-family misspecification and persistent instance uncertainty are not yet wired into this clean-room core."
+  ],
+  "next": [
+    "Make input/output adapter discovery first-class in V2 instead of hiding it in environment wrappers.",
+    "Add open-world predictive validation and persistent instance-latent registry without changing the BehaviorRegistry API.",
+    "Reintroduce fusion-safe transition latent and top-dominant sparse fusion only after the ABI path is explicit.",
+    "Then run the same V2 package against unrelated pretrained model families."
+  ]
+}
